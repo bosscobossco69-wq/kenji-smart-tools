@@ -53,9 +53,8 @@ function count(){const t=document.getElementById('t').value;
  document.getElementById('w').textContent=(t.trim().match(/\S+/g)||[]).length;
  document.getElementById('c').textContent=t.length;
  document.getElementById('s').textContent=(t.match(/[.!?]+(\s|$)/g)||[]).length|| (t.trim()?1:0);
- document.getElementById('p').textContent=t.trim()===''?0:t.trim().split(/
-\s*
-/).length;}
+ document.getElementById('p').textContent=t.trim()===''?0:t.trim().split(/\n\s*\n/).length;}
+
 count();
 </script>
 </body>
