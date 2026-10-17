@@ -1,6 +1,31 @@
+
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://kenji-smart-tools.vercel.app/</loc>
+  </url>
+  <url>
+    <loc>https://kenji-smart-tools.vercel.app/age-calculator.html</loc>
+  </url>
+  <url>
+    <loc>https://kenji-smart-tools.vercel.app/case-converter.html</loc>
+  </url>
+  <url>
+    <loc>https://kenji-smart-tools.vercel.app/json-formatter.html</loc>
+  </url>
+  <url>
+    <loc>https://kenji-smart-tools.vercel.app/password-generator.html</loc>
+  </url>
+  <url>
+    <loc>https://kenji-smart-tools.vercel.app/percentage-calculator.html</loc>
+  </url>
+  <url>
+    <loc>https://kenji-smart-tools.vercel.app/tip-calculator.html</loc>
+  </url>
+  <url>
+    <loc>https://kenji-smart-tools.vercel.app/unit-converter.html</loc>
+  </url>
+  <url>
+    <loc>https://kenji-smart-tools.vercel.app/word-counter.html</loc>
   </url>
 </urlset>
