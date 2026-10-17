@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit Converter - Length, Weight, Temperature | KENJI Smart Tools</title>
+<meta name="description" content="Free unit converter for length (cm, inch, ft, m), weight (kg, lb, oz) and temperature (C, F, K). Instant results in your browser.">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f6f7fb;color:#1a1d29;line-height:1.6}
+header{background:#fff;border-bottom:1px solid #e5e7f0;padding:14px 20px}
+header a{color:#4f46e5;text-decoration:none;font-weight:700}
+main{max-width:720px;margin:32px auto;padding:0 16px}
+h1{font-size:26px;margin-bottom:8px}
+.sub{color:#5b6070;margin-bottom:24px}
+.card{background:#fff;border:1px solid #e5e7f0;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(20,20,60,.05)}
+label{display:block;font-size:14px;font-weight:600;margin:14px 0 6px}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid #d4d8e6;border-radius:8px;font-size:15px}
+textarea{min-height:120px;resize:vertical;font-family:inherit}
+button{background:#4f46e5;color:#fff;border:none;padding:11px 20px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px}
+button:hover{background:#4338ca}
+.result{background:#f0f1fa;border-radius:8px;padding:14px;margin-top:16px;font-size:16px;word-break:break-word}
+.result b{font-size:20px;color:#4f46e5}
+.row{display:flex;gap:12px}.row>div{flex:1}
+footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
+</style>
+</head>
+<body>
+<header><a href="/">KENJI Smart Tools</a></header>
+<main>
+<h1>Unit Converter</h1>
+<p class="sub">Convert between common units of length, weight and temperature.</p>
+
+<div class="card">
+  <h3 style="margin-bottom:6px">Length</h3>
+  <div class="row">
+    <div><label>Value</label><input type="number" id="lv" value="1" oninput="lconv()"></div>
+    <div><label>From</label><select id="lf" onchange="lconv()">
+      <option value="mm">Millimeter</option><option value="cm">Centimeter</option>
+      <option value="m" selected>Meter</option><option value="km">Kilometer</option>
+      <option value="in">Inch</option><option value="ft">Foot</option><option value="mi">Mile</option>
+    </select></div>
+    <div><label>To</label><select id="lt" onchange="lconv()">
+      <option value="mm">Millimeter</option><option value="cm">Centimeter</option>
+      <option value="m">Meter</option><option value="km">Kilometer</option>
+      <option value="in" selected>Inch</option><option value="ft">Foot</option><option value="mi">Mile</option>
+    </select></div>
+  </div>
+  <div class="result" id="lr">Result</div>
+</div>
+<div class="card">
+  <h3 style="margin-bottom:6px">Weight</h3>
+  <div class="row">
+    <div><label>Value</label><input type="number" id="wv" value="1" oninput="wconv()"></div>
+    <div><label>From</label><select id="wf" onchange="wconv()">
+      <option value="mg">Milligram</option><option value="g">Gram</option>
+      <option value="kg" selected>Kilogram</option><option value="t">Metric ton</option>
+      <option value="oz">Ounce</option><option value="lb">Pound</option>
+    </select></div>
+    <div><label>To</label><select id="wt" onchange="wconv()">
+      <option value="mg">Milligram</option><option value="g">Gram</option>
+      <option value="kg">Kilogram</option><option value="t">Metric ton</option>
+      <option value="oz">Ounce</option><option value="lb" selected>Pound</option>
+    </select></div>
+  </div>
+  <div class="result" id="wr">Result</div>
+</div>
+<div class="card">
+  <h3 style="margin-bottom:6px">Temperature</h3>
+  <div class="row">
+    <div><label>Value</label><input type="number" id="tv" value="100" oninput="tconv()"></div>
+    <div><label>From</label><select id="tf" onchange="tconv()">
+      <option value="c" selected>Celsius</option><option value="f">Fahrenheit</option><option value="k">Kelvin</option>
+    </select></div>
+    <div><label>To</label><select id="tt" onchange="tconv()">
+      <option value="c">Celsius</option><option value="f" selected>Fahrenheit</option><option value="k">Kelvin</option>
+    </select></div>
+  </div>
+  <div class="result" id="tr">Result</div>
+</div>
+
+</main>
+<footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; Free, no account needed</footer>
+<script>
+const LM={mm:0.001,cm:0.01,m:1,km:1000,in:0.0254,ft:0.3048,mi:1609.344};
+const WM={mg:1e-6,g:0.001,kg:1,t:1000,oz:0.028349523125,lb:0.45359237};
+function lconv(){const v=+document.getElementById('lv').value||0,
+ f=LM[document.getElementById('lf').value],t=LM[document.getElementById('lt').value];
+ document.getElementById('lr').innerHTML='<b>'+(v*f/t).toLocaleString(undefined,{maximumFractionDigits:6})+'</b> '+document.getElementById('lt').value;}
+function wconv(){const v=+document.getElementById('wv').value||0,
+ f=WM[document.getElementById('wf').value],t=WM[document.getElementById('wt').value];
+ document.getElementById('wr').innerHTML='<b>'+(v*f/t).toLocaleString(undefined,{maximumFractionDigits:6})+'</b> '+document.getElementById('wt').value;}
+function tconv(){const v=+document.getElementById('tv').value||0,
+ f=document.getElementById('tf').value,t=document.getElementById('tt').value;
+ let c=f==='c'?v:f==='f'?(v-32)*5/9:v-273.15;
+ let r=t==='c'?c:t==='f'?c*9/5+32:c+273.15;
+ document.getElementById('tr').innerHTML='<b>'+r.toLocaleString(undefined,{maximumFractionDigits:2})+'&deg;</b> '+t.toUpperCase();}
+lconv();wconv();tconv();
+</script>
+</body>
+</html>

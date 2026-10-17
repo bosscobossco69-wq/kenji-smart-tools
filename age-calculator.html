@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Age Calculator - Calculate Age from Date of Birth | KENJI Smart Tools</title>
+<meta name="description" content="Free age calculator: enter your date of birth to get your exact age in years, months and days, plus days until your next birthday.">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f6f7fb;color:#1a1d29;line-height:1.6}
+header{background:#fff;border-bottom:1px solid #e5e7f0;padding:14px 20px}
+header a{color:#4f46e5;text-decoration:none;font-weight:700}
+main{max-width:720px;margin:32px auto;padding:0 16px}
+h1{font-size:26px;margin-bottom:8px}
+.sub{color:#5b6070;margin-bottom:24px}
+.card{background:#fff;border:1px solid #e5e7f0;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(20,20,60,.05)}
+label{display:block;font-size:14px;font-weight:600;margin:14px 0 6px}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid #d4d8e6;border-radius:8px;font-size:15px}
+textarea{min-height:120px;resize:vertical;font-family:inherit}
+button{background:#4f46e5;color:#fff;border:none;padding:11px 20px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px}
+button:hover{background:#4338ca}
+.result{background:#f0f1fa;border-radius:8px;padding:14px;margin-top:16px;font-size:16px;word-break:break-word}
+.result b{font-size:20px;color:#4f46e5}
+.row{display:flex;gap:12px}.row>div{flex:1}
+footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
+</style>
+</head>
+<body>
+<header><a href="/">KENJI Smart Tools</a></header>
+<main>
+<h1>Age Calculator</h1>
+<p class="sub">Enter a date of birth to calculate exact age in years, months and days.</p>
+
+<div class="card">
+  <label>Date of birth</label>
+  <input type="date" id="dob">
+  <button onclick="calc()">Calculate age</button>
+  <div class="result" id="r">Select your date of birth</div>
+  <div class="result" id="next"></div>
+</div>
+
+</main>
+<footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; Free, no account needed</footer>
+<script>
+function calc(){const d=new Date(document.getElementById('dob').value);
+ if(isNaN(d)){document.getElementById('r').textContent='Please select a valid date';return;}
+ const now=new Date();let y=now.getFullYear()-d.getFullYear(),m=now.getMonth()-d.getMonth(),dd=now.getDate()-d.getDate();
+ if(dd<0){m--;dd+=new Date(now.getFullYear(),now.getMonth(),0).getDate();}
+ if(m<0){y--;m+=12;}
+ document.getElementById('r').innerHTML='You are <b>'+y+' years, '+m+' months, '+dd+' days</b> old';
+ let nb=new Date(now.getFullYear(),d.getMonth(),d.getDate());
+ if(nb<now)nb.setFullYear(nb.getFullYear()+1);
+ const days=Math.ceil((nb-now)/864e5);
+ document.getElementById('next').innerHTML='Next birthday in <b>'+days+' days</b> ('+nb.toDateString()+')';}
+</script>
+</body>
+</html>

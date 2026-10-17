@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON Formatter & Validator - Format, Validate, Minify JSON | KENJI Smart Tools</title>
+<meta name="description" content="Free online JSON formatter and validator. Paste JSON to beautify, validate or minify it instantly. All processing happens locally in your browser.">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f6f7fb;color:#1a1d29;line-height:1.6}
+header{background:#fff;border-bottom:1px solid #e5e7f0;padding:14px 20px}
+header a{color:#4f46e5;text-decoration:none;font-weight:700}
+main{max-width:720px;margin:32px auto;padding:0 16px}
+h1{font-size:26px;margin-bottom:8px}
+.sub{color:#5b6070;margin-bottom:24px}
+.card{background:#fff;border:1px solid #e5e7f0;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(20,20,60,.05)}
+label{display:block;font-size:14px;font-weight:600;margin:14px 0 6px}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid #d4d8e6;border-radius:8px;font-size:15px}
+textarea{min-height:120px;resize:vertical;font-family:inherit}
+button{background:#4f46e5;color:#fff;border:none;padding:11px 20px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px}
+button:hover{background:#4338ca}
+.result{background:#f0f1fa;border-radius:8px;padding:14px;margin-top:16px;font-size:16px;word-break:break-word}
+.result b{font-size:20px;color:#4f46e5}
+.row{display:flex;gap:12px}.row>div{flex:1}
+footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
+</style>
+</head>
+<body>
+<header><a href="/">KENJI Smart Tools</a></header>
+<main>
+<h1>JSON Formatter & Validator</h1>
+<p class="sub">Paste JSON below to format, validate or minify it. Your data never leaves your browser.</p>
+
+<div class="card">
+  <label>Input JSON</label>
+  <textarea id="in" placeholder='{"hello":"world"}' style="font-family:monospace"></textarea>
+  <div class="row" style="margin-top:12px">
+    <button onclick="fmt(2)">Format</button>
+    <button onclick="fmt(0)">Minify</button>
+    <button onclick="copyOut()" style="background:#0e9f6e">Copy output</button>
+  </div>
+  <div class="result" id="msg" style="display:none"></div>
+</div>
+<div class="card">
+  <label>Output</label>
+  <textarea id="out" readonly style="font-family:monospace;min-height:160px"></textarea>
+</div>
+
+</main>
+<footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; Free, no account needed</footer>
+<script>
+function fmt(sp){const t=document.getElementById('in').value,msg=document.getElementById('msg');
+ try{const o=JSON.parse(t);
+  document.getElementById('out').value=JSON.stringify(o,null,sp===0?0:2);
+  msg.style.display='block';msg.style.color='#0e9f6e';msg.innerHTML='<b>Valid JSON</b>';}
+ catch(e){msg.style.display='block';msg.style.color='#dc2626';msg.innerHTML='<b>Invalid JSON:</b> '+e.message;}}
+function copyOut(){navigator.clipboard.writeText(document.getElementById('out').value);}
+</script>
+</body>
+</html>
