@@ -16,6 +16,8 @@ h1{font-size:26px;margin-bottom:8px}
 .card{background:#fff;border:1px solid #e5e7f0;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(20,20,60,.05)}
 label{display:block;font-size:14px;font-weight:600;margin:14px 0 6px}
 input,select,textarea{width:100%;padding:10px 12px;border:1px solid #d4d8e6;border-radius:8px;font-size:15px}
+input[type="text"]{font-variant-numeric:tabular-nums}
+.hint{font-size:12px;color:#5b6070;margin-top:5px}
 textarea{min-height:120px;resize:vertical;font-family:inherit}
 button{background:#4f46e5;color:#fff;border:none;padding:11px 20px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px}
 button:hover{background:#4338ca}
@@ -32,8 +34,9 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
 <p class="sub">Enter a date of birth to calculate exact age in years, months and days.</p>
 
 <div class="card">
-  <label>Date of birth</label>
-  <input type="date" id="dob">
+  <label for="dob">Date of birth (MM/DD/YYYY)</label>
+  <input type="text" id="dob" inputmode="numeric" autocomplete="bday" placeholder="MM/DD/YYYY" aria-describedby="dob-hint" maxlength="10" pattern="(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}">
+  <p class="hint" id="dob-hint">Enter date as month/day/year, for example 07/31/2000.</p>
   <button onclick="calc()">Calculate age</button>
   <div class="result" id="r">Select your date of birth</div>
   <div class="result" id="next"></div>
@@ -42,16 +45,34 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
 </main>
 <footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; Free, no account needed</footer>
 <script>
-function calc(){const d=new Date(document.getElementById('dob').value);
- if(isNaN(d)){document.getElementById('r').textContent='Please select a valid date';return;}
- const now=new Date();let y=now.getFullYear()-d.getFullYear(),m=now.getMonth()-d.getMonth(),dd=now.getDate()-d.getDate();
+function calc(){
+ const input=document.getElementById('dob').value.trim();
+ const result=document.getElementById('r');
+ const nextResult=document.getElementById('next');
+ const match=input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+ if(!match){result.textContent='Please enter a date in MM/DD/YYYY format';nextResult.textContent='';return;}
+ const month=Number(match[1]),day=Number(match[2]),year=Number(match[3]);
+ const dob=new Date(year,month-1,day);
+ if(dob.getFullYear()!==year||dob.getMonth()!==month-1||dob.getDate()!==day){result.textContent='Please enter a valid date';nextResult.textContent='';return;}
+ const now=new Date();now.setHours(0,0,0,0);
+ if(dob>now){result.textContent='Date of birth cannot be in the future';nextResult.textContent='';return;}
+ let y=now.getFullYear()-year,m=now.getMonth()-(month-1),dd=now.getDate()-day;
  if(dd<0){m--;dd+=new Date(now.getFullYear(),now.getMonth(),0).getDate();}
  if(m<0){y--;m+=12;}
- document.getElementById('r').innerHTML='You are <b>'+y+' years, '+m+' months, '+dd+' days</b> old';
- let nb=new Date(now.getFullYear(),d.getMonth(),d.getDate());
- if(nb<now)nb.setFullYear(nb.getFullYear()+1);
- const days=Math.ceil((nb-now)/864e5);
- document.getElementById('next').innerHTML='Next birthday in <b>'+days+' days</b> ('+nb.toDateString()+')';}
+ result.innerHTML='You are <b>'+y+' years, '+m+' months, '+dd+' days</b> old';
+ let nextYear=now.getFullYear();
+ let birthday=new Date(nextYear,month-1,day);birthday.setHours(0,0,0,0);
+ if(birthday<now){nextYear++;birthday=new Date(nextYear,month-1,day);birthday.setHours(0,0,0,0);}
+ const days=Math.round((birthday-now)/86400000);
+ nextResult.innerHTML='Next birthday in <b>'+days+' days</b> ('+birthday.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+')';
+}
+document.getElementById('dob').addEventListener('input',function(){
+ const digits=this.value.replace(/\D/g,'').slice(0,8);
+ if(digits.length>=5)this.value=digits.slice(0,2)+'/'+digits.slice(2,4)+'/'+digits.slice(4);
+ else if(digits.length>=3)this.value=digits.slice(0,2)+'/'+digits.slice(2);
+ else this.value=digits;
+});
+document.getElementById('dob').addEventListener('keydown',function(e){if(e.key==='Enter')calc();});
 </script>
 </body>
 </html>
