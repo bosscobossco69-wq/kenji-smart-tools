@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Case Converter - UPPERCASE, lowercase, Title Case Online | KENJI Smart Tools</title>
 <meta name="description" content="Convert text to UPPERCASE, lowercase, Title Case, Sentence case or camelCase instantly. Free, no sign-up, runs in your browser.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://kenji-smart-tools.vercel.app/case-converter.html">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f6f7fb;color:#1a1d29;line-height:1.6}
@@ -23,6 +25,8 @@ button:hover{background:#4338ca}
 .result b{font-size:20px;color:#4f46e5}
 .row{display:flex;gap:12px}.row>div{flex:1}
 footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
+
+.seo-guide{margin:28px 0 36px;padding:24px;background:#fff;border:1px solid #e5e7f0;border-radius:12px;box-shadow:0 1px 3px rgba(20,20,60,.04)}.seo-guide h2{font-size:21px;line-height:1.35;margin:22px 0 8px;color:#1a1d29}.seo-guide h2:first-child{margin-top:0}.seo-guide h3{font-size:16px;margin:16px 0 5px;color:#252b3a}.seo-guide p,.seo-guide li{font-size:15px;color:#4b5262;line-height:1.75}.seo-guide ol,.seo-guide ul{padding-left:22px;margin:10px 0}.seo-guide a,footer a{color:#4f46e5}.related-tools{margin-top:20px;padding-top:14px;border-top:1px solid #e5e7f0}.row{flex-wrap:wrap}@media(max-width:560px){.row{flex-direction:column;gap:4px}.card,.seo-guide{padding:18px}}
 </style>
 </head>
 <body>
@@ -46,8 +50,19 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
   </div>
 </div>
 
+<section class="seo-guide" aria-labelledby="guide-title">
+<h2 id="guide-title">How to use the case converter</h2>
+<p>Paste or type your text, then choose the format you need. The result replaces the text in the editor, so you can make another conversion or copy it into a document, email, title, or code editor.</p>
+<ol><li><strong>UPPERCASE:</strong> changes every letter to capital letters.</li><li><strong>lowercase:</strong> changes every letter to small letters.</li><li><strong>Title Case:</strong> capitalizes the first letter of each word.</li><li><strong>Sentence case:</strong> capitalizes the beginning of sentences.</li><li><strong>camelCase:</strong> removes separators and capitalizes the next word, useful for variable names.</li></ol>
+<h2>Examples and common uses</h2>
+<p>Use uppercase for short labels, sentence case for readable notes, title case for headings, and camelCase for JavaScript-style variable names. For example, “customer account name” becomes “customerAccountName” in camelCase.</p>
+<h2>Frequently asked questions</h2>
+<h3>Is my text uploaded?</h3><p>No. Conversion happens in this page in your browser; the text is not sent to our server.</p>
+<h3>Does the converter change punctuation?</h3><p>No. It changes letter casing and separators for camelCase; review the result before using it in code or published content.</p>
+<p class="related-tools"><strong>Related tools:</strong> <a href="/word-counter.html">Word Counter</a> · <a href="/json-formatter.html">JSON Formatter</a> · <a href="/">All tools</a></p>
+</section>
 </main>
-<footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; Free, no account needed</footer>
+<footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; Free, no account needed</footer>
 <script>
 function conv(mode){const t=document.getElementById('t');
  let s=t.value;
