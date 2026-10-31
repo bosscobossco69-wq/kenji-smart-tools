@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Unit Converter - Length, Weight, Temperature | KENJI Smart Tools</title>
 <meta name="description" content="Free unit converter for length (cm, inch, ft, m), weight (kg, lb, oz) and temperature (C, F, K). Instant results in your browser.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://kenji-smart-tools.vercel.app/unit-converter.html">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f6f7fb;color:#1a1d29;line-height:1.6}
@@ -23,6 +25,8 @@ button:hover{background:#4338ca}
 .result b{font-size:20px;color:#4f46e5}
 .row{display:flex;gap:12px}.row>div{flex:1}
 footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
+
+.seo-guide{margin:28px 0 36px;padding:24px;background:#fff;border:1px solid #e5e7f0;border-radius:12px;box-shadow:0 1px 3px rgba(20,20,60,.04)}.seo-guide h2{font-size:21px;line-height:1.35;margin:22px 0 8px;color:#1a1d29}.seo-guide h2:first-child{margin-top:0}.seo-guide h3{font-size:16px;margin:16px 0 5px;color:#252b3a}.seo-guide p,.seo-guide li{font-size:15px;color:#4b5262;line-height:1.75}.seo-guide ol,.seo-guide ul{padding-left:22px;margin:10px 0}.seo-guide a,footer a{color:#4f46e5}.related-tools{margin-top:20px;padding-top:14px;border-top:1px solid #e5e7f0}.row{flex-wrap:wrap}@media(max-width:560px){.row{flex-direction:column;gap:4px}.card,.seo-guide{padding:18px}}
 </style>
 </head>
 <body>
@@ -79,8 +83,19 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
   <div class="result" id="tr">Result</div>
 </div>
 
+<section class="seo-guide" aria-labelledby="guide-title">
+<h2 id="guide-title">Convert length, weight, and temperature</h2>
+<p>Use the three independent converters to switch between common measurement units. Enter a value, select its current unit, and choose the unit you want. Results update automatically in your browser.</p>
+<h3>Length units</h3><p>Convert millimeters, centimeters, meters, kilometers, inches, feet, and miles. For example, 1 meter equals 100 centimeters or approximately 39.3701 inches.</p>
+<h3>Weight units</h3><p>Convert milligrams, grams, kilograms, metric tons, ounces, and pounds. For example, 1 kilogram is approximately 2.20462 pounds.</p>
+<h3>Temperature units</h3><p>Convert Celsius, Fahrenheit, and Kelvin. The converter uses the standard formulas between these temperature scales.</p>
+<h2>Frequently asked questions</h2>
+<h3>Are conversions calculated on my device?</h3><p>Yes. The calculations run locally in your browser; values are not uploaded to our server.</p>
+<h3>How precise are the results?</h3><p>Results are rounded for readability. Use an appropriate precision level for scientific, engineering, or other high-accuracy work.</p>
+<p class="related-tools"><strong>Related tools:</strong> <a href="/percentage-calculator.html">Percentage Calculator</a> · <a href="/tip-calculator.html">Tip Calculator</a> · <a href="/">All tools</a></p>
+</section>
 </main>
-<footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; Free, no account needed</footer>
+<footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; Free, no account needed</footer>
 <script>
 const LM={mm:0.001,cm:0.01,m:1,km:1000,in:0.0254,ft:0.3048,mi:1609.344};
 const WM={mg:1e-6,g:0.001,kg:1,t:1000,oz:0.028349523125,lb:0.45359237};
