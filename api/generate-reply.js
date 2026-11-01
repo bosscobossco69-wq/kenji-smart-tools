@@ -7,6 +7,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed." });
   }
 
+  const origin = req.headers.origin;
+  if (origin && origin !== "https://kenji-smart-tools.vercel.app") {
+    return res.status(403).json({ error: "Request origin is not allowed." });
+  }
+
+  const contentLength = Number(req.headers["content-length"] || 0);
+  if (contentLength > 8192) {
+    return res.status(413).json({ error: "Request is too large." });
+  }
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return res.status(503).json({ error: "AI service is not configured yet." });
 
