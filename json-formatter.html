@@ -3,73 +3,403 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JSON Formatter & Validator - Format, Validate, Minify JSON | KENJI Smart Tools</title>
-<meta name="description" content="Free online JSON formatter and validator. Paste JSON to beautify, validate or minify it instantly. All processing happens locally in your browser.">
+<title>JSON Formatter &amp; Validator - Format, Validate, Minify JSON | KENJI Smart Tools</title>
+<meta name="description" content="Free online JSON formatter and validator. Beautify, validate or minify JSON, sort keys and see where errors are. Runs locally in your browser.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://kenji-smart-tools.vercel.app/json-formatter.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="JSON Formatter &amp; Validator - Format, Validate, Minify JSON">
+<meta property="og:description" content="Beautify, validate or minify JSON, sort keys and find the exact line of an error. Your data stays in your browser.">
+<meta property="og:url" content="https://kenji-smart-tools.vercel.app/json-formatter.html">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "name": "JSON Formatter & Validator",
+      "url": "https://kenji-smart-tools.vercel.app/json-formatter.html",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Any (web browser)",
+      "description": "Format, validate and minify JSON in your browser, sort keys and locate syntax errors.",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is my JSON uploaded?",
+          "acceptedAnswer": { "@type": "Answer", "text": "No. Parsing and formatting happen in your browser and the input is not sent to our server." }
+        },
+        {
+          "@type": "Question",
+          "name": "What does Valid JSON mean here?",
+          "acceptedAnswer": { "@type": "Answer", "text": "It means the text follows JSON syntax and can be parsed. It does not check the data against a schema or confirm that the values make sense for your application." }
+        },
+        {
+          "@type": "Question",
+          "name": "Does formatting change my data?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The values stay the same in most cases, but formatting parses and rewrites the JSON. Numbers with more than about 15 significant digits can be rounded, duplicate keys keep only the last value, and keys that look like whole numbers may be reordered. Keep a copy of the original if exact digits matter." }
+        },
+        {
+          "@type": "Question",
+          "name": "Why does my JSON show an error?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The most common causes are single quotes, a trailing comma, a comment, an unquoted key, or a missing comma or bracket. The tool reports the error and, where the browser provides it, the line and column." }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the difference between JSON and a JavaScript object?",
+          "acceptedAnswer": { "@type": "Answer", "text": "JSON is a text format with stricter rules. Keys and strings must use double quotes, and comments, trailing commas, undefined and functions are not allowed. A JavaScript object literal is more flexible." }
+        }
+      ]
+    }
+  ]
+}
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f6f7fb;color:#1a1d29;line-height:1.6}
-header{background:#fff;border-bottom:1px solid #e5e7f0;padding:14px 20px}
+header{background:#fff;border-bottom:1px solid #e5e7f0;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px}
 header a{color:#4f46e5;text-decoration:none;font-weight:700}
+header nav a{font-weight:500;font-size:14px}
 main{max-width:720px;margin:32px auto;padding:0 16px}
 h1{font-size:26px;margin-bottom:8px}
 .sub{color:#5b6070;margin-bottom:24px}
 .card{background:#fff;border:1px solid #e5e7f0;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(20,20,60,.05)}
 label{display:block;font-size:14px;font-weight:600;margin:14px 0 6px}
-input,select,textarea{width:100%;padding:10px 12px;border:1px solid #d4d8e6;border-radius:8px;font-size:15px}
-textarea{min-height:120px;resize:vertical;font-family:inherit}
-button{background:#4f46e5;color:#fff;border:none;padding:11px 20px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px}
+label:first-child{margin-top:0}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid #d4d8e6;border-radius:8px;font-size:15px;font-family:inherit;background:#fff;color:#1a1d29}
+textarea{min-height:160px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;line-height:1.5}
+button{background:#4f46e5;color:#fff;border:none;padding:11px 20px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer}
 button:hover{background:#4338ca}
-.result{background:#f0f1fa;border-radius:8px;padding:14px;margin-top:16px;font-size:16px;word-break:break-word}
-.result b{font-size:20px;color:#4f46e5}
-.row{display:flex;gap:12px}.row>div{flex:1}
+button.secondary{background:#fff;color:#4f46e5;border:1px solid #d4d8e6}
+button.secondary:hover{background:#f0f1fa}
+button.green{background:#0e9f6e}
+button.green:hover{background:#0b8a5f}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #a5b4fc;outline-offset:2px}
+.options{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-top:12px}
+.options>div{min-width:150px}
+.options .check{display:flex;align-items:center;gap:8px;margin:0;font-weight:500;padding-bottom:10px}
+.options .check input{width:auto}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+#msg{margin-top:16px;border-radius:8px;padding:14px;font-size:15px;word-break:break-word;background:#f0f1fa}
+#msg[hidden]{display:none}
+#msg.ok{color:#087443;background:#e8f7f0}
+#msg.err{color:#b42318;background:#fdeeee}
+#msg ul{margin:8px 0 0;padding-left:20px;color:#4b5262;font-size:14px}
+#msg .warn{color:#8a5a00}
+#msg button{margin-top:10px;padding:7px 14px;font-size:14px}
+#stats{margin-top:10px;font-size:14px;color:#5b6070}
+#note{min-height:1.4em;margin-top:8px;font-size:14px;color:#5b6070}
+.seo-guide{margin:28px 0 36px;padding:24px;background:#fff;border:1px solid #e5e7f0;border-radius:12px;box-shadow:0 1px 3px rgba(20,20,60,.04)}
+.seo-guide h2{font-size:21px;line-height:1.35;margin:26px 0 8px;color:#1a1d29}
+.seo-guide h2:first-child{margin-top:0}
+.seo-guide h3{font-size:16px;margin:16px 0 5px;color:#252b3a}
+.seo-guide p,.seo-guide li{font-size:15px;color:#4b5262;line-height:1.75}
+.seo-guide p{margin-bottom:10px}
+.seo-guide ol,.seo-guide ul{padding-left:22px;margin:10px 0}
+.seo-guide a,footer a{color:#4f46e5}
+.seo-guide code{background:#f0f1fa;border-radius:4px;padding:1px 5px;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#252b3a}
+.table-wrap{overflow-x:auto;margin:12px 0}
+.seo-guide table{width:100%;border-collapse:collapse;font-size:14px}
+.seo-guide th,.seo-guide td{text-align:left;padding:9px 12px;border-bottom:1px solid #e5e7f0;color:#4b5262;vertical-align:top}
+.seo-guide th{background:#f0f1fa;color:#1a1d29}
+.related-tools{margin-top:20px;padding-top:14px;border-top:1px solid #e5e7f0}
 footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
-
-.seo-guide{margin:28px 0 36px;padding:24px;background:#fff;border:1px solid #e5e7f0;border-radius:12px;box-shadow:0 1px 3px rgba(20,20,60,.04)}.seo-guide h2{font-size:21px;line-height:1.35;margin:22px 0 8px;color:#1a1d29}.seo-guide h2:first-child{margin-top:0}.seo-guide h3{font-size:16px;margin:16px 0 5px;color:#252b3a}.seo-guide p,.seo-guide li{font-size:15px;color:#4b5262;line-height:1.75}.seo-guide ol,.seo-guide ul{padding-left:22px;margin:10px 0}.seo-guide a,footer a{color:#4f46e5}.related-tools{margin-top:20px;padding-top:14px;border-top:1px solid #e5e7f0}.row{flex-wrap:wrap}@media(max-width:560px){.row{flex-direction:column;gap:4px}.card,.seo-guide{padding:18px}}
+@media(max-width:560px){.card,.seo-guide{padding:18px}.options>div{flex:1 1 100%}}
 </style>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 </head>
 <body>
-<header><a href="/">KENJI Smart Tools</a></header>
+<header>
+  <a href="/">KENJI Smart Tools</a>
+  <nav aria-label="Main"><a href="/">All tools</a></nav>
+</header>
 <main>
-<h1>JSON Formatter & Validator</h1>
-<p class="sub">Paste JSON below to format, validate or minify it. Your data never leaves your browser.</p>
+<h1>JSON Formatter &amp; Validator</h1>
+<p class="sub">Paste JSON below to format, validate or minify it, and see where an error is. Your data never leaves your browser.</p>
 
 <div class="card">
-  <label>Input JSON</label>
-  <textarea id="in" placeholder='{"hello":"world"}' style="font-family:monospace"></textarea>
-  <div class="row" style="margin-top:12px">
-    <button onclick="fmt(2)">Format</button>
-    <button onclick="fmt(0)">Minify</button>
-    <button onclick="copyOut()" style="background:#0e9f6e">Copy output</button>
+  <label for="in">Input JSON</label>
+  <textarea id="in" spellcheck="false" autocomplete="off" placeholder='{"hello":"world"}'></textarea>
+  <div class="options">
+    <div>
+      <label for="indent">Indent</label>
+      <select id="indent">
+        <option value="2">2 spaces</option>
+        <option value="4">4 spaces</option>
+        <option value="tab">Tab</option>
+      </select>
+    </div>
+    <label class="check" for="sort"><input type="checkbox" id="sort"> Sort keys A to Z</label>
   </div>
-  <div class="result" id="msg" style="display:none"></div>
+  <div class="btn-row">
+    <button type="button" onclick="run('format')">Format</button>
+    <button type="button" onclick="run('minify')">Minify</button>
+    <button type="button" class="secondary" onclick="clearAll()">Clear</button>
+  </div>
+  <div id="msg" role="status" aria-live="polite" hidden></div>
 </div>
+
 <div class="card">
-  <label>Output</label>
-  <textarea id="out" readonly style="font-family:monospace;min-height:160px"></textarea>
+  <label for="out">Output</label>
+  <textarea id="out" readonly spellcheck="false"></textarea>
+  <p id="stats"></p>
+  <div class="btn-row">
+    <button type="button" class="green" onclick="copyOut()">Copy output</button>
+    <button type="button" class="secondary" onclick="download()">Download .json</button>
+  </div>
+  <p id="note" role="status" aria-live="polite"></p>
 </div>
 
 <section class="seo-guide" aria-labelledby="guide-title">
-<h2 id="guide-title">Format, validate, and minify JSON</h2>
-<p>Paste JSON into the input box and choose Format to make the structure easier to read, or Minify to remove unnecessary whitespace. The tool also reports whether the input is valid JSON.</p>
-<h3>When to format JSON</h3><p>Pretty-printed JSON is easier to inspect while debugging APIs, configuration files, and data exports. Indentation makes nested objects and arrays easier to follow.</p>
-<h3>When to minify JSON</h3><p>Minified JSON is useful when a compact representation is needed for transfer or storage. Keep a readable copy when you are editing data.</p>
+<h2 id="guide-title">How to use this JSON formatter</h2>
+<ol>
+  <li>Paste your JSON into the input box.</li>
+  <li>Choose an indent size, and tick <em>Sort keys</em> if you want object keys in alphabetical order.</li>
+  <li>Click <strong>Format</strong> to make it readable, or <strong>Minify</strong> to remove extra whitespace. The tool also tells you whether the input is valid.</li>
+  <li>Copy the result or download it as a <code>.json</code> file.</li>
+</ol>
+<p>If the JSON is invalid, the tool shows the error and, where your browser provides it, the line and column. Use the <em>Show error location</em> button to jump to that spot in the input.</p>
+
+<h2>What is JSON?</h2>
+<p>JSON (JavaScript Object Notation) is a plain-text format for storing and exchanging data. It is widely used by web APIs and configuration files. A JSON document is built from objects (<code>{}</code>), arrays (<code>[]</code>), strings, numbers, <code>true</code>, <code>false</code> and <code>null</code>.</p>
+
+<h2>JSON syntax rules</h2>
+<ul>
+  <li>Property names and strings must use double quotes.</li>
+  <li>Items are separated by commas, and there must be no comma after the last item.</li>
+  <li>Comments are not allowed.</li>
+  <li><code>true</code>, <code>false</code> and <code>null</code> are lowercase. <code>undefined</code>, <code>NaN</code> and <code>Infinity</code> do not exist in JSON.</li>
+  <li>Every opening brace or bracket needs a matching closing one.</li>
+</ul>
+
+<h2>Common JSON errors and how to fix them</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Mistake</th><th>Example</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>Single quotes</td><td><code>{'name': 'Ali'}</code></td><td>Use double quotes: <code>{"name": "Ali"}</code></td></tr>
+    <tr><td>Trailing comma</td><td><code>[1, 2, 3,]</code></td><td>Remove the last comma: <code>[1, 2, 3]</code></td></tr>
+    <tr><td>Unquoted key</td><td><code>{name: "Ali"}</code></td><td>Quote the key: <code>{"name": "Ali"}</code></td></tr>
+    <tr><td>Comment</td><td><code>// note</code></td><td>Delete the comment, JSON does not support them</td></tr>
+    <tr><td>Missing comma</td><td><code>{"a": 1 "b": 2}</code></td><td>Add a comma between items</td></tr>
+    <tr><td>Unsupported value</td><td><code>{"a": undefined}</code></td><td>Use <code>null</code> or a string</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>When to format and when to minify</h2>
+<p>Formatted (pretty-printed) JSON is easier to read while debugging an API response, checking a configuration file or reviewing a data export. Minified JSON removes whitespace to keep the text compact for transfer or storage. Keep a readable copy when you are still editing the data.</p>
+
+<h2>Things to know before you rely on the output</h2>
+<p>This tool parses your JSON in the browser and writes it back out. That means a few details can change:</p>
+<ul>
+  <li>Numbers with more than about 15 significant digits may be rounded. If you work with very long IDs, keep them as strings.</li>
+  <li>If an object has the same key twice, only the last value is kept.</li>
+  <li>Keys that look like whole numbers, such as <code>"10"</code> and <code>"2"</code>, may be reordered.</li>
+</ul>
+<p>Keep a copy of the original if exact digits or ordering matter.</p>
+
 <h2>Frequently asked questions</h2>
-<h3>Is my JSON uploaded?</h3><p>No. Parsing and formatting happen in your browser; the input is not sent to our server.</p>
-<h3>Why does invalid JSON show an error?</h3><p>JSON requires double-quoted property names and strings, valid commas, and matching braces and brackets. Check the reported error and correct the input before formatting.</p>
-<p class="related-tools"><strong>Related tools:</strong> <a href="/word-counter.html">Word Counter</a> · <a href="/case-converter.html">Case Converter</a> · <a href="/">All tools</a></p>
+<h3>Is my JSON uploaded?</h3>
+<p>No. Parsing and formatting happen in your browser and the input is not sent to our server.</p>
+<h3>What does Valid JSON mean here?</h3>
+<p>It means the text follows JSON syntax and can be parsed. It does not check the data against a schema or confirm that the values make sense for your application.</p>
+<h3>Does formatting change my data?</h3>
+<p>The values stay the same in most cases, but formatting parses and rewrites the JSON. Numbers with more than about 15 significant digits can be rounded, duplicate keys keep only the last value, and keys that look like whole numbers may be reordered. Keep a copy of the original if exact digits matter.</p>
+<h3>Why does my JSON show an error?</h3>
+<p>The most common causes are single quotes, a trailing comma, a comment, an unquoted key, or a missing comma or bracket. The tool reports the error and, where the browser provides it, the line and column.</p>
+<h3>What is the difference between JSON and a JavaScript object?</h3>
+<p>JSON is a text format with stricter rules. Keys and strings must use double quotes, and comments, trailing commas, undefined and functions are not allowed. A JavaScript object literal is more flexible.</p>
+
+<p class="related-tools"><strong>Related tools:</strong> <a href="/word-counter.html">Word Counter</a> &middot; <a href="/case-converter.html">Case Converter</a> &middot; <a href="/">All tools</a></p>
 </section>
 </main>
 <footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; Free, no account needed</footer>
 <script>
-function fmt(sp){const t=document.getElementById('in').value,msg=document.getElementById('msg');
- try{const o=JSON.parse(t);
-  document.getElementById('out').value=JSON.stringify(o,null,sp===0?0:2);
-  msg.style.display='block';msg.style.color='#0e9f6e';msg.textContent='Valid JSON';}
- catch(e){msg.style.display='block';msg.style.color='#dc2626';msg.textContent='Invalid JSON: '+e.message;}}
-function copyOut(){navigator.clipboard.writeText(document.getElementById('out').value);}
+function $(id){return document.getElementById(id);}
+var noteTimer=null;
+
+function stripStrings(t){return t.replace(/"(?:[^"\\\n]|\\.)*"/g,'""');}
+
+function sortKeys(v){
+  if(Array.isArray(v))return v.map(sortKeys);
+  if(v&&typeof v==='object'){
+    var o={};
+    Object.keys(v).sort().forEach(function(k){o[k]=sortKeys(v[k]);});
+    return o;
+  }
+  return v;
+}
+
+function jsonStats(v){
+  var keys=0,depth=0;
+  (function walk(x,d){
+    if(Array.isArray(x)){
+      if(d+1>depth)depth=d+1;
+      x.forEach(function(i){walk(i,d+1);});
+    }else if(x&&typeof x==='object'){
+      if(d+1>depth)depth=d+1;
+      var ks=Object.keys(x);keys+=ks.length;
+      ks.forEach(function(k){walk(x[k],d+1);});
+    }
+  })(v,0);
+  var type=v===null?'null':Array.isArray(v)?'array':typeof v;
+  return {type:type,keys:keys,depth:depth};
+}
+
+function byteSize(s){
+  var n=(typeof TextEncoder!=='undefined')?new TextEncoder().encode(s).length:s.length;
+  return n<1024?n+' B':(n/1024).toFixed(1)+' KB';
+}
+
+function lineColFromPos(t,pos){
+  var before=t.slice(0,pos);
+  return {line:before.split('\n').length,col:pos-before.lastIndexOf('\n')};
+}
+
+function posFromLineCol(t,line,col){
+  var lines=t.split('\n'),p=0;
+  for(var i=0;i<line-1&&i<lines.length;i++)p+=lines[i].length+1;
+  return Math.min(p+col-1,t.length);
+}
+
+function errorPos(t,m){
+  var lc=m.match(/line (\d+) column (\d+)/);
+  if(lc)return posFromLineCol(t,parseInt(lc[1],10),parseInt(lc[2],10));
+  var p=m.match(/position (\d+)/);
+  return p?Math.min(parseInt(p[1],10),t.length):-1;
+}
+
+function hints(t){
+  var s=stripStrings(t),h=[];
+  if(/'/.test(s))h.push('Single quotes found. JSON keys and strings need double quotes.');
+  if(/,\s*[}\]]/.test(s))h.push('A comma comes right before a closing bracket or brace. Remove the trailing comma.');
+  if(/\/\/|\/\*/.test(s))h.push('Comments found. JSON does not allow comments.');
+  if(/[{,]\s*[A-Za-z_$][\w$]*\s*:/.test(s))h.push('A key may be missing its double quotes.');
+  if(/\b(undefined|NaN|Infinity)\b/.test(s))h.push('undefined, NaN and Infinity are not valid in JSON. Use null or a string.');
+  if(/\b(True|False|None)\b/.test(s))h.push('JSON uses lowercase true, false and null.');
+  return h;
+}
+
+function showMsg(kind,text,extras,errPos){
+  var msg=$('msg');
+  msg.hidden=false;
+  msg.className=kind;
+  msg.textContent='';
+  var p=document.createElement('div');
+  p.textContent=text;
+  msg.appendChild(p);
+  if(extras&&extras.length){
+    var ul=document.createElement('ul');
+    extras.forEach(function(e){
+      var li=document.createElement('li');
+      li.textContent=e.text;
+      if(e.warn)li.className='warn';
+      ul.appendChild(li);
+    });
+    msg.appendChild(ul);
+  }
+  if(typeof errPos==='number'&&errPos>=0){
+    var b=document.createElement('button');
+    b.type='button';
+    b.className='secondary';
+    b.textContent='Show error location';
+    b.onclick=function(){
+      var ta=$('in');
+      ta.focus();
+      ta.setSelectionRange(errPos,Math.min(errPos+1,ta.value.length));
+    };
+    msg.appendChild(b);
+  }
+}
+
+function run(mode){
+  var t=$('in').value,out=$('out');
+  $('stats').textContent='';
+  if(!t.trim()){
+    out.value='';
+    showMsg('err','Paste some JSON first.');
+    return;
+  }
+  try{
+    var v=JSON.parse(t);
+    if($('sort').checked)v=sortKeys(v);
+    var ind=$('indent').value;
+    var space=mode==='minify'?0:(ind==='tab'?'\t':parseInt(ind,10));
+    var s=JSON.stringify(v,null,space);
+    out.value=s;
+    var extras=[];
+    if(/\d{16,}/.test(stripStrings(t))){
+      extras.push({warn:true,text:'The input has numbers with 16 or more digits. They may be rounded in the output, so check them if the exact digits matter.'});
+    }
+    showMsg('ok','Valid JSON',extras);
+    var st=jsonStats(v);
+    var info='Type: '+st.type;
+    if(st.type==='object'||st.type==='array')info+=' \u00b7 Keys: '+st.keys+' \u00b7 Depth: '+st.depth;
+    info+=' \u00b7 Size: '+byteSize(t)+' \u2192 '+byteSize(s);
+    $('stats').textContent=info;
+  }catch(e){
+    out.value='';
+    var pos=errorPos(t,e.message);
+    var extras2=[];
+    if(pos>=0){
+      var lc=lineColFromPos(t,pos);
+      extras2.push({text:'Error near line '+lc.line+', column '+lc.col+'.'});
+    }
+    hints(t).forEach(function(h){extras2.push({text:'Possible cause: '+h});});
+    showMsg('err','Invalid JSON: '+e.message,extras2,pos);
+  }
+}
+
+function flash(text){
+  var n=$('note');
+  n.textContent=text;
+  clearTimeout(noteTimer);
+  noteTimer=setTimeout(function(){n.textContent='';},2500);
+}
+
+function fallbackCopy(){
+  var o=$('out');
+  o.select();
+  try{document.execCommand('copy');flash('Copied to clipboard.');}
+  catch(e){flash('Copy failed. Select the output and copy it manually.');}
+}
+
+function copyOut(){
+  var s=$('out').value;
+  if(!s){flash('Nothing to copy yet. Format or minify first.');return;}
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(s).then(function(){flash('Copied to clipboard.');},fallbackCopy);
+  }else{fallbackCopy();}
+}
+
+function download(){
+  var s=$('out').value;
+  if(!s){flash('Nothing to download yet. Format or minify first.');return;}
+  var blob=new Blob([s],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  a.download='formatted.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},1000);
+}
+
+function clearAll(){
+  $('in').value='';
+  $('out').value='';
+  $('stats').textContent='';
+  $('msg').hidden=true;
+  $('msg').textContent='';
+  $('note').textContent='';
+  $('in').focus();
+}
 </script>
 </body>
 </html>
