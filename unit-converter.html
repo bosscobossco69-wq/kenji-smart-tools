@@ -3,115 +3,381 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Unit Converter - Length, Weight, Temperature | KENJI Smart Tools</title>
-<meta name="description" content="Free unit converter for length (cm, inch, ft, m), weight (kg, lb, oz) and temperature (C, F, K). Instant results in your browser.">
+<title>Unit Converter - Length, Weight, Temperature, Volume &amp; More | KENJI Smart Tools</title>
+<meta name="description" content="Free unit converter for length, weight, temperature, volume, area, speed, time and data storage. See every unit at once. Runs in your browser.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://kenji-smart-tools.vercel.app/unit-converter.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Unit Converter - Length, Weight, Temperature, Volume &amp; More">
+<meta property="og:description" content="Convert length, weight, temperature, volume, area, speed, time and data storage units.">
+<meta property="og:url" content="https://kenji-smart-tools.vercel.app/unit-converter.html">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "name": "Unit Converter",
+      "url": "https://kenji-smart-tools.vercel.app/unit-converter.html",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Any (web browser)",
+      "description": "Convert length, weight, temperature, volume, area, speed, time and data storage units in your browser.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How many centimeters are in an inch?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "There are exactly 2.54 centimeters in an inch. This is the international definition, so the value is exact and not rounded."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Are US and UK gallons the same?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. A US gallon is about 3.785 liters and an imperial (UK) gallon is about 4.546 liters. The same difference applies to pints and fluid ounces, so choose the correct version."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the difference between MB and MiB?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "MB uses decimal units, where 1 MB is 1,000,000 bytes. MiB uses binary units, where 1 MiB is 1,048,576 bytes. The same difference applies to KB and KiB, GB and GiB, and TB and TiB."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I convert Celsius to Fahrenheit?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Multiply the Celsius value by 9, divide by 5, then add 32. For example, 20 degrees Celsius is 68 degrees Fahrenheit."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How accurate is the converter?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It uses exact definitions wherever they exist. Results are displayed to about 12 significant digits, so very long decimals are rounded for display."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does the converter store or upload my values?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Conversions happen in your browser and nothing is sent to our server."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f6f7fb;color:#1a1d29;line-height:1.6}
-header{background:#fff;border-bottom:1px solid #e5e7f0;padding:14px 20px}
+header{background:#fff;border-bottom:1px solid #e5e7f0;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px}
 header a{color:#4f46e5;text-decoration:none;font-weight:700}
+header nav a{font-weight:500;font-size:14px}
 main{max-width:720px;margin:32px auto;padding:0 16px}
 h1{font-size:26px;margin-bottom:8px}
 .sub{color:#5b6070;margin-bottom:24px}
 .card{background:#fff;border:1px solid #e5e7f0;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(20,20,60,.05)}
+.card h2{font-size:17px;margin-bottom:4px}
 label{display:block;font-size:14px;font-weight:600;margin:14px 0 6px}
-input,select,textarea{width:100%;padding:10px 12px;border:1px solid #d4d8e6;border-radius:8px;font-size:15px}
-textarea{min-height:120px;resize:vertical;font-family:inherit}
-button{background:#4f46e5;color:#fff;border:none;padding:11px 20px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px}
+label:first-child{margin-top:0}
+input,select{width:100%;padding:10px 12px;border:1px solid #d4d8e6;border-radius:8px;font-size:15px;font-family:inherit;background:#fff;color:#1a1d29}
+input[type=checkbox],input[type=radio]{width:auto}
+button{background:#4f46e5;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer}
 button:hover{background:#4338ca}
-.result{background:#f0f1fa;border-radius:8px;padding:14px;margin-top:16px;font-size:16px;word-break:break-word}
-.result b{font-size:20px;color:#4f46e5}
-.row{display:flex;gap:12px}.row>div{flex:1}
+button.secondary{background:#fff;color:#4f46e5;border:1px solid #d4d8e6;font-weight:500}
+button.secondary:hover{background:#f0f1fa}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #a5b4fc;outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.res{margin-top:14px;background:#f0f1fa;border-radius:8px;padding:12px 14px;font-size:16px;word-break:break-word}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.chips button{background:#fff;color:#4f46e5;border:1px solid #d4d8e6;font-weight:500;padding:8px 14px;font-size:14px}
+.chips button:hover{background:#f0f1fa}
+.chips button[aria-pressed="true"]{background:#4f46e5;color:#fff;border-color:#4f46e5;font-weight:600}
+.opt{display:flex;align-items:center;gap:8px;margin:12px 0 0;font-weight:500;font-size:14px}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:16px}
+.tile{background:#f0f1fa;border-radius:8px;padding:12px 14px;font-size:14px;color:#4b5262}
+.tile b{display:block;font-size:20px;color:#4f46e5;line-height:1.4;word-break:break-word}
+.tile.big{grid-column:1/-1;background:#4f46e5;color:#e0e0ff}
+.tile.big b{color:#fff;font-size:26px}
+.hint{margin-top:12px;font-size:14px;color:#5b6070}
+.msg{margin-top:12px;font-size:14px;color:#b42318}
+.seo-guide{margin:28px 0 36px;padding:24px;background:#fff;border:1px solid #e5e7f0;border-radius:12px;box-shadow:0 1px 3px rgba(20,20,60,.04)}
+.seo-guide h2{font-size:21px;line-height:1.35;margin:26px 0 8px;color:#1a1d29}
+.seo-guide h2:first-child{margin-top:0}
+.seo-guide h3{font-size:16px;margin:16px 0 5px;color:#252b3a}
+.seo-guide p,.seo-guide li{font-size:15px;color:#4b5262;line-height:1.75}
+.seo-guide p{margin-bottom:10px}
+.seo-guide ol,.seo-guide ul{padding-left:22px;margin:10px 0}
+.seo-guide a,footer a{color:#4f46e5}
+.seo-guide code{background:#f0f1fa;border-radius:4px;padding:1px 5px;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#252b3a}
+.table-wrap{overflow-x:auto;margin:12px 0}
+.seo-guide table,.table-wrap table{width:100%;border-collapse:collapse;font-size:14px}
+.seo-guide th,.seo-guide td,.table-wrap th,.table-wrap td{text-align:left;padding:9px 12px;border-bottom:1px solid #e5e7f0;color:#4b5262;vertical-align:top}
+.seo-guide th,.table-wrap th{background:#f0f1fa;color:#1a1d29}
+.related-tools{margin-top:20px;padding-top:14px;border-top:1px solid #e5e7f0}
 footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
-
-.seo-guide{margin:28px 0 36px;padding:24px;background:#fff;border:1px solid #e5e7f0;border-radius:12px;box-shadow:0 1px 3px rgba(20,20,60,.04)}.seo-guide h2{font-size:21px;line-height:1.35;margin:22px 0 8px;color:#1a1d29}.seo-guide h2:first-child{margin-top:0}.seo-guide h3{font-size:16px;margin:16px 0 5px;color:#252b3a}.seo-guide p,.seo-guide li{font-size:15px;color:#4b5262;line-height:1.75}.seo-guide ol,.seo-guide ul{padding-left:22px;margin:10px 0}.seo-guide a,footer a{color:#4f46e5}.related-tools{margin-top:20px;padding-top:14px;border-top:1px solid #e5e7f0}.row{flex-wrap:wrap}@media(max-width:560px){.row{flex-direction:column;gap:4px}.card,.seo-guide{padding:18px}}
+@media(max-width:560px){.card,.seo-guide{padding:18px}.row{grid-template-columns:1fr}.tiles{grid-template-columns:1fr}}
+.conv-row{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end}
+.conv-row label{margin-top:14px}
+.swap{padding:10px 14px;font-size:18px;line-height:1.2;margin-bottom:0}
+.tile.big span{display:block;font-size:14px;min-height:1.4em}
+@media(max-width:560px){.conv-row{grid-template-columns:1fr}.swap{width:100%}}
 </style>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 </head>
 <body>
-<header><a href="/">KENJI Smart Tools</a></header>
+<header>
+  <a href="/">KENJI Smart Tools</a>
+  <nav aria-label="Main"><a href="/">All tools</a></nav>
+</header>
 <main>
 <h1>Unit Converter</h1>
-<p class="sub">Convert between common units of length, weight and temperature.</p>
+<p class="sub">Convert length, weight, temperature, volume, area, speed, time and data storage. Nothing is uploaded.</p>
 
 <div class="card">
-  <h3 style="margin-bottom:6px">Length</h3>
-  <div class="row">
-    <div><label>Value</label><input type="number" id="lv" value="1" oninput="lconv()"></div>
-    <div><label>From</label><select id="lf" onchange="lconv()">
-      <option value="mm">Millimeter</option><option value="cm">Centimeter</option>
-      <option value="m" selected>Meter</option><option value="km">Kilometer</option>
-      <option value="in">Inch</option><option value="ft">Foot</option><option value="mi">Mile</option>
-    </select></div>
-    <div><label>To</label><select id="lt" onchange="lconv()">
-      <option value="mm">Millimeter</option><option value="cm">Centimeter</option>
-      <option value="m">Meter</option><option value="km">Kilometer</option>
-      <option value="in" selected>Inch</option><option value="ft">Foot</option><option value="mi">Mile</option>
-    </select></div>
+  <label for="cat">Category</label>
+  <select id="cat" onchange="setCat()">
+    <option value="length">Length</option>
+    <option value="mass">Weight / Mass</option>
+    <option value="temperature">Temperature</option>
+    <option value="volume">Volume</option>
+    <option value="area">Area</option>
+    <option value="speed">Speed</option>
+    <option value="time">Time</option>
+    <option value="data">Data storage</option>
+  </select>
+
+  <label for="val">Value</label>
+  <input id="val" type="number" step="any" inputmode="decimal" value="1" oninput="update()" onfocus="this.select()">
+
+  <div class="conv-row">
+    <div>
+      <label for="from">From</label>
+      <select id="from" onchange="update()"></select>
+    </div>
+    <button type="button" class="secondary swap" onclick="swap()" aria-label="Swap units">&#8646;</button>
+    <div>
+      <label for="to">To</label>
+      <select id="to" onchange="update()"></select>
+    </div>
   </div>
-  <div class="result" id="lr">Result</div>
+
+  <div class="tile big" style="margin-top:16px"><span id="eq">&nbsp;</span><b id="result">-</b></div>
+  <p class="msg" id="msg" role="alert"></p>
 </div>
+
 <div class="card">
-  <h3 style="margin-bottom:6px">Weight</h3>
-  <div class="row">
-    <div><label>Value</label><input type="number" id="wv" value="1" oninput="wconv()"></div>
-    <div><label>From</label><select id="wf" onchange="wconv()">
-      <option value="mg">Milligram</option><option value="g">Gram</option>
-      <option value="kg" selected>Kilogram</option><option value="t">Metric ton</option>
-      <option value="oz">Ounce</option><option value="lb">Pound</option>
-    </select></div>
-    <div><label>To</label><select id="wt" onchange="wconv()">
-      <option value="mg">Milligram</option><option value="g">Gram</option>
-      <option value="kg">Kilogram</option><option value="t">Metric ton</option>
-      <option value="oz">Ounce</option><option value="lb" selected>Pound</option>
-    </select></div>
+  <h2 id="allTitle">All length units</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Unit</th><th>Value</th></tr></thead>
+      <tbody id="allBody"></tbody>
+    </table>
   </div>
-  <div class="result" id="wr">Result</div>
-</div>
-<div class="card">
-  <h3 style="margin-bottom:6px">Temperature</h3>
-  <div class="row">
-    <div><label>Value</label><input type="number" id="tv" value="100" oninput="tconv()"></div>
-    <div><label>From</label><select id="tf" onchange="tconv()">
-      <option value="c" selected>Celsius</option><option value="f">Fahrenheit</option><option value="k">Kelvin</option>
-    </select></div>
-    <div><label>To</label><select id="tt" onchange="tconv()">
-      <option value="c">Celsius</option><option value="f" selected>Fahrenheit</option><option value="k">Kelvin</option>
-    </select></div>
-  </div>
-  <div class="result" id="tr">Result</div>
 </div>
 
 <section class="seo-guide" aria-labelledby="guide-title">
-<h2 id="guide-title">Convert length, weight, and temperature</h2>
-<p>Use the three independent converters to switch between common measurement units. Enter a value, select its current unit, and choose the unit you want. Results update automatically in your browser.</p>
-<h3>Length units</h3><p>Convert millimeters, centimeters, meters, kilometers, inches, feet, and miles. For example, 1 meter equals 100 centimeters or approximately 39.3701 inches.</p>
-<h3>Weight units</h3><p>Convert milligrams, grams, kilograms, metric tons, ounces, and pounds. For example, 1 kilogram is approximately 2.20462 pounds.</p>
-<h3>Temperature units</h3><p>Convert Celsius, Fahrenheit, and Kelvin. The converter uses the standard formulas between these temperature scales.</p>
+<h2 id="guide-title">How to use the unit converter</h2>
+<ol>
+  <li>Pick a category, such as length, weight or temperature.</li>
+  <li>Type a value and choose the unit you are converting from and to.</li>
+  <li>Read the result. The table below it shows the same value in every unit of the category.</li>
+</ol>
+<p>The swap button reverses the two units, so you can convert in the other direction.</p>
+
+<h2>Popular conversions</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>From</th><th>To</th></tr></thead>
+  <tbody>
+    <tr><td>1 inch</td><td>2.54 centimeters</td></tr>
+    <tr><td>1 foot</td><td>30.48 centimeters</td></tr>
+    <tr><td>1 mile</td><td>1.609344 kilometers</td></tr>
+    <tr><td>1 kilometer</td><td>0.621371 miles</td></tr>
+    <tr><td>1 kilogram</td><td>2.204623 pounds</td></tr>
+    <tr><td>1 pound</td><td>0.453592 kilograms</td></tr>
+    <tr><td>1 ounce</td><td>28.3495 grams</td></tr>
+    <tr><td>1 US gallon</td><td>3.785412 liters</td></tr>
+    <tr><td>1 liter</td><td>0.264172 US gallons</td></tr>
+    <tr><td>1 square foot</td><td>0.092903 square meters</td></tr>
+    <tr><td>1 acre</td><td>4,046.856 square meters</td></tr>
+    <tr><td>1 hectare</td><td>2.471054 acres</td></tr>
+    <tr><td>1 mile per hour</td><td>1.609344 kilometers per hour</td></tr>
+    <tr><td>1 knot</td><td>1.852 kilometers per hour</td></tr>
+    <tr><td>20 &deg;C</td><td>68 &deg;F</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>How the conversions work</h2>
+<p>Each unit is defined by how many base units it contains, such as meters for length or kilograms for weight. To convert, the tool changes your value into the base unit and then into the unit you chose. Where an exact definition exists, such as 1 inch = 2.54 centimeters or 1 pound = 0.45359237 kilograms, the tool uses it. Results are shown to about 12 significant digits, so long decimals are rounded for display.</p>
+
+<h2>Temperature</h2>
+<p>Temperature scales do not simply multiply, because their zero points differ. The tool uses these formulas:</p>
+<ul>
+  <li>Celsius to Fahrenheit: &deg;F = &deg;C &times; 9 &divide; 5 + 32</li>
+  <li>Fahrenheit to Celsius: &deg;C = (&deg;F &minus; 32) &times; 5 &divide; 9</li>
+  <li>Celsius to Kelvin: K = &deg;C + 273.15</li>
+</ul>
+<p>Values below absolute zero (&minus;273.15 &deg;C) are not possible, and the tool will tell you if you enter one.</p>
+
+<h2>Units that are easy to mix up</h2>
+<ul>
+  <li><strong>US and UK gallons and pints are different.</strong> A US gallon is about 3.785 liters and an imperial (UK) gallon is about 4.546 liters. Both are included and labeled.</li>
+  <li><strong>MB and MiB are not the same.</strong> Storage makers usually use decimal units, where 1 GB is 1,000 MB. Many operating systems use binary units, where 1 GiB is 1,024 MiB. Both sets are included so you can see the difference.</li>
+  <li><strong>Tons:</strong> a metric tonne is 1,000 kilograms, while a US short ton is 2,000 pounds.</li>
+  <li><strong>Year:</strong> the time converter uses a year of 365 days. Months are left out because their length varies.</li>
+</ul>
+
 <h2>Frequently asked questions</h2>
-<h3>Are conversions calculated on my device?</h3><p>Yes. The calculations run locally in your browser; values are not uploaded to our server.</p>
-<h3>How precise are the results?</h3><p>Results are rounded for readability. Use an appropriate precision level for scientific, engineering, or other high-accuracy work.</p>
-<p class="related-tools"><strong>Related tools:</strong> <a href="/percentage-calculator.html">Percentage Calculator</a> · <a href="/tip-calculator.html">Tip Calculator</a> · <a href="/">All tools</a></p>
+<h3>How many centimeters are in an inch?</h3>
+<p>There are exactly 2.54 centimeters in an inch. This is the international definition, so the value is exact and not rounded.</p>
+<h3>Are US and UK gallons the same?</h3>
+<p>No. A US gallon is about 3.785 liters and an imperial (UK) gallon is about 4.546 liters. The same difference applies to pints and fluid ounces, so choose the correct version.</p>
+<h3>What is the difference between MB and MiB?</h3>
+<p>MB uses decimal units, where 1 MB is 1,000,000 bytes. MiB uses binary units, where 1 MiB is 1,048,576 bytes. The same difference applies to KB and KiB, GB and GiB, and TB and TiB.</p>
+<h3>How do I convert Celsius to Fahrenheit?</h3>
+<p>Multiply the Celsius value by 9, divide by 5, then add 32. For example, 20 degrees Celsius is 68 degrees Fahrenheit.</p>
+<h3>How accurate is the converter?</h3>
+<p>It uses exact definitions wherever they exist. Results are displayed to about 12 significant digits, so very long decimals are rounded for display.</p>
+<h3>Does the converter store or upload my values?</h3>
+<p>No. Conversions happen in your browser and nothing is sent to our server.</p>
+
+<p class="related-tools"><strong>Related tools:</strong> <a href="/percentage-calculator.html">Percentage Calculator</a> &middot; <a href="/tip-calculator.html">Tip Calculator</a> &middot; <a href="/word-counter.html">Word Counter</a> &middot; <a href="/">All tools</a></p>
 </section>
 </main>
 <footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; Free, no account needed</footer>
 <script>
-const LM={mm:0.001,cm:0.01,m:1,km:1000,in:0.0254,ft:0.3048,mi:1609.344};
-const WM={mg:1e-6,g:0.001,kg:1,t:1000,oz:0.028349523125,lb:0.45359237};
-function lconv(){const v=+document.getElementById('lv').value||0,
- f=LM[document.getElementById('lf').value],t=LM[document.getElementById('lt').value];
- document.getElementById('lr').innerHTML='<b>'+(v*f/t).toLocaleString(undefined,{maximumFractionDigits:6})+'</b> '+document.getElementById('lt').value;}
-function wconv(){const v=+document.getElementById('wv').value||0,
- f=WM[document.getElementById('wf').value],t=WM[document.getElementById('wt').value];
- document.getElementById('wr').innerHTML='<b>'+(v*f/t).toLocaleString(undefined,{maximumFractionDigits:6})+'</b> '+document.getElementById('wt').value;}
-function tconv(){const v=+document.getElementById('tv').value||0,
- f=document.getElementById('tf').value,t=document.getElementById('tt').value;
- let c=f==='c'?v:f==='f'?(v-32)*5/9:v-273.15;
- let r=t==='c'?c:t==='f'?c*9/5+32:c+273.15;
- document.getElementById('tr').innerHTML='<b>'+r.toLocaleString(undefined,{maximumFractionDigits:2})+'&deg;</b> '+t.toUpperCase();}
-lconv();wconv();tconv();
+function $(id){return document.getElementById(id);}
+function L(id,label,f){return {id:id,label:label,f:f};}
+function T(id,label,to,from){return {id:id,label:label,to:to,from:from};}
+var CATS={
+  length:{name:'length',def:['km','mi'],units:[
+    L('mm','Millimeter (mm)',0.001),L('cm','Centimeter (cm)',0.01),L('m','Meter (m)',1),L('km','Kilometer (km)',1000),
+    L('in','Inch (in)',0.0254),L('ft','Foot (ft)',0.3048),L('yd','Yard (yd)',0.9144),L('mi','Mile (mi)',1609.344),L('nmi','Nautical mile (nmi)',1852)]},
+  mass:{name:'weight / mass',def:['kg','lb'],units:[
+    L('mg','Milligram (mg)',0.000001),L('g','Gram (g)',0.001),L('kg','Kilogram (kg)',1),L('t','Metric tonne (t)',1000),
+    L('oz','Ounce (oz)',0.028349523125),L('lb','Pound (lb)',0.45359237),L('st','Stone (st)',6.35029318),L('ust','US short ton (2,000 lb)',907.18474)]},
+  temperature:{name:'temperature',def:['c','f'],units:[
+    T('c','Celsius (\u00b0C)',function(x){return x;},function(x){return x;}),
+    T('f','Fahrenheit (\u00b0F)',function(x){return (x-32)*5/9;},function(x){return x*9/5+32;}),
+    T('k','Kelvin (K)',function(x){return x-273.15;},function(x){return x+273.15;})]},
+  volume:{name:'volume',def:['l','usgal'],units:[
+    L('ml','Milliliter (ml)',0.001),L('l','Liter (L)',1),L('m3','Cubic meter (m\u00b3)',1000),
+    L('ustsp','US teaspoon',0.00492892159375),L('ustbsp','US tablespoon',0.01478676478125),L('usfloz','US fluid ounce',0.0295735295625),
+    L('uscup','US cup',0.2365882365),L('uspt','US pint',0.473176473),L('usqt','US quart',0.946352946),L('usgal','US gallon',3.785411784),
+    L('ukfloz','UK fluid ounce',0.0284130625),L('ukpt','UK pint',0.56826125),L('ukgal','UK gallon',4.54609)]},
+  area:{name:'area',def:['m2','ft2'],units:[
+    L('mm2','Square millimeter (mm\u00b2)',0.000001),L('cm2','Square centimeter (cm\u00b2)',0.0001),L('m2','Square meter (m\u00b2)',1),
+    L('ha','Hectare (ha)',10000),L('km2','Square kilometer (km\u00b2)',1000000),
+    L('in2','Square inch (in\u00b2)',0.00064516),L('ft2','Square foot (ft\u00b2)',0.09290304),L('yd2','Square yard (yd\u00b2)',0.83612736),
+    L('ac','Acre (ac)',4046.8564224),L('mi2','Square mile (mi\u00b2)',2589988.110336)]},
+  speed:{name:'speed',def:['kmh','mph'],units:[
+    L('ms','Meter per second (m/s)',1),L('kmh','Kilometer per hour (km/h)',1/3.6),L('mph','Mile per hour (mph)',0.44704),
+    L('kn','Knot (kn)',1852/3600),L('fts','Foot per second (ft/s)',0.3048)]},
+  time:{name:'time',def:['h','min'],units:[
+    L('ms','Millisecond (ms)',0.001),L('s','Second (s)',1),L('min','Minute (min)',60),L('h','Hour (h)',3600),
+    L('d','Day (d)',86400),L('w','Week (7 days)',604800),L('y','Year (365 days)',31536000)]},
+  data:{name:'data storage',def:['gb','mb'],units:[
+    L('bit','Bit (bit)',0.125),L('b','Byte (B)',1),
+    L('kb','Kilobyte (KB, 1,000 bytes)',1e3),L('mb','Megabyte (MB, 1,000\u00b2 bytes)',1e6),L('gb','Gigabyte (GB, 1,000\u00b3 bytes)',1e9),
+    L('tb','Terabyte (TB, 1,000\u2074 bytes)',1e12),L('pb','Petabyte (PB, 1,000\u2075 bytes)',1e15),
+    L('kib','Kibibyte (KiB, 1,024 bytes)',1024),L('mib','Mebibyte (MiB, 1,024\u00b2 bytes)',1048576),
+    L('gib','Gibibyte (GiB, 1,024\u00b3 bytes)',1073741824),L('tib','Tebibyte (TiB, 1,024\u2074 bytes)',1099511627776)]}
+};
+var cur='length';
+
+function findUnit(cat,id){
+  var us=CATS[cat].units;
+  for(var i=0;i<us.length;i++)if(us[i].id===id)return us[i];
+  return us[0];
+}
+function toBase(u,x){return u.to?u.to(x):x*u.f;}
+function fromBase(u,b){return u.from?u.from(b):b/u.f;}
+function convert(cat,x,fromId,toId){
+  return fromBase(findUnit(cat,toId),toBase(findUnit(cat,fromId),x));
+}
+
+function fmt(n){
+  if(!isFinite(n))return '-';
+  if(n===0)return '0';
+  var a=Math.abs(n);
+  if(a>=1e15||a<1e-9)return Number(n.toPrecision(7)).toExponential().replace('e+','e');
+  var r=Number(n.toPrecision(12));
+  if(r===0)r=0;
+  return r.toLocaleString('en-US',{maximumFractionDigits:10});
+}
+
+function fillSelect(sel,units,chosen){
+  sel.textContent='';
+  units.forEach(function(u){
+    var o=document.createElement('option');
+    o.value=u.id;o.textContent=u.label;
+    if(u.id===chosen)o.selected=true;
+    sel.appendChild(o);
+  });
+}
+
+function setCat(){
+  cur=$('cat').value;
+  var c=CATS[cur];
+  fillSelect($('from'),c.units,c.def[0]);
+  fillSelect($('to'),c.units,c.def[1]);
+  $('allTitle').textContent='All '+c.name+' units';
+  update();
+}
+
+function swap(){
+  var f=$('from').value,t=$('to').value;
+  $('from').value=t;
+  $('to').value=f;
+  update();
+}
+
+function update(){
+  var msg=$('msg'),body=$('allBody');
+  msg.textContent='';
+  body.textContent='';
+  var raw=$('val').value.trim();
+  if(raw===''){$('eq').textContent='Enter a value to convert.';$('result').textContent='-';return;}
+  var x=Number(raw);
+  if(!isFinite(x)){$('eq').textContent='';$('result').textContent='-';msg.textContent='Enter a valid number.';return;}
+  if(cur==='temperature'){
+    var c0=toBase(findUnit(cur,$('from').value),x);
+    if(c0<-273.15-1e-9){$('eq').textContent='';$('result').textContent='-';msg.textContent='That value is below absolute zero (-273.15 \u00b0C), which is not possible.';return;}
+  }
+  var f=findUnit(cur,$('from').value),t=findUnit(cur,$('to').value);
+  var r=convert(cur,x,f.id,t.id);
+  $('eq').textContent=fmt(x)+' '+f.label+' =';
+  $('result').textContent=fmt(r)+' '+t.label;
+  CATS[cur].units.forEach(function(u){
+    var tr=document.createElement('tr');
+    var a=document.createElement('td'),b=document.createElement('td');
+    a.textContent=u.label;
+    b.textContent=fmt(convert(cur,x,f.id,u.id));
+    tr.appendChild(a);tr.appendChild(b);
+    body.appendChild(tr);
+  });
+}
+setCat();
 </script>
 </body>
 </html>

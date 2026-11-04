@@ -3,84 +3,300 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Percentage Calculator - Free Online | KENJI Smart Tools</title>
-<meta name="description" content="Free percentage calculator: find X% of Y, what percent X is of Y, and percent change. Instant results in your browser.">
+<title>Percentage Calculator - % of, Change, Increase, Decrease | KENJI Smart Tools</title>
+<meta name="description" content="Free percentage calculator: find X% of a number, what percent one number is of another, percentage change, and increase or decrease a number by a percentage.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://kenji-smart-tools.vercel.app/percentage-calculator.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Percentage Calculator - % of, Change, Increase, Decrease">
+<meta property="og:description" content="Six percentage calculators in one page: percent of, percent change, increase, decrease and more.">
+<meta property="og:url" content="https://kenji-smart-tools.vercel.app/percentage-calculator.html">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "name": "Percentage Calculator",
+      "url": "https://kenji-smart-tools.vercel.app/percentage-calculator.html",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Any (web browser)",
+      "description": "Calculate percentages of numbers, percentage change, and percentage increase or decrease in your browser.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How do I calculate a percentage of a number?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Multiply the number by the percentage and divide by 100. For example, 15% of 200 is 200 x 15 / 100 = 30."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I calculate percentage change?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Subtract the old value from the new value, divide by the old value, then multiply by 100. A positive result is an increase and a negative result is a decrease."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why is percentage change not defined when the starting value is 0?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The formula divides by the starting value, and dividing by zero has no result. In that case you can describe the change in absolute terms instead."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the difference between percent and percentage points?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Percentage points describe the simple difference between two percentages, such as 4% to 5%. Percent change describes the relative difference, which in that example is 25%."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why does a 50% increase followed by a 50% decrease not return to the start?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Each percentage is applied to a different number. 100 plus 50% is 150, and 50% of 150 is 75, so the final value is 75, not 100."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can a percentage be more than 100%?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. If X is larger than Y, X is more than 100% of Y. For example, 150 is 150% of 100."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f6f7fb;color:#1a1d29;line-height:1.6}
-header{background:#fff;border-bottom:1px solid #e5e7f0;padding:14px 20px}
+header{background:#fff;border-bottom:1px solid #e5e7f0;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px}
 header a{color:#4f46e5;text-decoration:none;font-weight:700}
+header nav a{font-weight:500;font-size:14px}
 main{max-width:720px;margin:32px auto;padding:0 16px}
 h1{font-size:26px;margin-bottom:8px}
 .sub{color:#5b6070;margin-bottom:24px}
 .card{background:#fff;border:1px solid #e5e7f0;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(20,20,60,.05)}
+.card h2{font-size:17px;margin-bottom:4px}
 label{display:block;font-size:14px;font-weight:600;margin:14px 0 6px}
-input,select,textarea{width:100%;padding:10px 12px;border:1px solid #d4d8e6;border-radius:8px;font-size:15px}
-textarea{min-height:120px;resize:vertical;font-family:inherit}
-button{background:#4f46e5;color:#fff;border:none;padding:11px 20px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px}
+label:first-child{margin-top:0}
+input,select{width:100%;padding:10px 12px;border:1px solid #d4d8e6;border-radius:8px;font-size:15px;font-family:inherit;background:#fff;color:#1a1d29}
+input[type=checkbox],input[type=radio]{width:auto}
+button{background:#4f46e5;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer}
 button:hover{background:#4338ca}
-.result{background:#f0f1fa;border-radius:8px;padding:14px;margin-top:16px;font-size:16px;word-break:break-word}
-.result b{font-size:20px;color:#4f46e5}
-.row{display:flex;gap:12px}.row>div{flex:1}
+button.secondary{background:#fff;color:#4f46e5;border:1px solid #d4d8e6;font-weight:500}
+button.secondary:hover{background:#f0f1fa}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #a5b4fc;outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.res{margin-top:14px;background:#f0f1fa;border-radius:8px;padding:12px 14px;font-size:16px;word-break:break-word}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.chips button{background:#fff;color:#4f46e5;border:1px solid #d4d8e6;font-weight:500;padding:8px 14px;font-size:14px}
+.chips button:hover{background:#f0f1fa}
+.chips button[aria-pressed="true"]{background:#4f46e5;color:#fff;border-color:#4f46e5;font-weight:600}
+.opt{display:flex;align-items:center;gap:8px;margin:12px 0 0;font-weight:500;font-size:14px}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:16px}
+.tile{background:#f0f1fa;border-radius:8px;padding:12px 14px;font-size:14px;color:#4b5262}
+.tile b{display:block;font-size:20px;color:#4f46e5;line-height:1.4;word-break:break-word}
+.tile.big{grid-column:1/-1;background:#4f46e5;color:#e0e0ff}
+.tile.big b{color:#fff;font-size:26px}
+.hint{margin-top:12px;font-size:14px;color:#5b6070}
+.msg{margin-top:12px;font-size:14px;color:#b42318}
+.seo-guide{margin:28px 0 36px;padding:24px;background:#fff;border:1px solid #e5e7f0;border-radius:12px;box-shadow:0 1px 3px rgba(20,20,60,.04)}
+.seo-guide h2{font-size:21px;line-height:1.35;margin:26px 0 8px;color:#1a1d29}
+.seo-guide h2:first-child{margin-top:0}
+.seo-guide h3{font-size:16px;margin:16px 0 5px;color:#252b3a}
+.seo-guide p,.seo-guide li{font-size:15px;color:#4b5262;line-height:1.75}
+.seo-guide p{margin-bottom:10px}
+.seo-guide ol,.seo-guide ul{padding-left:22px;margin:10px 0}
+.seo-guide a,footer a{color:#4f46e5}
+.seo-guide code{background:#f0f1fa;border-radius:4px;padding:1px 5px;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#252b3a}
+.table-wrap{overflow-x:auto;margin:12px 0}
+.seo-guide table,.table-wrap table{width:100%;border-collapse:collapse;font-size:14px}
+.seo-guide th,.seo-guide td,.table-wrap th,.table-wrap td{text-align:left;padding:9px 12px;border-bottom:1px solid #e5e7f0;color:#4b5262;vertical-align:top}
+.seo-guide th,.table-wrap th{background:#f0f1fa;color:#1a1d29}
+.related-tools{margin-top:20px;padding-top:14px;border-top:1px solid #e5e7f0}
 footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
-
-.seo-guide{margin:28px 0 36px;padding:24px;background:#fff;border:1px solid #e5e7f0;border-radius:12px;box-shadow:0 1px 3px rgba(20,20,60,.04)}.seo-guide h2{font-size:21px;line-height:1.35;margin:22px 0 8px;color:#1a1d29}.seo-guide h2:first-child{margin-top:0}.seo-guide h3{font-size:16px;margin:16px 0 5px;color:#252b3a}.seo-guide p,.seo-guide li{font-size:15px;color:#4b5262;line-height:1.75}.seo-guide ol,.seo-guide ul{padding-left:22px;margin:10px 0}.seo-guide a,footer a{color:#4f46e5}.related-tools{margin-top:20px;padding-top:14px;border-top:1px solid #e5e7f0}.row{flex-wrap:wrap}@media(max-width:560px){.row{flex-direction:column;gap:4px}.card,.seo-guide{padding:18px}}
+@media(max-width:560px){.card,.seo-guide{padding:18px}.row{grid-template-columns:1fr}.tiles{grid-template-columns:1fr}}
 </style>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 </head>
 <body>
-<header><a href="/">KENJI Smart Tools</a></header>
+<header>
+  <a href="/">KENJI Smart Tools</a>
+  <nav aria-label="Main"><a href="/">All tools</a></nav>
+</header>
 <main>
 <h1>Percentage Calculator</h1>
-<p class="sub">Calculate percentages instantly. What is X% of Y, X is what % of Y, and percent change between two numbers.</p>
+<p class="sub">Six common percentage calculations in one place. Results update as you type, and nothing is uploaded.</p>
 
 <div class="card">
+  <h2>What is X% of Y?</h2>
   <div class="row">
-    <div><label>What is</label><input type="number" id="a1" placeholder="15"></div>
-    <div><label>% of</label><input type="number" id="b1" placeholder="200"></div>
+    <div><label for="a1">Percentage (%)</label><input id="a1" type="number" step="any" inputmode="decimal" value="15" oninput="run()" onfocus="this.select()"></div>
+    <div><label for="b1">Number</label><input id="b1" type="number" step="any" inputmode="decimal" value="200" oninput="run()" onfocus="this.select()"></div>
   </div>
-  <button onclick="calc1()">Calculate</button>
-  <div class="result" id="r1">Result will appear here</div>
+  <div class="res" id="r1" aria-live="polite"></div>
 </div>
 <div class="card">
+  <h2>X is what percent of Y?</h2>
   <div class="row">
-    <div><label>X</label><input type="number" id="a2" placeholder="30"></div>
-    <div><label>is what % of Y</label><input type="number" id="b2" placeholder="200"></div>
+    <div><label for="a2">X (the part)</label><input id="a2" type="number" step="any" inputmode="decimal" value="30" oninput="run()" onfocus="this.select()"></div>
+    <div><label for="b2">Y (the whole)</label><input id="b2" type="number" step="any" inputmode="decimal" value="200" oninput="run()" onfocus="this.select()"></div>
   </div>
-  <button onclick="calc2()">Calculate</button>
-  <div class="result" id="r2">Result will appear here</div>
+  <div class="res" id="r2" aria-live="polite"></div>
 </div>
 <div class="card">
+  <h2>Percentage change from X to Y</h2>
   <div class="row">
-    <div><label>From</label><input type="number" id="a3" placeholder="80"></div>
-    <div><label>To</label><input type="number" id="b3" placeholder="100"></div>
+    <div><label for="a3">From (X)</label><input id="a3" type="number" step="any" inputmode="decimal" value="80" oninput="run()" onfocus="this.select()"></div>
+    <div><label for="b3">To (Y)</label><input id="b3" type="number" step="any" inputmode="decimal" value="100" oninput="run()" onfocus="this.select()"></div>
   </div>
-  <button onclick="calc3()">Calculate % change</button>
-  <div class="result" id="r3">Result will appear here</div>
+  <div class="res" id="r3" aria-live="polite"></div>
+</div>
+<div class="card">
+  <h2>Increase a number by X%</h2>
+  <div class="row">
+    <div><label for="a4">Percentage (%)</label><input id="a4" type="number" step="any" inputmode="decimal" value="20" oninput="run()" onfocus="this.select()"></div>
+    <div><label for="b4">Number</label><input id="b4" type="number" step="any" inputmode="decimal" value="100" oninput="run()" onfocus="this.select()"></div>
+  </div>
+  <div class="res" id="r4" aria-live="polite"></div>
+</div>
+<div class="card">
+  <h2>Decrease a number by X%</h2>
+  <div class="row">
+    <div><label for="a5">Percentage (%)</label><input id="a5" type="number" step="any" inputmode="decimal" value="20" oninput="run()" onfocus="this.select()"></div>
+    <div><label for="b5">Number</label><input id="b5" type="number" step="any" inputmode="decimal" value="100" oninput="run()" onfocus="this.select()"></div>
+  </div>
+  <div class="res" id="r5" aria-live="polite"></div>
+</div>
+<div class="card">
+  <h2>X is Y% of what number?</h2>
+  <div class="row">
+    <div><label for="a6">X (the part)</label><input id="a6" type="number" step="any" inputmode="decimal" value="30" oninput="run()" onfocus="this.select()"></div>
+    <div><label for="b6">Percentage (%)</label><input id="b6" type="number" step="any" inputmode="decimal" value="15" oninput="run()" onfocus="this.select()"></div>
+  </div>
+  <div class="res" id="r6" aria-live="polite"></div>
 </div>
 
 <section class="seo-guide" aria-labelledby="guide-title">
-<h2 id="guide-title">Three ways to calculate percentages</h2>
-<p>This free percentage calculator handles common everyday calculations: finding a percentage of a number, finding what percentage one number is of another, and calculating the percentage change between two values.</p>
-<h3>1. Find a percentage of a number</h3><p>Multiply the number by the percentage and divide by 100. Example: 15% of 200 is 30.</p>
-<h3>2. Find what percentage one number is of another</h3><p>Divide the first number by the second, then multiply by 100. Example: 30 is 15% of 200.</p>
-<h3>3. Calculate percentage change</h3><p>Subtract the starting value from the new value, divide by the starting value, then multiply by 100. A positive result is an increase; a negative result is a decrease. The starting value cannot be zero.</p>
+<h2 id="guide-title">How to use the percentage calculator</h2>
+<ol>
+  <li>Find the question that matches what you want to know, for example &ldquo;What is X% of Y?&rdquo;.</li>
+  <li>Type your two numbers into the boxes. The result updates as you type.</li>
+  <li>Change the numbers to try other cases. The boxes start with example values so you can see how each calculation works.</li>
+</ol>
+
+<h2>Percentage formulas</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Question</th><th>Formula</th><th>Example</th></tr></thead>
+  <tbody>
+    <tr><td>What is X% of Y?</td><td>Y &times; X &divide; 100</td><td>15% of 200 = 30</td></tr>
+    <tr><td>X is what percent of Y?</td><td>X &divide; Y &times; 100</td><td>30 is 15% of 200</td></tr>
+    <tr><td>Percentage change from X to Y</td><td>(Y &minus; X) &divide; |X| &times; 100</td><td>80 to 100 is +25%</td></tr>
+    <tr><td>Increase Y by X%</td><td>Y &times; (1 + X &divide; 100)</td><td>100 + 20% = 120</td></tr>
+    <tr><td>Decrease Y by X%</td><td>Y &times; (1 &minus; X &divide; 100)</td><td>100 &minus; 20% = 80</td></tr>
+    <tr><td>X is Y% of what number?</td><td>X &divide; (Y &divide; 100)</td><td>30 is 15% of 200</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Everyday examples</h2>
+<ul>
+  <li><strong>Discount:</strong> a RM 250 item with 30% off costs 250 &times; (1 &minus; 0.30) = RM 175.</li>
+  <li><strong>Adding a tax:</strong> RM 80 plus a 6% tax is 80 &times; 1.06 = RM 84.80.</li>
+  <li><strong>Pay rise:</strong> going from RM 3,000 to RM 3,300 is a 10% increase.</li>
+  <li><strong>Test score:</strong> 42 correct answers out of 50 is 42 &divide; 50 &times; 100 = 84%.</li>
+</ul>
+
+<h2>Percent and percentage points</h2>
+<p>A percentage point is the plain difference between two percentages. If an interest rate goes from 4% to 5%, it rises by 1 percentage point, but the relative increase is 25%, because 1 is a quarter of 4. News reports and financial documents often use both, so check which one is meant.</p>
+
+<h2>Why increases and decreases do not cancel out</h2>
+<p>A percentage always refers to the number it is applied to. If 100 goes up by 50% it becomes 150. If 150 then goes down by 50% it becomes 75, which is 25% lower than the start. To undo an increase, you need a smaller percentage decrease than the original increase.</p>
+
 <h2>Frequently asked questions</h2>
-<h3>Can I use it to calculate a discount?</h3><p>Yes. Calculate the discount amount using the first calculator, then subtract it from the original price to get the sale price.</p>
-<h3>Does it work with decimal numbers?</h3><p>Yes. Enter decimal values for more precise calculations. Results are calculated in your browser.</p>
-<p class="related-tools"><strong>Related tools:</strong> <a href="/tip-calculator.html">Tip Calculator</a> · <a href="/age-calculator.html">Age Calculator</a> · <a href="/">All tools</a></p>
+<h3>How do I calculate a percentage of a number?</h3>
+<p>Multiply the number by the percentage and divide by 100. For example, 15% of 200 is 200 x 15 / 100 = 30.</p>
+<h3>How do I calculate percentage change?</h3>
+<p>Subtract the old value from the new value, divide by the old value, then multiply by 100. A positive result is an increase and a negative result is a decrease.</p>
+<h3>Why is percentage change not defined when the starting value is 0?</h3>
+<p>The formula divides by the starting value, and dividing by zero has no result. In that case you can describe the change in absolute terms instead.</p>
+<h3>What is the difference between percent and percentage points?</h3>
+<p>Percentage points describe the simple difference between two percentages, such as 4% to 5%. Percent change describes the relative difference, which in that example is 25%.</p>
+<h3>Why does a 50% increase followed by a 50% decrease not return to the start?</h3>
+<p>Each percentage is applied to a different number. 100 plus 50% is 150, and 50% of 150 is 75, so the final value is 75, not 100.</p>
+<h3>Can a percentage be more than 100%?</h3>
+<p>Yes. If X is larger than Y, X is more than 100% of Y. For example, 150 is 150% of 100.</p>
+
+<p class="related-tools"><strong>Related tools:</strong> <a href="/tip-calculator.html">Tip Calculator</a> &middot; <a href="/unit-converter.html">Unit Converter</a> &middot; <a href="/word-counter.html">Word Counter</a> &middot; <a href="/">All tools</a></p>
 </section>
 </main>
 <footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; Free, no account needed</footer>
 <script>
-function calc1(){const a=+document.getElementById('a1').value||0,b=+document.getElementById('b1').value||0;
- document.getElementById('r1').innerHTML='<b>'+(a*b/100).toLocaleString()+'</b>';}
-function calc2(){const a=+document.getElementById('a2').value||0,b=+document.getElementById('b2').value||0;
- document.getElementById('r2').innerHTML=b===0?'Cannot divide by zero':'<b>'+(a/b*100).toFixed(2)+'%</b>';}
-function calc3(){const a=+document.getElementById('a3').value||0,b=+document.getElementById('b3').value||0;
- document.getElementById('r3').innerHTML=a===0?'Cannot divide by zero':'<b>'+(((b-a)/a)*100).toFixed(2)+'%</b> change';}
+function $(id){return document.getElementById(id);}
+function fmt(n){
+  if(!isFinite(n))return '\u2014';
+  var r=Number(n.toPrecision(12));
+  if(r===0)r=0;
+  return r.toLocaleString('en-US',{maximumFractionDigits:6});
+}
+function num(id){
+  var v=$(id).value.trim();
+  if(v==='')return null;
+  var n=Number(v);
+  return isFinite(n)?n:null;
+}
+var CALCS=[
+  {a:'a1',b:'b1',out:'r1',fn:function(p,y){return fmt(p)+'% of '+fmt(y)+' is '+fmt(p*y/100)+'.';}},
+  {a:'a2',b:'b2',out:'r2',fn:function(x,y){
+    if(y===0)return 'Cannot divide by zero. Enter a second number other than 0.';
+    return fmt(x)+' is '+fmt(x/y*100)+'% of '+fmt(y)+'.';
+  }},
+  {a:'a3',b:'b3',out:'r3',fn:function(x,y){
+    if(x===0)return 'Percentage change is not defined when the starting value is 0.';
+    var c=(y-x)/Math.abs(x)*100;
+    if(c===0)return 'No change.';
+    return (c>0?'Increase':'Decrease')+' of '+fmt(Math.abs(c))+'% (from '+fmt(x)+' to '+fmt(y)+').';
+  }},
+  {a:'a4',b:'b4',out:'r4',fn:function(p,y){
+    var d=y*p/100;
+    return fmt(y)+' increased by '+fmt(p)+'% is '+fmt(y+d)+' (a change of '+fmt(d)+').';
+  }},
+  {a:'a5',b:'b5',out:'r5',fn:function(p,y){
+    var d=y*p/100;
+    return fmt(y)+' decreased by '+fmt(p)+'% is '+fmt(y-d)+' (a change of '+fmt(d)+').';
+  }},
+  {a:'a6',b:'b6',out:'r6',fn:function(x,p){
+    if(p===0)return 'The percentage cannot be 0.';
+    return fmt(x)+' is '+fmt(p)+'% of '+fmt(x/(p/100))+'.';
+  }}
+];
+function run(){
+  CALCS.forEach(function(c){
+    var a=num(c.a),b=num(c.b),o=$(c.out);
+    o.textContent=(a===null||b===null)?'Enter both numbers to see the result.':c.fn(a,b);
+  });
+}
+run();
 </script>
 </body>
 </html>

@@ -3,75 +3,332 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tip Calculator - Split Bill & Tip | KENJI Smart Tools</title>
-<meta name="description" content="Free tip calculator: enter your bill, choose a tip percentage, and split between any number of people. Instant per-person totals.">
+<title>Tip Calculator - Tip, Tax and Bill Splitter | KENJI Smart Tools</title>
+<meta name="description" content="Free tip calculator: work out the tip, tax or service charge, total and each person&#x27;s share when you split a bill. Quick tip buttons and rounding option.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://kenji-smart-tools.vercel.app/tip-calculator.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Tip Calculator - Tip, Tax and Bill Splitter">
+<meta property="og:description" content="Calculate the tip, add tax or service charge and split a bill between any number of people.">
+<meta property="og:url" content="https://kenji-smart-tools.vercel.app/tip-calculator.html">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "name": "Tip Calculator",
+      "url": "https://kenji-smart-tools.vercel.app/tip-calculator.html",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Any (web browser)",
+      "description": "Calculate a tip, add tax or service charge and split the bill between several people in your browser.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Should I calculate the tip on the bill before or after tax?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "There is no single rule. Many people tip on the amount before tax, while others tip on the total including tax. The tool lets you choose either one."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I include a service charge or tax?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Type its percentage into the Tax or service charge box. If your receipt shows more than one charge, enter the combined percentage as an estimate and compare the total with your receipt, because one charge may be applied on top of the other."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does the tool split the bill?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It divides the total equally between the number of people you enter. It cannot split by individual items."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What does rounding up each share do?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Each person pays the next whole number above their exact share. The total paid is slightly higher than the bill total, and the difference is effectively extra tip."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What tip percentage should I use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It depends on local custom and the service you received. A common range for table service in the United States is 15% to 20%, while in many other countries tipping is smaller or optional. Check the usual practice where you are."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does the tool store my numbers?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. The calculation happens in your browser and nothing is sent to our server."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f6f7fb;color:#1a1d29;line-height:1.6}
-header{background:#fff;border-bottom:1px solid #e5e7f0;padding:14px 20px}
+header{background:#fff;border-bottom:1px solid #e5e7f0;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px}
 header a{color:#4f46e5;text-decoration:none;font-weight:700}
+header nav a{font-weight:500;font-size:14px}
 main{max-width:720px;margin:32px auto;padding:0 16px}
 h1{font-size:26px;margin-bottom:8px}
 .sub{color:#5b6070;margin-bottom:24px}
 .card{background:#fff;border:1px solid #e5e7f0;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(20,20,60,.05)}
+.card h2{font-size:17px;margin-bottom:4px}
 label{display:block;font-size:14px;font-weight:600;margin:14px 0 6px}
-input,select,textarea{width:100%;padding:10px 12px;border:1px solid #d4d8e6;border-radius:8px;font-size:15px}
-textarea{min-height:120px;resize:vertical;font-family:inherit}
-button{background:#4f46e5;color:#fff;border:none;padding:11px 20px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px}
+label:first-child{margin-top:0}
+input,select{width:100%;padding:10px 12px;border:1px solid #d4d8e6;border-radius:8px;font-size:15px;font-family:inherit;background:#fff;color:#1a1d29}
+input[type=checkbox],input[type=radio]{width:auto}
+button{background:#4f46e5;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer}
 button:hover{background:#4338ca}
-.result{background:#f0f1fa;border-radius:8px;padding:14px;margin-top:16px;font-size:16px;word-break:break-word}
-.result b{font-size:20px;color:#4f46e5}
-.row{display:flex;gap:12px}.row>div{flex:1}
+button.secondary{background:#fff;color:#4f46e5;border:1px solid #d4d8e6;font-weight:500}
+button.secondary:hover{background:#f0f1fa}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #a5b4fc;outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.res{margin-top:14px;background:#f0f1fa;border-radius:8px;padding:12px 14px;font-size:16px;word-break:break-word}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.chips button{background:#fff;color:#4f46e5;border:1px solid #d4d8e6;font-weight:500;padding:8px 14px;font-size:14px}
+.chips button:hover{background:#f0f1fa}
+.chips button[aria-pressed="true"]{background:#4f46e5;color:#fff;border-color:#4f46e5;font-weight:600}
+.opt{display:flex;align-items:center;gap:8px;margin:12px 0 0;font-weight:500;font-size:14px}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:16px}
+.tile{background:#f0f1fa;border-radius:8px;padding:12px 14px;font-size:14px;color:#4b5262}
+.tile b{display:block;font-size:20px;color:#4f46e5;line-height:1.4;word-break:break-word}
+.tile.big{grid-column:1/-1;background:#4f46e5;color:#e0e0ff}
+.tile.big b{color:#fff;font-size:26px}
+.hint{margin-top:12px;font-size:14px;color:#5b6070}
+.msg{margin-top:12px;font-size:14px;color:#b42318}
+.seo-guide{margin:28px 0 36px;padding:24px;background:#fff;border:1px solid #e5e7f0;border-radius:12px;box-shadow:0 1px 3px rgba(20,20,60,.04)}
+.seo-guide h2{font-size:21px;line-height:1.35;margin:26px 0 8px;color:#1a1d29}
+.seo-guide h2:first-child{margin-top:0}
+.seo-guide h3{font-size:16px;margin:16px 0 5px;color:#252b3a}
+.seo-guide p,.seo-guide li{font-size:15px;color:#4b5262;line-height:1.75}
+.seo-guide p{margin-bottom:10px}
+.seo-guide ol,.seo-guide ul{padding-left:22px;margin:10px 0}
+.seo-guide a,footer a{color:#4f46e5}
+.seo-guide code{background:#f0f1fa;border-radius:4px;padding:1px 5px;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#252b3a}
+.table-wrap{overflow-x:auto;margin:12px 0}
+.seo-guide table,.table-wrap table{width:100%;border-collapse:collapse;font-size:14px}
+.seo-guide th,.seo-guide td,.table-wrap th,.table-wrap td{text-align:left;padding:9px 12px;border-bottom:1px solid #e5e7f0;color:#4b5262;vertical-align:top}
+.seo-guide th,.table-wrap th{background:#f0f1fa;color:#1a1d29}
+.related-tools{margin-top:20px;padding-top:14px;border-top:1px solid #e5e7f0}
 footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
-
-.seo-guide{margin:28px 0 36px;padding:24px;background:#fff;border:1px solid #e5e7f0;border-radius:12px;box-shadow:0 1px 3px rgba(20,20,60,.04)}.seo-guide h2{font-size:21px;line-height:1.35;margin:22px 0 8px;color:#1a1d29}.seo-guide h2:first-child{margin-top:0}.seo-guide h3{font-size:16px;margin:16px 0 5px;color:#252b3a}.seo-guide p,.seo-guide li{font-size:15px;color:#4b5262;line-height:1.75}.seo-guide ol,.seo-guide ul{padding-left:22px;margin:10px 0}.seo-guide a,footer a{color:#4f46e5}.related-tools{margin-top:20px;padding-top:14px;border-top:1px solid #e5e7f0}.row{flex-wrap:wrap}@media(max-width:560px){.row{flex-direction:column;gap:4px}.card,.seo-guide{padding:18px}}
+@media(max-width:560px){.card,.seo-guide{padding:18px}.row{grid-template-columns:1fr}.tiles{grid-template-columns:1fr}}
 </style>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 </head>
 <body>
-<header><a href="/">KENJI Smart Tools</a></header>
+<header>
+  <a href="/">KENJI Smart Tools</a>
+  <nav aria-label="Main"><a href="/">All tools</a></nav>
+</header>
 <main>
 <h1>Tip Calculator</h1>
-<p class="sub">Calculate tip and split the bill between any number of people.</p>
+<p class="sub">Work out the tip, add tax or a service charge, and split the bill. Nothing is uploaded.</p>
 
 <div class="card">
-  <label>Bill amount ($)</label>
-  <input type="number" id="bill" value="100" min="0" step="0.01">
+  <label for="cur">Currency symbol</label>
+  <select id="cur" onchange="update()">
+    <option value="RM ">RM</option>
+    <option value="$">$</option>
+    <option value="&pound;">&pound;</option>
+    <option value="&euro;">&euro;</option>
+  </select>
+
+  <label for="bill">Bill amount (before tax)</label>
+  <input id="bill" type="number" min="0" step="0.01" inputmode="decimal" value="100" oninput="update()" onfocus="this.select()">
+
   <div class="row">
-    <div><label>Tip %</label>
-      <select id="tip"><option value="10">10%</option><option value="15" selected>15%</option>
-      <option value="18">18%</option><option value="20">20%</option><option value="25">25%</option></select>
+    <div>
+      <label for="tax">Tax or service charge (%)</label>
+      <input id="tax" type="number" min="0" max="100" step="any" inputmode="decimal" value="0" oninput="update()" onfocus="this.select()">
     </div>
-    <div><label>Split between (people)</label><input type="number" id="ppl" value="2" min="1"></div>
+    <div>
+      <label for="ppl">Number of people</label>
+      <input id="ppl" type="number" min="1" max="100" step="1" inputmode="numeric" value="1" oninput="update()" onfocus="this.select()">
+    </div>
   </div>
-  <button onclick="calc()">Calculate</button>
-  <div class="result">Tip amount: <b id="tipout">$0.00</b></div>
-  <div class="result">Total: <b id="total">$0.00</b></div>
-  <div class="result">Each person pays: <b id="each">$0.00</b></div>
+
+  <label for="tip">Tip (%)</label>
+  <input id="tip" type="number" min="0" max="100" step="any" inputmode="decimal" value="10" oninput="onTipInput()" onfocus="this.select()">
+  <div class="chips" role="group" aria-label="Quick tip percentages" id="chips">
+    <button type="button" data-tip="0" aria-pressed="false" onclick="setTip(0)">0%</button>
+    <button type="button" data-tip="5" aria-pressed="false" onclick="setTip(5)">5%</button>
+    <button type="button" data-tip="10" aria-pressed="true" onclick="setTip(10)">10%</button>
+    <button type="button" data-tip="15" aria-pressed="false" onclick="setTip(15)">15%</button>
+    <button type="button" data-tip="18" aria-pressed="false" onclick="setTip(18)">18%</button>
+    <button type="button" data-tip="20" aria-pressed="false" onclick="setTip(20)">20%</button>
+  </div>
+
+  <label for="base">Calculate the tip on</label>
+  <select id="base" onchange="update()">
+    <option value="pre">Bill before tax</option>
+    <option value="post">Bill including tax</option>
+  </select>
+
+  <label class="opt" for="roundUp"><input type="checkbox" id="roundUp" onchange="update()"> Round each person&rsquo;s share up to a whole number</label>
+
+  <p class="msg" id="msg" role="alert"></p>
+
+  <div class="tiles" id="tiles">
+    <div class="tile big">Each person pays<b id="oPer">-</b></div>
+    <div class="tile">Tip<b id="oTip">-</b></div>
+    <div class="tile">Tax or service charge<b id="oTax">-</b></div>
+    <div class="tile">Total<b id="oTotal">-</b></div>
+    <div class="tile">Tip per person<b id="oTipPer">-</b></div>
+  </div>
+  <p class="hint" id="hint"></p>
 </div>
 
 <section class="seo-guide" aria-labelledby="guide-title">
-<h2 id="guide-title">How to calculate a tip and split a bill</h2>
-<p>Enter the bill amount in US dollars, choose a tip percentage, and enter the number of people sharing the bill. The calculator shows the tip amount, the total bill, and each person’s share.</p>
-<h3>Tip calculation formula</h3><p>Tip = bill amount × tip percentage ÷ 100. Total = bill amount + tip. Each person pays the total divided by the number of people.</p>
-<h3>Example</h3><p>For a $100 bill with a 15% tip shared by two people, the tip is $15, the total is $115, and each person pays $57.50.</p>
+<h2 id="guide-title">How to use the tip calculator</h2>
+<ol>
+  <li>Enter the bill amount before tax.</li>
+  <li>If your bill has a tax or service charge, enter its percentage. Leave it at 0 if not.</li>
+  <li>Choose a tip percentage with the quick buttons or type your own.</li>
+  <li>Enter how many people are splitting the bill. The tool shows what each person pays.</li>
+</ol>
+
+<h2>How the tip is calculated</h2>
+<ul>
+  <li><strong>Tax or service charge</strong> = bill &times; tax % &divide; 100</li>
+  <li><strong>Tip</strong> = base &times; tip % &divide; 100, where the base is the bill before tax or the bill including tax, whichever you choose</li>
+  <li><strong>Total</strong> = bill + tax or service charge + tip</li>
+  <li><strong>Each person pays</strong> = total &divide; number of people</li>
+</ul>
+<p>Amounts are rounded to the nearest cent at each step, which is how a printed bill usually works.</p>
+
+<h2>Quick reference</h2>
+<p>For a bill of 100 with no tax, the tip and total at common percentages are:</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Tip %</th><th>Tip</th><th>Total</th></tr></thead>
+  <tbody>
+    <tr><td>10%</td><td>10.00</td><td>110.00</td></tr>
+    <tr><td>15%</td><td>15.00</td><td>115.00</td></tr>
+    <tr><td>18%</td><td>18.00</td><td>118.00</td></tr>
+    <tr><td>20%</td><td>20.00</td><td>120.00</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Tipping, taxes and service charges</h2>
+<p>Tipping customs differ widely by country, and in some places it is not expected at all. In the United States, 15% to 20% is a common range for table service. Many restaurants elsewhere, including in Malaysia, add a service charge and a sales and service tax (SST) to the bill. Check your receipt before adding a tip, since a service charge may already cover it.</p>
+<p>To include these charges, type their combined percentage into the <em>Tax or service charge</em> box. If one charge is applied on top of the other, the exact total can differ slightly, so compare it with your receipt.</p>
+
+<h2>Splitting the bill</h2>
+<p>The tool divides the total equally between everyone. It does not split by individual items. If the total does not divide evenly, each share is rounded to the nearest cent, so the shares may differ from the total by a cent or two. The rounding option rounds each share up to a whole number, which makes the bill easier to pay in cash. The extra amount ends up as additional tip.</p>
+
 <h2>Frequently asked questions</h2>
-<h3>Can I split the bill between more than two people?</h3><p>Yes. Enter the number of people sharing the bill to calculate an equal share per person.</p>
-<h3>Does this calculator support other currencies?</h3><p>The current display uses US dollars (USD). The calculation itself is currency-neutral, so you can enter an amount in another currency and interpret the result in that same currency.</p>
-<p class="related-tools"><strong>Related tools:</strong> <a href="/percentage-calculator.html">Percentage Calculator</a> · <a href="/age-calculator.html">Age Calculator</a> · <a href="/">All tools</a></p>
+<h3>Should I calculate the tip on the bill before or after tax?</h3>
+<p>There is no single rule. Many people tip on the amount before tax, while others tip on the total including tax. The tool lets you choose either one.</p>
+<h3>How do I include a service charge or tax?</h3>
+<p>Type its percentage into the Tax or service charge box. If your receipt shows more than one charge, enter the combined percentage as an estimate and compare the total with your receipt, because one charge may be applied on top of the other.</p>
+<h3>How does the tool split the bill?</h3>
+<p>It divides the total equally between the number of people you enter. It cannot split by individual items.</p>
+<h3>What does rounding up each share do?</h3>
+<p>Each person pays the next whole number above their exact share. The total paid is slightly higher than the bill total, and the difference is effectively extra tip.</p>
+<h3>What tip percentage should I use?</h3>
+<p>It depends on local custom and the service you received. A common range for table service in the United States is 15% to 20%, while in many other countries tipping is smaller or optional. Check the usual practice where you are.</p>
+<h3>Does the tool store my numbers?</h3>
+<p>No. The calculation happens in your browser and nothing is sent to our server.</p>
+
+<p class="related-tools"><strong>Related tools:</strong> <a href="/percentage-calculator.html">Percentage Calculator</a> &middot; <a href="/unit-converter.html">Unit Converter</a> &middot; <a href="/word-counter.html">Word Counter</a> &middot; <a href="/">All tools</a></p>
 </section>
 </main>
 <footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; Free, no account needed</footer>
 <script>
-function calc(){const b=+document.getElementById('bill').value||0,t=+document.getElementById('tip').value,
- p=Math.max(1,+document.getElementById('ppl').value||1),tip=b*t/100;
- const f=x=>'$'+x.toFixed(2);
- document.getElementById('tipout').textContent=f(tip);
- document.getElementById('total').textContent=f(b+tip);
- document.getElementById('each').textContent=f((b+tip)/p);}
-calc();
+function $(id){return document.getElementById(id);}
+function r2(x){return Math.round((x+Number.EPSILON)*100)/100;}
+
+function calcTip(o){
+  var taxAmt=r2(o.bill*o.tax/100);
+  var base=o.onTotal?o.bill+taxAmt:o.bill;
+  var tipAmt=r2(base*o.tip/100);
+  var total=r2(o.bill+taxAmt+tipAmt);
+  var per,paid;
+  if(o.roundUp){
+    per=Math.ceil(total/o.people-1e-9);
+    paid=per*o.people;
+  }else{
+    per=r2(total/o.people);
+    paid=r2(per*o.people);
+  }
+  return {taxAmt:taxAmt,tipAmt:tipAmt,total:total,per:per,paid:paid,extra:r2(paid-total),tipPer:r2(tipAmt/o.people)};
+}
+
+function money(n){
+  var sym=$('cur').value;
+  return sym+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function markChips(){
+  var v=Number($('tip').value);
+  var btns=document.querySelectorAll('#chips button');
+  for(var i=0;i<btns.length;i++){
+    btns[i].setAttribute('aria-pressed',Number(btns[i].getAttribute('data-tip'))===v&&$('tip').value.trim()!==''?'true':'false');
+  }
+}
+
+function setTip(v){
+  $('tip').value=v;
+  update();
+}
+
+function onTipInput(){update();}
+
+function clearOut(){
+  ['oPer','oTip','oTax','oTotal','oTipPer'].forEach(function(id){$(id).textContent='-';});
+  $('hint').textContent='';
+}
+
+function update(){
+  markChips();
+  var msg=$('msg');
+  msg.textContent='';
+  var billRaw=$('bill').value.trim();
+  if(billRaw===''){clearOut();return;}
+  var bill=Number(billRaw),tax=Number($('tax').value||0),tip=Number($('tip').value||0),people=Number($('ppl').value);
+  if(!isFinite(bill)||bill<0){clearOut();msg.textContent='Enter a bill amount of 0 or more.';return;}
+  if(!isFinite(tax)||tax<0||tax>100){clearOut();msg.textContent='Enter a tax or service charge between 0 and 100 percent.';return;}
+  if(!isFinite(tip)||tip<0||tip>100){clearOut();msg.textContent='Enter a tip between 0 and 100 percent.';return;}
+  if(!Number.isInteger(people)||people<1||people>100){clearOut();msg.textContent='Enter a whole number of people from 1 to 100.';return;}
+  var r=calcTip({bill:bill,tax:tax,tip:tip,people:people,onTotal:$('base').value==='post',roundUp:$('roundUp').checked});
+  $('oPer').textContent=money(r.per);
+  $('oTip').textContent=money(r.tipAmt);
+  $('oTax').textContent=money(r.taxAmt);
+  $('oTotal').textContent=money(r.total);
+  $('oTipPer').textContent=money(r.tipPer);
+  var hint='';
+  if($('roundUp').checked){
+    hint='Total paid after rounding: '+money(r.paid)+(r.extra>0?' ('+money(r.extra)+' more than the bill total, added to the tip).':'.');
+  }else if(people>1&&r.paid!==r.total){
+    hint='Shares are rounded to the nearest cent, so together they come to '+money(r.paid)+' instead of '+money(r.total)+'.';
+  }
+  $('hint').textContent=hint;
+}
+update();
 </script>
 </body>
 </html>

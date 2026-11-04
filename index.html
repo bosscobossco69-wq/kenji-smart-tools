@@ -15,13 +15,13 @@
   <meta property="og:title" content="Free Online Tools | KENJI Smart Tools" />
   <meta property="og:description" content="Free online tools for writing, calculations, password generation, unit conversion, JSON formatting, QR codes, and everyday tasks." />
   <meta property="og:url" content="https://kenji-smart-tools.vercel.app/" />
-  <meta property="og:image" content="https://kenji-smart-tools.vercel.app/og-image.svg" />
+  <meta property="og:image" content="https://kenji-smart-tools.vercel.app/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Free Online Tools | KENJI Smart Tools" />
   <meta name="twitter:description" content="Free online tools for writing, calculations, password generation, unit conversion, JSON formatting, QR codes, and everyday tasks." />
-  <meta name="twitter:image" content="https://kenji-smart-tools.vercel.app/og-image.svg" />
+  <meta name="twitter:image" content="https://kenji-smart-tools.vercel.app/og-image.png" />
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
@@ -182,7 +182,7 @@
       <div>
         <span class="eyebrow"><i></i> browser-first utilities</span>
         <h1>Simple tools.<br><span class="gradient-text">Sharper work.</span></h1>
-        <p class="hero-copy">A focused toolkit for freelancers, creators, and small businesses. Fast, private, and designed to help you move from idea to action without unnecessary friction.</p>
+        <p class="hero-copy">Free online tools that run in your browser: word counter, JSON formatter, password generator, case converter, unit converter, calculators, QR codes and more. No account needed.</p>
         <div class="hero-actions"><a class="btn" href="#tools">Explore the toolkit</a><a class="btn secondary" href="#about">Why KENJI?</a></div>
       </div>
       <div class="hero-orbit" aria-hidden="true"><div class="orbital"><div class="core"><span>K</span></div><b class="orbit-dot dot-1"></b><b class="orbit-dot dot-2"></b><b class="orbit-dot dot-3"></b></div></div>
@@ -210,7 +210,7 @@
       </div>
     </section>
 
-    <section class="section shell" id="about"><div class="about-grid"><div class="glass"><div class="section-kicker">03 / the idea</div><h2>Less noise.<br>More momentum.</h2><p>KENJI Smart Tools is an independent collection of practical browser utilities for everyday business tasks. The redesigned interface uses a dark command-center feel while keeping every action approachable.</p></div><div class="glass"><div class="section-kicker">design principles</div><div class="principles"><div class="principle"><strong>Private by default</strong><span>Keep data processing close to the user's device whenever possible.</span></div><div class="principle"><strong>Fast to understand</strong><span>Clear labels, focused cards, and one obvious next action.</span></div><div class="principle"><strong>Built for mobile</strong><span>Responsive layouts with comfortable touch targets and readable contrast.</span></div><div class="principle"><strong>Quietly futuristic</strong><span>Deep navy surfaces with cyan and electric-purple signal lights.</span></div></div></div></div></section>
+    <section class="section shell" id="about"><div class="about-grid"><div class="glass"><div class="section-kicker">03 / the idea</div><h2>Less noise.<br>More momentum.</h2><p>KENJI Smart Tools is an independent collection of practical browser utilities for everyday business tasks. Each tool has its own page with instructions, examples and answers to common questions, so you can see how it works before you use it.</p></div><div class="glass"><div class="section-kicker">design principles</div><div class="principles"><div class="principle"><strong>Private by default</strong><span>Keep data processing close to the user's device whenever possible.</span></div><div class="principle"><strong>Fast to understand</strong><span>Clear labels, focused cards, and one obvious next action.</span></div><div class="principle"><strong>Built for mobile</strong><span>Responsive layouts with comfortable touch targets and readable contrast.</span></div><div class="principle"><strong>Free to use</strong><span>No account or sign-up is needed for the browser tools on this site.</span></div></div></div></div></section>
     <section class="section shell" id="privacy"><div class="glass"><div class="section-kicker">04 / privacy overview</div><h2>Your inputs stay close.</h2><p>WhatsApp links, invoice calculations, and image resizing run in your browser. QR codes are generated with a client-side library. Most tools run directly in your browser without an account. The AI Customer Reply Generator sends the message you submit to an AI service to create a reply. Advertising and hosting providers may also process technical information. Read our Privacy Policy for details.</p></div></section>
     <section class="section shell" id="contact" aria-labelledby="contact-title">
       <div class="glass contact-card">
@@ -257,7 +257,7 @@
       catch(e) { byId('wa-result').textContent='Copy was blocked by the browser. Select and copy this link: '+lastWa; }
     }
     function parseMoney(){
-      const raw=byId('qty').value.trim().match(/(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+      const raw=byId('qty').value.trim().match(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/i);
       return raw ? {q:Number(raw[1]),p:Number(raw[2])} : null;
     }
     function escapeHtml(value){return String(value).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
