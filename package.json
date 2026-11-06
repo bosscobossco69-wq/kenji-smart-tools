@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "KENJI Smart Tools web application and serverless API",
   "engines": {
-    "node": ">=20"
+    "node": "24.x"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0"
