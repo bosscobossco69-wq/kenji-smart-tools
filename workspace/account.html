@@ -28,42 +28,60 @@
 <footer class="footer">KENJI AI Workspace · Account dashboard · Credits and billing are not active.</footer>
 </main></div>
 <script type="module">
-import {auth,authReady,onAuthStateChanged,signOut,updateProfile,sendPasswordResetEmail,friendlyAuthError} from "./firebase-auth.js";
 const $=id=>document.getElementById(id);
-function show(id,text,isError=false){const el=$(id);el.textContent=text;el.hidden=false;el.classList.toggle("error",isError);}
-await authReady;
-onAuthStateChanged(auth,async user=>{
- if(!user){location.replace("/workspace/login.html");return;}
- if(!user.emailVerified){await signOut(auth);location.replace("/workspace/login.html");return;}
- const name=user.displayName||"";
- $("welcomeName").textContent=name||"there";
- $("profileName").value=name;
- $("profileEmail").value=user.email||"";
- $("sideEmail").textContent=user.email||"";
-});
-$("saveProfile").addEventListener("click",async()=>{
- const button=$("saveProfile");button.disabled=true;button.textContent="Saving…";
+function show(id,text,isError=false){const el=$(id);if(!el)return;el.textContent=text;el.hidden=false;el.classList.toggle("error",isError);}
+function showFatal(message){
+ let panel=$("accountInitError");
+ if(!panel){
+  panel=document.createElement("section");panel.id="accountInitError";panel.className="card";
+  panel.setAttribute("role","alert");panel.style.cssText="margin:24px 0;padding:20px;border:1px solid #d9a18f;background:#fff7f3;color:#642d20;border-radius:16px";
+  const main=document.querySelector(".main");if(main)main.prepend(panel);else document.body.prepend(panel);
+ }
+ panel.textContent=message;
+}
+(async()=>{
  try{
-  const user=auth.currentUser;if(!user)throw new Error("Your session has expired. Please sign in again.");
-  const name=$("profileName").value.trim();if(!name)throw new Error("Please enter your name.");
-  await updateProfile(user,{displayName:name});
-  $("welcomeName").textContent=name;show("profileMessage","Your profile name has been updated.");
- }catch(error){show("profileMessage",error.message&&!error.code?error.message:friendlyAuthError(error),true);}
- finally{button.disabled=false;button.textContent="Save profile";}
-});
-$("resetPassword").addEventListener("click",async()=>{
- const button=$("resetPassword");button.disabled=true;button.textContent="Sending…";
- try{
-  const user=auth.currentUser;if(!user?.email)throw new Error("Please sign in again before requesting a password reset.");
-  await sendPasswordResetEmail(auth,user.email,{url:location.origin+"/workspace/login.html",handleCodeInApp:false});
-  show("securityMessage","If the address is eligible, Firebase has sent a password reset email. Check your inbox and spam folder.");
- }catch(error){show("securityMessage",error.message&&!error.code?error.message:friendlyAuthError(error),true);}
- finally{button.disabled=false;button.textContent="Send password reset email";}
-});
-$("signOutButton").addEventListener("click",async()=>{
- const button=$("signOutButton");button.disabled=true;button.textContent="Signing out…";
- try{await signOut(auth);location.replace("/workspace/login.html");}
- catch(error){show("securityMessage",friendlyAuthError(error),true);button.disabled=false;button.textContent="Sign out";}
-});
+  const firebase=await import("./firebase-auth.js");
+  const {auth,authReady,onAuthStateChanged,signOut,updateProfile,sendPasswordResetEmail,friendlyAuthError}=firebase;
+  await authReady;
+  onAuthStateChanged(auth,async user=>{
+   try{
+    if(!user){location.replace("/workspace/login.html");return;}
+    if(!user.emailVerified){await signOut(auth);location.replace("/workspace/login.html");return;}
+    const name=user.displayName||"";
+    $("welcomeName").textContent=name||"there";
+    $("profileName").value=name;
+    $("profileEmail").value=user.email||"";
+    $("sideEmail").textContent=user.email||"";
+   }catch(error){showFatal("We could not load your account details. Refresh the page or sign in again. "+(error?.message||""));}
+  },error=>showFatal("Firebase could not verify your session. Check your connection and refresh the page. "+(error?.message||"")));
+  $("saveProfile").addEventListener("click",async()=>{
+   const button=$("saveProfile");button.disabled=true;button.textContent="Saving…";
+   try{
+    const user=auth.currentUser;if(!user)throw new Error("Your session has expired. Please sign in again.");
+    const name=$("profileName").value.trim();if(!name)throw new Error("Please enter your name.");
+    await updateProfile(user,{displayName:name});
+    $("welcomeName").textContent=name;show("profileMessage","Your profile name has been updated.");
+   }catch(error){show("profileMessage",error.message&&!error.code?error.message:friendlyAuthError(error),true);}
+   finally{button.disabled=false;button.textContent="Save profile";}
+  });
+  $("resetPassword").addEventListener("click",async()=>{
+   const button=$("resetPassword");button.disabled=true;button.textContent="Sending…";
+   try{
+    const user=auth.currentUser;if(!user?.email)throw new Error("Please sign in again before requesting a password reset.");
+    await sendPasswordResetEmail(auth,user.email,{url:location.origin+"/workspace/login.html",handleCodeInApp:false});
+    show("securityMessage","If the address is eligible, Firebase has sent a password reset email. Check your inbox and spam folder.");
+   }catch(error){show("securityMessage",error.message&&!error.code?error.message:friendlyAuthError(error),true);}
+   finally{button.disabled=false;button.textContent="Send password reset email";}
+  });
+  $("signOutButton").addEventListener("click",async()=>{
+   const button=$("signOutButton");button.disabled=true;button.textContent="Signing out…";
+   try{await signOut(auth);location.replace("/workspace/login.html");}
+   catch(error){show("securityMessage",friendlyAuthError(error),true);button.disabled=false;button.textContent="Sign out";}
+  });
+ }catch(error){
+  showFatal("Account services could not start. Check the network connection and Firebase configuration, then refresh. Details: "+(error?.message||"Unknown initialization error."));
+ }
+})();
 </script><script src="/assets/kenji-motion.js" defer></script>
 </body></html>
