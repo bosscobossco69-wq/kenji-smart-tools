@@ -65,4 +65,5 @@ $("signOutButton").addEventListener("click",async()=>{
  try{await signOut(auth);location.replace("/workspace/login.html");}
  catch(error){show("securityMessage",friendlyAuthError(error),true);button.disabled=false;button.textContent="Sign out";}
 });
-</script></body></html>
+</script><script src="/assets/kenji-motion.js" defer></script>
+</body></html>
