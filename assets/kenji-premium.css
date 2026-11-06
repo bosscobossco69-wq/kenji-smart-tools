@@ -412,3 +412,23 @@ footer,.foot{border-color:#39332B!important}
 :root[data-theme="light"] .more-tool-link:hover,
 :root[data-theme="light"] .more-tool-link:focus-visible{border-color:#96734B!important}
 :root[data-theme="light"] .principle strong{color:#79552F!important}
+
+
+/* Theme switch label contrast fix — override generic button text rules */
+html body button.kenji-theme-toggle,
+html body button.kenji-theme-toggle:hover,
+html body button.kenji-theme-toggle:focus-visible{
+ color:#302A23!important;
+ -webkit-text-fill-color:#302A23!important;
+ background:#FFFCF6!important;
+ border-color:#CFC5B5!important;
+ opacity:1!important;
+ text-shadow:none!important;
+}
+html:not([data-theme="light"]) body button.kenji-theme-toggle,
+html:not([data-theme="light"]) body button.kenji-theme-toggle:hover{
+ color:#F3EBDD!important;
+ -webkit-text-fill-color:#F3EBDD!important;
+ background:#302A23!important;
+ border-color:#655640!important;
+}
