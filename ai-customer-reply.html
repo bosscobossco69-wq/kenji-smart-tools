@@ -26,7 +26,7 @@
 <div class="actions" style="margin-top:20px"><button class="btn primary" id="generate">Generate reply</button><button class="btn secondary" id="clear">Clear</button></div><p class="notice">Messages are processed securely by the AI service to generate your reply. Do not include passwords, payment details or sensitive personal data.</p></div>
 <div class="card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><h2>Your reply</h2><span class="tag">AI generated</span></div><div id="result" class="result empty" aria-live="polite">Your generated reply will appear here.</div><div class="actions" style="margin-top:14px"><button class="btn primary" id="copy" disabled>Copy reply</button><button class="btn secondary" id="again">Regenerate</button></div><div id="status" class="status" role="status" aria-live="polite"></div></div></section></main>
 <script type="module">
-import {auth,authReady} from "./workspace/firebase-auth.js";
+import {auth,authReady,onAuthStateChanged} from "./workspace/firebase-auth.js";
 let tone="professional",reply="";const $=id=>document.getElementById(id);
 let idToken="";
 const setStatus=(message,isError=false)=>{$("status").textContent=message;$("status").style.color=isError?"#ff9b9b":"var(--green)"};
@@ -34,7 +34,7 @@ function trialMessage(text){$("trialNotice").textContent=text;}
 async function initializeAccess(){
  try{
   await authReady;
-  const user=auth.currentUser;
+  const user=await new Promise(resolve=>{const unsubscribe=onAuthStateChanged(auth,value=>{unsubscribe();resolve(value);},()=>resolve(null));});
   if(!user){trialMessage("Please sign in and verify your email to use the 3-day trial. ");const a=document.createElement("a");a.href="/workspace/login.html";a.textContent="Sign in";$("trialNotice").append(a);$("generate").disabled=true;$("again").disabled=true;return;}
   await user.reload();
   if(!user.emailVerified){trialMessage("Please verify your email before starting your free trial.");$("generate").disabled=true;$("again").disabled=true;return;}
