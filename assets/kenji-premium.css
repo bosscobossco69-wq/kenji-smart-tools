@@ -358,3 +358,26 @@ footer,.foot{border-color:#39332B!important}
 :root[data-theme="light"] body .layout .sidebar .nav a.active{color:#79552F!important}
 :root[data-theme="light"] body .layout .sidebar .side-note strong{color:#79552F!important}
 :root[data-theme="light"] body .layout .metric-value{color:#28231D!important}
+
+
+/* Fix secondary action buttons: visible label + intentional surface in both themes */
+.small-btn.alt,.btn.secondary,.small-btn.secondary{
+ background:#E8DDCA!important;
+ color:#30251A!important;
+ border:1px solid #C9B28F!important;
+ -webkit-text-fill-color:#30251A!important;
+ opacity:1!important;
+ text-shadow:none!important;
+}
+.small-btn.alt:hover,.btn.secondary:hover,.small-btn.secondary:hover{
+ background:#D9C5A5!important;color:#241B13!important;border-color:#A9895C!important;
+}
+:root[data-theme="light"] .small-btn.alt,:root[data-theme="light"] .btn.secondary,:root[data-theme="light"] .small-btn.secondary{
+ background:#E8DDCA!important;color:#30251A!important;-webkit-text-fill-color:#30251A!important;border-color:#C9B28F!important;
+}
+:root:not([data-theme="light"]) .small-btn.alt,:root:not([data-theme="light"]) .btn.secondary,:root:not([data-theme="light"]) .small-btn.secondary{
+ background:#3A3329!important;color:#F3EBDD!important;-webkit-text-fill-color:#F3EBDD!important;border-color:#655640!important;
+}
+:root:not([data-theme="light"]) .small-btn.alt:hover,:root:not([data-theme="light"]) .btn.secondary:hover{
+ background:#4B4032!important;color:#FFF8EC!important;
+}
