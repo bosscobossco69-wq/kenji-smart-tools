@@ -15,7 +15,7 @@
 <section class="grid" aria-label="Account summary">
 <article class="card"><div class="metric-label">Account status</div><div class="metric-value"><span class="pill"><span class="dot"></span> Verified</span></div><div class="metric-help">Your email address is verified.</div></article>
 <article class="card"><div class="metric-label">Workspace plan</div><div class="metric-value">Not assigned</div><div class="metric-help">Plans are not connected to billing yet.</div></article>
-<article class="card"><div class="metric-label">AI Credits</div><div class="metric-value">Not active</div><div class="metric-help">No Credit balance is being tracked yet.</div></article>
+<article class="card"><div class="metric-label">AI Credits</div><div class="metric-value">Not active</div><div class="metric-help">No Credit balance is being tracked yet.</div></article>\n<article class="card"><div class="metric-label">Free trial</div><div class="metric-value" id="trialValue">Checking…</div><div class="metric-help" id="trialHelp">Trial access is verified securely by the server.</div></article>
 </section>
 <section class="section" id="profile"><div class="section-head"><div><h2>My profile</h2><p class="muted">View and update your display name.</p></div></div><div class="two-col">
 <article class="card"><div class="field"><label for="profileName">Full name</label><input id="profileName" type="text" maxlength="80" autocomplete="name" placeholder="Your name"></div><div class="field"><label for="profileEmail">Email address</label><input id="profileEmail" type="email" readonly></div><button class="btn" id="saveProfile" type="button">Save profile</button><p id="profileMessage" class="status" role="status" aria-live="polite" hidden></p></article>
@@ -53,6 +53,28 @@ function showFatal(message){
     $("profileName").value=name;
     $("profileEmail").value=user.email||"";
     $("sideEmail").textContent=user.email||"";
+    try {
+     const token=await user.getIdToken(true);
+     const response=await fetch("/api/trial-status",{method:"POST",headers:{Authorization:"Bearer "+token}});
+     const data=await response.json();
+     if(!response.ok)throw new Error(data.error||"Trial status unavailable.");
+     const trial=data.trial;
+     if(trial.status==="active"){
+      const remaining=Math.max(0,trial.trialEndsAt-Date.now());
+      const hours=Math.ceil(remaining/3600000);
+      $("trialValue").textContent="Active";
+      $("trialHelp").textContent="Free trial ends "+new Date(trial.trialEndsAt).toLocaleString()+" ("+hours+" hours remaining).";
+     } else if(trial.status==="subscribed"){
+      $("trialValue").textContent="Subscribed";
+      $("trialHelp").textContent="Your subscription is active.";
+     } else {
+      $("trialValue").textContent="Expired";
+      $("trialHelp").textContent="Choose a subscription to continue using premium AI features.";
+     }
+    } catch(trialError) {
+     $("trialValue").textContent="Unavailable";
+     $("trialHelp").textContent=trialError.message||"Trial status could not be checked.";
+    }
    }catch(error){showFatal("We could not load your account details. Refresh the page or sign in again. "+(error?.message||""));}
   },error=>showFatal("Firebase could not verify your session. Check your connection and refresh the page. "+(error?.message||"")));
   $("saveProfile").addEventListener("click",async()=>{
