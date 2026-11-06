@@ -1,3 +1,5 @@
+import { getFirebaseAdmin, requireVerifiedUser } from "./_lib/firebase-admin.js";
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -25,6 +27,25 @@ export default async function handler(req, res) {
   }
   const contentLength = Number(req.headers["content-length"] || 0);
   if (contentLength > 8192) return res.status(413).json({ error: "Request is too large." });
+
+  let user;
+  try {
+    user = await requireVerifiedUser(req);
+    const { db } = getFirebaseAdmin();
+    const account = await db.collection("users").doc(user.uid).get();
+    if (!account.exists) {
+      return res.status(403).json({ error: "Your free trial has not been started. Open your workspace account first." });
+    }
+    const entitlement = account.data() || {};
+    const subscribed = entitlement.subscriptionStatus === "active";
+    const trialEndsAt = entitlement.trialEndsAt?.toMillis?.() || 0;
+    if (!subscribed && Date.now() >= trialEndsAt) {
+      return res.status(402).json({ error: "Your 3-day free trial has ended. Choose a subscription to continue using this AI tool." });
+    }
+  } catch (error) {
+    const status = Number(error.statusCode) || 503;
+    return res.status(status).json({ error: status === 503 ? "Account and trial verification is not configured yet." : error.message });
+  }
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return res.status(503).json({ error: "AI service is not configured yet." });
