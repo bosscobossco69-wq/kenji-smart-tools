@@ -59,5 +59,6 @@ const monthly=document.getElementById("monthly"),annual=document.getElementById(
 function setPeriod(yearly){monthly.setAttribute("aria-pressed",String(!yearly));annual.setAttribute("aria-pressed",String(yearly));document.querySelectorAll(".price[data-month]").forEach(el=>{const amount=yearly?el.dataset.year:el.dataset.month;el.innerHTML="$"+amount+'<span> / '+(yearly?"year":"month")+"</span>";});}
 monthly.addEventListener("click",()=>setPeriod(false));annual.addEventListener("click",()=>setPeriod(true));
 </script>
+<script src="/assets/kenji-motion.js" defer></script>
 </body>
 </html>
