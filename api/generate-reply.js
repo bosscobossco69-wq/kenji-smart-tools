@@ -42,6 +42,25 @@ export default async function handler(req, res) {
     if (!subscribed && Date.now() >= trialEndsAt) {
       return res.status(402).json({ error: "Your 3-day free trial has ended. Choose a subscription to continue using this AI tool." });
     }
+
+    // Conservative per-account daily usage cap to protect the free trial from abuse.
+    // This is a safety limit, not a paid credit balance.
+    const dayKey = new Date().toISOString().slice(0, 10);
+    const usageRef = db.collection("users").doc(user.uid).collection("usage").doc(dayKey);
+    const usageLimit = Number(process.env.AI_DAILY_REQUEST_LIMIT || 30);
+    const allowed = await db.runTransaction(async transaction => {
+      const usage = await transaction.get(usageRef);
+      const count = Number(usage.data()?.count || 0);
+      if (count >= usageLimit) return false;
+      transaction.set(usageRef, {
+        count: count + 1,
+        updatedAt: new Date()
+      }, { merge: true });
+      return true;
+    });
+    if (!allowed) {
+      return res.status(429).json({ error: "You have reached today's AI usage limit. Please try again tomorrow." });
+    }
   } catch (error) {
     const status = Number(error.statusCode) || 503;
     return res.status(status).json({ error: status === 503 ? "Account and trial verification is not configured yet." : error.message });
