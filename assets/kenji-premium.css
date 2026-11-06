@@ -329,3 +329,32 @@ footer,.foot{border-color:#39332B!important}
 :root[data-theme="light"] .price,:root[data-theme="light"] .plan-name{color:#28231D!important}
 :root[data-theme="light"] .features{color:#62594E!important}
 :root[data-theme="light"] .kenji-theme-toggle{background:#FFFCF6!important;color:#302A23!important;border-color:#CFC5B5!important}
+
+
+/* LIGHT THEME READABILITY PATCH — explicit foregrounds for legacy component selectors */
+:root[data-theme="light"] body{color:#302A23!important}
+:root[data-theme="light"] body :is(p,li,small,label,dt,dd,figcaption,blockquote){color:#51483D!important}
+:root[data-theme="light"] body :is(h1,h2,h3,h4,h5,h6){color:#28231D!important}
+:root[data-theme="light"] body :is(strong,b){color:#28231D!important}
+:root[data-theme="light"] body :is(.muted,.sub,.hint,.help,.description,.subtitle,.metric-help,.metric-label,.tool-description,.tool-card p,.card p,.panel p,.notice p,.footer,.foot){color:#62584C!important}
+:root[data-theme="light"] body :is(a,.link){color:#79552F!important;text-decoration-color:rgba(121,85,47,.35)}
+:root[data-theme="light"] body a:hover{color:#57391F!important}
+:root[data-theme="light"] body :is(.brand,.brand span,.nav a,.nav-links a,.top a,.sidebar a,.sidebar button){color:#302A23!important}
+:root[data-theme="light"] body :is(.eyebrow,.section-kicker,.label,.badge,.tag,.pill,.accent,.gradient-text){color:#79552F!important}
+:root[data-theme="light"] body .gradient-text{-webkit-text-fill-color:#79552F!important;background:none!important}
+:root[data-theme="light"] body :is(button,.btn,.btn.primary,.nav-cta,.contact-email,.small-btn,.file-button){color:#FFF9F0!important}
+:root[data-theme="light"] body :is(.btn.secondary,.small-btn.alt){color:#302A23!important}
+:root[data-theme="light"] body :is(input,textarea,select){color:#28231D!important;background:#FFFCF6!important}
+:root[data-theme="light"] body :is(input,textarea,select)::placeholder{color:#766B5D!important;opacity:1!important}
+:root[data-theme="light"] body :is(.tool-card,.card,.panel,.glass,.notice,.contact-card,.principle,.note,.metric,.status,.quick-link){color:#302A23!important}
+:root[data-theme="light"] body :is(.tool-card,.card,.panel,.glass,.notice,.contact-card,.principle,.note,.metric,.status,.quick-link) :is(div,span){color:inherit}
+:root[data-theme="light"] body :is(.tool-card,.card,.panel,.glass,.notice,.contact-card,.principle,.note,.metric,.status,.quick-link) :is(p,li,small){color:#62584C!important}
+:root[data-theme="light"] body :is(.tool-card,.card,.panel,.glass,.notice,.contact-card,.principle,.note,.metric,.status,.quick-link) :is(h1,h2,h3,h4,strong,b){color:#28231D!important}
+:root[data-theme="light"] body .tool-icon,:root[data-theme="light"] body .icon{color:#211A12!important}
+:root[data-theme="light"] body .kenji-theme-toggle{color:#302A23!important;background:#FFFCF6!important}
+:root[data-theme="light"] body .status.error{color:#8D2929!important;background:#FFF1ED!important}
+:root[data-theme="light"] body .status:not(.error){color:#40382F!important}
+:root[data-theme="light"] body .layout .btn.danger{color:#9E3829!important}
+:root[data-theme="light"] body .layout .sidebar .nav a.active{color:#79552F!important}
+:root[data-theme="light"] body .layout .sidebar .side-note strong{color:#79552F!important}
+:root[data-theme="light"] body .layout .metric-value{color:#28231D!important}
