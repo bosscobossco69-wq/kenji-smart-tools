@@ -381,3 +381,34 @@ footer,.foot{border-color:#39332B!important}
 :root:not([data-theme="light"]) .small-btn.alt:hover,:root:not([data-theme="light"]) .btn.secondary:hover{
  background:#4B4032!important;color:#FFF8EC!important;
 }
+
+
+/* Harmonize legacy homepage sections with the refined KENJI palettes */
+.more-tool-link,.principle,.glass{
+ background:linear-gradient(145deg,#26221C,#201D18)!important;
+ border:1px solid #40382E!important;
+ color:#EEE9E0!important;
+ box-shadow:0 16px 42px rgba(0,0,0,.18)!important;
+}
+.more-tool-link strong,.principle strong,.glass h2,.glass h3{color:#F4EFE6!important}
+.more-tool-link span,.principle span,.glass p{color:#B8AEA0!important}
+.more-tool-link:hover,.more-tool-link:focus-visible{border-color:#C6A477!important}
+.contact-email{color:#211A12!important}
+:root[data-theme="light"] .more-tool-link,
+:root[data-theme="light"] .principle,
+:root[data-theme="light"] .glass{
+ background:linear-gradient(145deg,#FFFCF6,#F8F3EA)!important;
+ border:1px solid #DED6C9!important;
+ color:#302A23!important;
+ box-shadow:0 12px 34px rgba(63,48,29,.055)!important;
+}
+:root[data-theme="light"] .more-tool-link strong,
+:root[data-theme="light"] .principle strong,
+:root[data-theme="light"] .glass h2,
+:root[data-theme="light"] .glass h3{color:#28231D!important}
+:root[data-theme="light"] .more-tool-link span,
+:root[data-theme="light"] .principle span,
+:root[data-theme="light"] .glass p{color:#62584C!important}
+:root[data-theme="light"] .more-tool-link:hover,
+:root[data-theme="light"] .more-tool-link:focus-visible{border-color:#96734B!important}
+:root[data-theme="light"] .principle strong{color:#79552F!important}
