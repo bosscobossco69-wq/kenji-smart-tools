@@ -47,7 +47,8 @@ export default async function handler(req, res) {
     // This is a safety limit, not a paid credit balance.
     const dayKey = new Date().toISOString().slice(0, 10);
     const usageRef = db.collection("users").doc(user.uid).collection("usage").doc(dayKey);
-    const usageLimit = Number(process.env.AI_DAILY_REQUEST_LIMIT || 30);
+    const configuredLimit = Number(process.env.AI_DAILY_REQUEST_LIMIT || 30);
+    const usageLimit = Number.isInteger(configuredLimit) && configuredLimit > 0 ? Math.min(configuredLimit, 500) : 30;
     const allowed = await db.runTransaction(async transaction => {
       const usage = await transaction.get(usageRef);
       const count = Number(usage.data()?.count || 0);
