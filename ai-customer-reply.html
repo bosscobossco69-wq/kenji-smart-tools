@@ -45,4 +45,5 @@ document.querySelectorAll(".tone").forEach(button=>button.addEventListener("clic
 $("generate").addEventListener("click",generate);$("again").addEventListener("click",generate);
 $("clear").addEventListener("click",()=>{$("message").value="";$("scenario").selectedIndex=0;tone="professional";document.querySelectorAll(".tone").forEach(button=>button.setAttribute("aria-pressed",String(button.dataset.tone===tone)));reply="";$("result").textContent="Your generated reply will appear here.";$("result").classList.add("empty");$("copy").disabled=true;setStatus("Cleared.")});
 $("copy").addEventListener("click",async()=>{if(!reply)return;try{await navigator.clipboard.writeText(reply);setStatus("Copied to clipboard.")}catch{setStatus("Copy unavailable. Select and copy the reply manually.",true)}});
-</script></body></html>
+</script><script src="/assets/kenji-motion.js" defer></script>
+</body></html>
