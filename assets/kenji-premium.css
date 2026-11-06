@@ -109,3 +109,19 @@ footer,.foot{border-color:var(--kenji-line)!important}
 @media(max-width:850px){.layout .sidebar .nav{display:flex!important;overflow-x:auto!important;scrollbar-width:thin!important}.layout .sidebar .nav a{white-space:nowrap!important}.layout .hero{padding:30px 0 20px!important}}
 @media(max-width:560px){.layout .topbar{padding:14px!important}.layout .top-actions{gap:7px!important}.layout .top-link{font-size:.76rem!important;padding:8px!important}.layout .section{padding-top:28px!important}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto!important}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Motion utilities: progressive enhancement only */
+.kenji-motion-ready .kenji-reveal{opacity:0;transform:translateY(18px);transition:opacity .65s ease var(--kenji-reveal-delay,0ms),transform .65s cubic-bezier(.2,.8,.2,1) var(--kenji-reveal-delay,0ms)}
+.kenji-motion-ready .kenji-reveal.kenji-is-visible{opacity:1;transform:translateY(0)}
+@media(prefers-reduced-motion:reduce){.kenji-motion-ready .kenji-reveal{opacity:1!important;transform:none!important;transition:none!important}}
+/* Account-specific layout refinements */
+.layout .sidebar{z-index:4}
+.layout .sidebar .nav{width:100%}
+.layout .sidebar .nav a{border:1px solid transparent}
+.layout .sidebar .nav a.active{border-color:var(--kenji-line);box-shadow:inset 3px 0 var(--kenji-accent)!important}
+.layout .main{max-width:1200px}
+.layout .metric-value{font-size:clamp(1.15rem,2vw,1.55rem)}
+.layout .section-head{align-items:flex-start}
+.layout .field input[readonly]{background:var(--kenji-surface)!important;color:var(--kenji-muted)!important}
+.layout .status:not([hidden]){display:block!important}
+@media(max-width:850px){.layout .sidebar{z-index:5}.layout .sidebar .brand{padding-bottom:10px!important}.layout .sidebar .nav a.active{box-shadow:inset 0 -2px var(--kenji-accent)!important}}
