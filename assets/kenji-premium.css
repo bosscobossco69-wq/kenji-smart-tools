@@ -432,3 +432,34 @@ html:not([data-theme="light"]) body button.kenji-theme-toggle:hover{
  background:#302A23!important;
  border-color:#655640!important;
 }
+
+
+/* LIGHT THEME BUTTON CONTRAST FIX — keep readable foregrounds on light controls */
+:root[data-theme="light"] body button{color:#302A23!important}
+:root[data-theme="light"] body :is(.btn,.btn.primary,.nav-cta,.contact-email,.small-btn,.file-button){color:#28231D!important}
+:root[data-theme="light"] body .tone{
+  background:#EAE3D8!important;
+  color:#51483D!important;
+  border:1px solid #CFC5B5!important;
+}
+:root[data-theme="light"] body .tone[aria-pressed="true"]{
+  background:#302A23!important;
+  color:#FFF9F0!important;
+  border-color:#302A23!important;
+}
+:root[data-theme="light"] body .btn.primary{
+  background:linear-gradient(135deg,#D6B88C,#B18B5D)!important;
+  color:#28231D!important;
+  border:1px solid #A78356!important;
+}
+:root[data-theme="light"] body .btn.secondary{
+  background:#EAE3D8!important;
+  color:#302A23!important;
+  border:1px solid #CFC5B5!important;
+}
+:root[data-theme="light"] body .notice{
+  color:#51483D!important;
+}
+:root[data-theme="light"] body .notice a{
+  color:#79552F!important;
+}
