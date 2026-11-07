@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="/assets/kenji-brand-system.css">
 </head>
 <body><div class="shell">
-<header class="top"><a class="brand" href="/workspace/"><span>KENJI</span> AI WORKSPACE</a><nav class="workspace-nav" aria-label="Workspace account navigation"><a class="nav-cta" href="/workspace/login.html">Sign in</a><a class="btn secondary" href="/workspace/signup.html">Create account</a><a class="muted" href="/">Main website ↗</a></nav></header>
+<header class="top"><a class="brand" href="/workspace/"><span>KENJI</span> AI WORKSPACE</a><nav class="workspace-nav" id="workspaceNav" aria-label="Workspace account navigation"><a class="nav-cta" href="/workspace/login.html">Sign in</a><a class="btn secondary" href="/workspace/signup.html">Create account</a><a class="muted" href="/">Main website ↗</a></nav></header>
 <main>
 <section class="hero"><div class="eyebrow">Workspace preview</div><h1>One place for<br><span class="gradient-text">smarter work.</span></h1><p class="muted">A growing collection of AI-assisted tools for customer communication and team workflows.</p></section>
 <div class="notice"><strong>Early access:</strong> Sign-in and email verification are available. Workspace plans, AI Credits and payment processing are still in preview and no payment is collected here.</div>
@@ -24,6 +24,16 @@
 </section>
 </main>
 <footer class="foot">KENJI AI Workspace · Early access preview · <a href="/privacy.html" style="color:var(--cyan)">Privacy</a> · <a href="/terms.html" style="color:var(--cyan)">Terms</a></footer>
-</div><script src="/assets/kenji-motion.js" defer></script>
+</div><script type="module">
+import {auth,authReady,onAuthStateChanged,signOut} from "./firebase-auth.js";
+const nav=document.getElementById("workspaceNav");
+await authReady;
+onAuthStateChanged(auth,user=>{
+ if(!nav)return;
+ if(user && user.emailVerified){nav.innerHTML=`<a class="nav-cta" href="/workspace/account.html">My account</a><button class="btn secondary" id="workspaceSignOut" type="button">Sign out</button><a class="muted" href="/">Main website ↗</a>`;
+ document.getElementById("workspaceSignOut")?.addEventListener("click",async()=>{await signOut(auth);location.reload();});}
+ else{nav.innerHTML=`<a class="nav-cta" href="/workspace/login.html">Sign in</a><a class="btn secondary" href="/workspace/signup.html">Create account</a><a class="muted" href="/">Main website ↗</a>`;}
+});
+</script><script src="/assets/kenji-motion.js" defer></script>
 
 </body></html>
