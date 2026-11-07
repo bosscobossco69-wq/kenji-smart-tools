@@ -75,3 +75,16 @@ body #invoice-preview{background:#F4EFE6!important;color:#302A23!important}
 body #invoice-preview :is(h1,h2,h3,p,span,strong,b,td,th){color:#302A23!important}
 body :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--kenji-gold)!important;outline-offset:3px!important}
 @media(prefers-reduced-motion:reduce){body *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+/* AI Customer Reply page: override its more-specific legacy component rules */
+body.ai-reply-page .tool-card{background:var(--kenji-panel)!important;border:1px solid var(--kenji-line)!important;color:var(--kenji-ivory)!important;box-shadow:0 12px 30px rgba(0,0,0,.2)!important}
+body.ai-reply-page .tool-card h2{color:var(--kenji-ivory)!important}
+body.ai-reply-page .tool-card p,body.ai-reply-page .hero p,body.ai-reply-page .sub,body.ai-reply-page .notice{color:var(--kenji-muted)!important}
+body.ai-reply-page .tone,body.ai-reply-page .secondary{background:var(--kenji-panel-raised)!important;color:var(--kenji-ivory)!important;border:1px solid #75634D!important;-webkit-text-fill-color:var(--kenji-ivory)!important}
+body.ai-reply-page .tone[aria-pressed=true]{background:var(--kenji-gold)!important;color:#211A13!important;border-color:var(--kenji-gold)!important;-webkit-text-fill-color:#211A13!important}
+body.ai-reply-page .primary{background:var(--kenji-gold)!important;color:#211A13!important;border:1px solid var(--kenji-gold-deep)!important;-webkit-text-fill-color:#211A13!important}
+body.ai-reply-page select,body.ai-reply-page textarea,body.ai-reply-page .result{background:var(--kenji-bg-deep)!important;color:var(--kenji-ivory)!important;border-color:#75634D!important}
+body.ai-reply-page .tag{background:#40372D!important;color:var(--kenji-gold)!important;border-color:#665744!important}
+body.ai-reply-page .hero h1,body.ai-reply-page .hero h1 span{color:var(--kenji-ivory)!important;-webkit-text-fill-color:var(--kenji-ivory)!important}
+body.ai-reply-page .hero h1 span{color:var(--kenji-gold)!important;-webkit-text-fill-color:var(--kenji-gold)!important}
+body.ai-reply-page header.nav{background:transparent!important;border-color:var(--kenji-line)!important}
