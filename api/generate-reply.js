@@ -8,8 +8,17 @@ export default async function handler(req, res) {
   }
 
   const origin = req.headers.origin;
-  if (origin && origin !== "https://kenji-smart-tools.vercel.app") {
-    return res.status(403).json({ error: "Request origin is not allowed." });
+  const host = req.headers.host;
+  if (!origin || !host) {
+    return res.status(403).json({ error: "A same-origin request is required." });
+  }
+  try {
+    const parsedOrigin = new URL(origin);
+    if (parsedOrigin.protocol !== "https:" || parsedOrigin.host.toLowerCase() !== String(host).toLowerCase()) {
+      return res.status(403).json({ error: "Request origin is not allowed." });
+    }
+  } catch {
+    return res.status(403).json({ error: "Invalid request origin." });
   }
 
   const contentLength = Number(req.headers["content-length"] || 0);
