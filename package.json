@@ -1,0 +1,10 @@
+{
+  "name": "kenji-smart-tools",
+  "private": true,
+  "version": "1.0.0",
+  "description": "KENJI Smart Tools web application and serverless API",
+  "engines": {
+    "node": "24.x"
+  },
+  "type": "module"
+}
