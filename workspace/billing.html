@@ -32,6 +32,14 @@ a{color:var(--cyan);text-decoration:none}.shell{width:min(1160px,calc(100% - 32p
   font-weight:800;
 }
 .switch button[aria-pressed="true"]::before{content:"✓ ";font-weight:900}
+.switch button#annual:not([aria-pressed="true"]),
+.switch button#annual:not([aria-pressed="true"]) small,
+.switch button#monthly:not([aria-pressed="true"]),
+.switch button#monthly:not([aria-pressed="true"]) small{
+  color:#62E6F5 !important;
+  -webkit-text-fill-color:#62E6F5 !important;
+  opacity:1 !important;
+}
 .switch button:focus-visible{outline:2px solid #F4D8AD;outline-offset:3px}
 </style>
 </head>
