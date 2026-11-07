@@ -244,12 +244,12 @@ footer,.foot{border-color:#303640!important}
 :root[data-theme="light"] .price,:root[data-theme="light"] .plan-name{color:#171717!important}
 :root[data-theme="light"] .features{color:#555d68!important}
 :root[data-theme="light"] #invoice-preview{background:#fff!important;color:#111!important}
-.kenji-theme-toggle{position:fixed;z-index:9999;right:18px;top:18px;display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid #414956;border-radius:999px;background:#171d26;color:#f4f5f7;font:600 13px/1.2 'Onest',sans-serif;box-shadow:0 8px 26px rgba(0,0,0,.22);cursor:pointer}
+.kenji-theme-toggle{position:fixed;z-index:9999;right:18px;top:18px;left:auto;width:auto;max-width:max-content;min-height:0;height:auto;margin:0;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 10px;border:1px solid #414956;border-radius:999px;background:#171d26;color:#f4f5f7;font:600 12px/1.2 'Onest',sans-serif;box-shadow:0 5px 16px rgba(0,0,0,.18);cursor:pointer;white-space:nowrap}
 .kenji-theme-toggle:hover{border-color:#e59a61;color:#f2b27e}
 :root[data-theme="light"] .kenji-theme-toggle{background:#fff;color:#222;border-color:#d8d4cc;box-shadow:0 8px 26px rgba(0,0,0,.09)}
 :root[data-theme="light"] .kenji-theme-toggle:hover{border-color:#9a4f25;color:#85421f}
 .kenji-theme-toggle:focus-visible{outline:3px solid #e59a61;outline-offset:3px}
-@media(max-width:560px){.kenji-theme-toggle{top:12px;right:12px;padding:9px 11px;font-size:12px}}
+@media(max-width:560px){.kenji-theme-toggle{top:14px;right:14px;padding:6px 9px;font-size:11px}}
 
 
 /* KENJI refined luxury palette + editorial typography */
