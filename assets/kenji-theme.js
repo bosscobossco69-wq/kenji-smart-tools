@@ -27,7 +27,11 @@
    const next=theme==="dark"?"light":"dark";apply(next);
    try{localStorage.setItem(key,next)}catch{}
   });
-  document.body.appendChild(button);apply(theme);
+  const nav=document.querySelector(".nav-inner");
+  const navLinks=nav?.querySelector(".nav-links");
+  if(nav&&navLinks) nav.insertBefore(button,navLinks.nextSibling);
+  else document.body.appendChild(button);
+  apply(theme);
  };
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount,{once:true});else mount();
 })();
