@@ -463,3 +463,24 @@ html:not([data-theme="light"]) body button.kenji-theme-toggle:hover{
 :root[data-theme="light"] body .notice a{
   color:#79552F!important;
 }
+
+/* Theme toggle belongs in the navbar flow; never float over the CTA */
+.nav-inner > .kenji-theme-toggle{
+ position:static!important;
+ inset:auto!important;
+ z-index:auto!important;
+ width:auto!important;
+ max-width:max-content!important;
+ min-height:0!important;
+ height:auto!important;
+ flex:0 0 auto!important;
+ margin:0 8px!important;
+ padding:7px 10px!important;
+ transform:none!important;
+}
+@media(max-width:850px){
+ .nav-inner > .kenji-theme-toggle{margin:0 4px!important;padding:6px 8px!important;font-size:11px!important}
+}
+@media(max-width:560px){
+ .nav-inner > .kenji-theme-toggle{margin-left:auto!important}
+}
