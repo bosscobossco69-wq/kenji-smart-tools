@@ -34,7 +34,7 @@
    nav.insertBefore(button,navLinks.nextSibling);
   }else if(pageNav){
    const backLink=pageNav.querySelector("a:last-child");
-   if(backLink) pageNav.insertBefore(button,backLink);
+   if(backLink) backLink.parentNode.insertBefore(button,backLink);
    else pageNav.appendChild(button);
   }else{
    document.body.appendChild(button);
