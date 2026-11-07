@@ -4,6 +4,7 @@
   const links = [
     {label:"Home", href:"/workspace/", match:p=>p==="/workspace/"||p==="/workspace/index.html"},
     {label:"AI Customer Reply", href:"/ai-customer-reply.html", match:p=>p==="/ai-customer-reply.html"},
+    {label:"My account", href:"/workspace/account.html", match:p=>p==="/workspace/account.html"},
     {label:"Plans", href:"/workspace/billing.html", match:p=>p==="/workspace/billing.html"},
     {label:"Sign in", href:"/workspace/login.html", match:p=>p==="/workspace/login.html"},
     {label:"Create account", href:"/workspace/signup.html", match:p=>p==="/workspace/signup.html"}
