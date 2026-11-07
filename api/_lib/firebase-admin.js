@@ -38,7 +38,7 @@ export function getFirebaseAdmin() {
 
 export async function requireVerifiedUser(req) {
   const header = String(req.headers.authorization || "");
-  const match = header.match(/^Bearer\\s+(.+)$/i);
+  const match = header.match(/^Bearer\s+(.+)$/i);
   if (!match) {
     const error = new Error("Sign in is required.");
     error.statusCode = 401;
