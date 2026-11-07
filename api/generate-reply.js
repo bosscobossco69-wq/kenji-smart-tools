@@ -1,4 +1,3 @@
-import { getFirebaseAdmin, requireVerifiedUser } from "./_lib/firebase-admin.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -30,6 +29,7 @@ export default async function handler(req, res) {
 
   let user;
   try {
+    const { getFirebaseAdmin, requireVerifiedUser } = await import("./_lib/firebase-admin.js");
     user = await requireVerifiedUser(req);
     const { db } = getFirebaseAdmin();
     const account = await db.collection("users").doc(user.uid).get();
