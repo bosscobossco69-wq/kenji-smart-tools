@@ -15,6 +15,7 @@ a{color:var(--cyan);text-decoration:none}.shell{width:min(1160px,calc(100% - 32p
 </style>
 
 <link rel="stylesheet" href="/assets/kenji-premium.css">
+<link rel="stylesheet" href="/assets/kenji-workspace-ui.css">
 </head>
 <body>
 <div class="shell">
@@ -70,6 +71,8 @@ function setPeriod(yearly){monthly.setAttribute("aria-pressed",String(!yearly));
 monthly.addEventListener("click",()=>setPeriod(false));annual.addEventListener("click",()=>setPeriod(true));
 </script>
 <script src="/assets/kenji-motion.js" defer></script>
+<script src="/assets/kenji-theme.js" defer></script>
+<script src="/assets/kenji-workspace-nav.js" defer></script>
 <script src="/assets/kenji-theme.js" defer></script>
 </body>
 </html>
