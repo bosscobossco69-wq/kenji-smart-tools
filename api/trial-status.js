@@ -1,4 +1,3 @@
-import { getFirebaseAdmin, requireVerifiedUser } from "./_lib/firebase-admin.js";
 
 const TRIAL_MS = 3 * 24 * 60 * 60 * 1000;
 
@@ -25,6 +24,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    const { getFirebaseAdmin, requireVerifiedUser } = await import("./_lib/firebase-admin.js");
     const user = await requireVerifiedUser(req);
     const { db, Timestamp } = getFirebaseAdmin();
     const ref = db.collection("users").doc(user.uid);
