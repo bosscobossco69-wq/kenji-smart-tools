@@ -29,8 +29,16 @@
   });
   const nav=document.querySelector(".nav-inner");
   const navLinks=nav?.querySelector(".nav-links");
-  if(nav&&navLinks) nav.insertBefore(button,navLinks.nextSibling);
-  else document.body.appendChild(button);
+  const pageNav=document.querySelector("header.nav");
+  if(nav&&navLinks){
+   nav.insertBefore(button,navLinks.nextSibling);
+  }else if(pageNav){
+   const backLink=pageNav.querySelector("a:last-child");
+   if(backLink) pageNav.insertBefore(button,backLink);
+   else pageNav.appendChild(button);
+  }else{
+   document.body.appendChild(button);
+  }
   apply(theme);
  };
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount,{once:true});else mount();
