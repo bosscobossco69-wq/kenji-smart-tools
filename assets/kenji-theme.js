@@ -29,7 +29,7 @@
   });
   const nav=document.querySelector(".nav-inner");
   const navLinks=nav?.querySelector(".nav-links");
-  const pageNav=document.querySelector("header.nav");
+  const pageNav=document.querySelector("header.top, header.nav");
   if(nav&&navLinks){
    nav.insertBefore(button,navLinks.nextSibling);
   }else if(pageNav){
