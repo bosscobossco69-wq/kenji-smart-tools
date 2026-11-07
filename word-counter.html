@@ -41,15 +41,21 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
   <label>Your text</label>
   <textarea id="t" placeholder="Start typing or paste your text here..." oninput="count()"></textarea>
 </div>
-<div class="card">
+<div class="card" aria-label="Live text statistics">
   <div class="row">
     <div class="result"><b id="w">0</b><br>Words</div>
     <div class="result"><b id="c">0</b><br>Characters</div>
   </div>
   <div class="row" style="margin-top:12px">
+    <div class="result"><b id="cns">0</b><br>Characters without spaces</div>
     <div class="result"><b id="s">0</b><br>Sentences</div>
-    <div class="result"><b id="p">0</b><br>Paragraphs</div>
   </div>
+  <div class="row" style="margin-top:12px">
+    <div class="result"><b id="p">0</b><br>Paragraphs</div>
+    <div class="result"><b id="rt">0 min</b><br>Estimated reading time</div>
+  </div>
+  <button type="button" id="copy-stats" onclick="copyStats()">Copy statistics</button>
+  <p id="copy-status" role="status" aria-live="polite"></p>
 </div>
 
 <section class="seo-guide" aria-labelledby="guide-title">
@@ -59,7 +65,11 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
 <h2>How to use word counts when writing</h2>
 <p>Word counts are useful when preparing essays, reports, product descriptions, applications, and social posts with length limits. Paste your draft into the editor and review the word and character totals as you revise. If a publisher or platform defines its own counting rules, use that service's count as the final reference because hyphenated words, contractions, URLs, and language-specific text may be treated differently.</p>
 <h3>Words, characters, and characters without spaces</h3>
-<p>A word count estimates how many units of text are separated by whitespace. A character count includes letters, numbers, punctuation, spaces, and line breaks. Some writing requirements ask for characters excluding spaces; this page's character total includes spaces, so check the requirement before submitting.</p>
+<p>A word count estimates how many units of text are separated by whitespace. The character total includes letters, numbers, punctuation, spaces, and line breaks. Characters without spaces removes whitespace characters from that total, which is useful when a form or platform sets a character limit that excludes spaces. Check the rules of the service you are submitting to, because counting conventions can differ.</p>
+<h3>Estimate reading time</h3>
+<p>The reading-time estimate uses a simple average of 200 words per minute and rounds up to the next whole minute. It is a planning guide rather than a measurement of an individual reader's speed. Technical writing, unfamiliar terms, and careful proofreading may take longer.</p>
+<h3>Example: check a short draft</h3>
+<p>For the sample text “Write clearly. Check every word.” the counter reports 5 words, 33 characters including spaces and punctuation, and 28 characters without whitespace. The exact sentence and paragraph totals depend on the punctuation and line breaks in your draft.</p>
 <h3>Sentence and paragraph counts are estimates</h3>
 <p>Sentence detection commonly relies on punctuation such as periods, question marks, and exclamation marks. Abbreviations, decimal numbers, initials, and quoted text can make automatic sentence counts differ from a human editor's count. Paragraphs are identified from blank-line separation, so consistent formatting helps produce a useful estimate.</p>
 <h3>Privacy when editing drafts</h3>
@@ -73,11 +83,24 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
 <footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; Free, no account needed</footer>
 <script>
 function count(){const t=document.getElementById('t').value;
- document.getElementById('w').textContent=(t.trim().match(/\S+/g)||[]).length;
+ const words=(t.trim().match(/\S+/g)||[]).length;
+ document.getElementById('w').textContent=words;
  document.getElementById('c').textContent=t.length;
+ document.getElementById('cns').textContent=t.replace(/\s/g,'').length;
  document.getElementById('s').textContent=(t.match(/[.!?]+(\s|$)/g)||[]).length|| (t.trim()?1:0);
- document.getElementById('p').textContent=t.trim()===''?0:t.trim().split(/\n\s*\n/).length;}
-
+ document.getElementById('p').textContent=t.trim()===''?0:t.trim().split(/\n\s*\n/).length;
+ document.getElementById('rt').textContent=(words===0?0:Math.ceil(words/200))+' min';}
+async function copyStats(){const values=[
+ 'Words: '+document.getElementById('w').textContent,
+ 'Characters: '+document.getElementById('c').textContent,
+ 'Characters without spaces: '+document.getElementById('cns').textContent,
+ 'Sentences: '+document.getElementById('s').textContent,
+ 'Paragraphs: '+document.getElementById('p').textContent,
+ 'Estimated reading time: '+document.getElementById('rt').textContent
+ ].join('\n');
+ const status=document.getElementById('copy-status');
+ try{await navigator.clipboard.writeText(values);status.textContent='Statistics copied.';}
+ catch(error){status.textContent='Clipboard access is unavailable in this browser. Select and copy the values manually.';}}
 count();
 </script>
 </body>
