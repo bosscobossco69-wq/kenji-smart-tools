@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Draft clear, professional AI-assisted customer replies in seconds.">
+<meta name="theme-color" content="#17120e">
+<title>AI Customer Reply | KENJI AI Workspace</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/kenji-premium.css">
+<style>
+*{box-sizing:border-box}
+body.ai-reply-page{min-height:100vh;margin:0;background:#17120e;color:#f4efe6;font:15px/1.6 'Onest',system-ui,sans-serif}
+.ai-shell{width:min(1080px,calc(100% - 36px));margin:0 auto}
+.ai-reply-page header.nav{display:flex;align-items:center;gap:14px;padding:18px 0;border-bottom:1px solid #40382e;background:transparent!important;border-radius:0!important;box-shadow:none!important}
+.ai-reply-page .brand{margin-right:0!important;color:#f4efe6!important}
+.ai-reply-page .brand b{color:#d6b88c}
+.ai-reply-page header.nav .back-link{margin-left:auto;color:#dcc29a}
+.ai-reply-page .hero{text-align:center;padding:48px 0 26px}
+.ai-reply-page .eyebrow{display:inline-block;color:#c6a477}
+.ai-reply-page .hero h1{font-size:clamp(2.25rem,5.5vw,3.8rem)!important;line-height:1.08!important;margin:14px 0!important;color:#f7f1e8!important;letter-spacing:-.035em!important}
+.ai-reply-page .hero h1 span{color:#c6a477!important}
+.ai-reply-page .hero p,.ai-reply-page .sub,.ai-reply-page .notice{color:#b8aea0!important}
+.ai-reply-page .tool-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;padding-bottom:48px}
+.ai-reply-page .tool-card{min-width:0;padding:24px;border:1px solid #40382e;border-radius:20px;background:linear-gradient(150deg,#26221c,#201d18);box-shadow:0 18px 48px rgba(0,0,0,.18);color:#eee9e0}
+.ai-reply-page .tool-card h2{font-size:1.2rem!important;line-height:1.3!important;margin:0 0 8px!important;color:#f4efe6!important;letter-spacing:-.02em!important}
+.ai-reply-page label,.ai-reply-page .label{display:block;margin:17px 0 8px;color:#e1d6c6;font-weight:700;font-size:.9rem}
+.ai-reply-page select,.ai-reply-page textarea{width:100%;padding:13px;border:1px solid #655640;border-radius:11px;background:#171512;color:#f4efe6;font:inherit}
+.ai-reply-page textarea{min-height:145px;resize:vertical;line-height:1.6}
+.ai-reply-page .tones,.ai-reply-page .actions{display:flex;gap:9px;flex-wrap:wrap}
+.ai-reply-page button{font:inherit;font-weight:700;cursor:pointer;border-radius:10px;padding:10px 13px}
+.ai-reply-page .tone,.ai-reply-page .secondary{background:#3a3329;color:#f3ebdd;border:1px solid #655640}
+.ai-reply-page .tone{flex:1}
+.ai-reply-page .tone[aria-pressed=true]{background:#d6b88c;color:#28231d;border-color:#b18b5d}
+.ai-reply-page .primary{background:linear-gradient(110deg,#d6b88c,#b18b5d);color:#28231d;border:1px solid #a78356}
+.ai-reply-page .primary:disabled{opacity:.55;cursor:not-allowed}
+.ai-reply-page .result{min-height:190px;padding:16px;border:1px solid #655640;border-radius:12px;background:#171512;color:#f4efe6;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.ai-reply-page .result.empty{color:#b8aea0}
+.ai-reply-page .tag{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:#d6b88c}
+.ai-reply-page .notice,.ai-reply-page .status{font-size:.82rem;line-height:1.55;margin-top:12px;color:#b8aea0}
+.ai-reply-page .status{min-height:22px;color:#d6b88c}
+.ai-reply-page .kenji-theme-toggle{position:static!important;margin:0 auto!important;flex:0 0 auto!important;background:#302a23!important;color:#f3ebdd!important;border:1px solid #655640!important;padding:7px 11px!important}
+@media(max-width:720px){.ai-reply-page .tool-grid{grid-template-columns:1fr}.ai-reply-page .hero{padding-top:38px}.ai-reply-page .tool-card{padding:19px}.ai-reply-page header.nav{flex-wrap:wrap}.ai-reply-page header.nav .back-link{margin-left:auto}}
+</style>
+</head>
+<body class="ai-reply-page">
+<header class="ai-shell nav">
+<a class="brand" href="/workspace/"><b>KENJI</b> AI WORKSPACE</a>
+<a class="back-link" href="/workspace/">← Workspace home</a>
+</header>
+<main class="ai-shell">
+<section class="hero"><span class="eyebrow">Business communication tool</span><h1>Reply to customers<br><span>with confidence.</span></h1><p>Enter the customer message, select a scenario and tone, then generate a reply.</p></section>
+<section class="tool-grid" aria-label="Customer reply generator">
+<div class="tool-card">
+<h2>Create your reply</h2><p class="sub">Select a scenario and tone. Your reply is generated from the customer's message.</p>
+<label for="scenario">Customer scenario</label>
+<select id="scenario"><option value="price">Price is too expensive</option><option value="discount">Customer asks for a discount</option><option value="delay">Order is delayed</option><option value="service">Customer asks about a service</option><option value="followup">Customer hasn't replied</option></select>
+<label for="message">Customer's message</label><textarea id="message" maxlength="1200" required placeholder="Paste or type the customer's message here..."></textarea>
+<span class="label">Reply tone</span><div class="tones" role="group" aria-label="Reply tone"><button class="tone" data-tone="professional" aria-pressed="true" type="button">Professional</button><button class="tone" data-tone="friendly" aria-pressed="false" type="button">Friendly</button><button class="tone" data-tone="direct" aria-pressed="false" type="button">Short &amp; Direct</button></div>
+<div class="actions" style="margin-top:20px"><button class="primary" id="generate" type="button">Generate reply</button><button class="secondary" id="clear" type="button">Clear</button></div>
+<p class="notice">Do not include passwords, payment details or sensitive personal information.</p>
+</div>
+<div class="tool-card">
+<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><h2>Your reply</h2><span class="tag">AI generated</span></div>
+<div id="result" class="result empty" aria-live="polite">Your generated reply will appear here.</div>
+<div class="actions" style="margin-top:14px"><button class="primary" id="copy" type="button" disabled>Copy reply</button><button class="secondary" id="again" type="button">Regenerate</button></div>
+<div id="status" class="status" role="status" aria-live="polite"></div>
+</div>
+</section></main>
+<script>
+let tone="professional",reply="";const $=id=>document.getElementById(id);
+const setStatus=(message,isError=false)=>{$("status").textContent=message;$("status").style.color=isError?"#ff9b9b":"#d6b88c"};
+async function generate(){
+ const message=$("message").value.trim(),scenario=$("scenario").value;
+ if(!message){setStatus("Enter the customer's message first.",true);$("message").focus();return}
+ const button=$("generate");button.disabled=true;button.textContent="Generating...";
+ $("copy").disabled=true;setStatus("Generating reply...");
+ try{
+  const response=await fetch("/api/generate-reply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message,scenario,tone})});
+  const data=await response.json();
+  if(!response.ok)throw new Error(data.error||"Unable to generate a reply.");
+  reply=data.reply;$("result").textContent=reply;$("result").classList.remove("empty");$("copy").disabled=false;setStatus("Reply ready.");
+ }catch(error){reply="";$("result").textContent="Your generated reply will appear here.";$("result").classList.add("empty");setStatus(error.message||"Something went wrong. Please try again.",true)}
+ finally{button.disabled=false;button.textContent="Generate reply"}
+}
+document.querySelectorAll(".tone").forEach(button=>button.addEventListener("click",()=>{tone=button.dataset.tone;document.querySelectorAll(".tone").forEach(item=>item.setAttribute("aria-pressed",String(item===button)))}));
+$("generate").addEventListener("click",generate);$("again").addEventListener("click",generate);
+$("clear").addEventListener("click",()=>{$("message").value="";$("scenario").selectedIndex=0;tone="professional";document.querySelectorAll(".tone").forEach(button=>button.setAttribute("aria-pressed",String(button.dataset.tone===tone)));reply="";$("result").textContent="Your generated reply will appear here.";$("result").classList.add("empty");$("copy").disabled=true;setStatus("Cleared.")});
+$("copy").addEventListener("click",async()=>{if(!reply)return;try{await navigator.clipboard.writeText(reply);setStatus("Copied to clipboard.")}catch{setStatus("Copy unavailable. Select and copy the reply manually.",true)}});
+</script>
+<script src="/assets/kenji-motion.js" defer></script><script src="/assets/kenji-theme.js" defer></script>
+</body></html>

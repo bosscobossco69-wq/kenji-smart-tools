@@ -585,3 +585,29 @@ body:has(> .shell) header.top > .workspace-nav{margin-left:auto!important;flex:0
   body:has(> .shell) header.top > .kenji-theme-toggle{margin-left:auto!important;margin-right:0!important}
   body:has(> .shell) header.top > .workspace-nav{width:100%!important;justify-content:space-between!important}
 }
+
+
+/* ACCOUNT DASHBOARD: contain card headings and prevent grid overflow */
+.account-page main{width:min(1000px,calc(100% - 32px));min-width:0}
+.account-page .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.account-page .grid:nth-of-type(2){grid-template-columns:repeat(2,minmax(0,1fr))}
+.account-page .card{min-width:0;overflow:hidden;padding:18px}
+.account-page .card h2{font-size:1.08rem!important;line-height:1.28!important;letter-spacing:-.02em!important;margin:0 0 8px!important;overflow-wrap:anywhere;word-break:normal}
+.account-page .card .value{font-size:.98rem!important;line-height:1.5!important;overflow-wrap:anywhere;word-break:break-word}
+.account-page .card p{font-size:.9rem!important;line-height:1.55!important}
+.account-page .card input{max-width:100%;min-width:0}
+.account-page main>h1{font-size:clamp(2.15rem,4.2vw,3.25rem)!important;line-height:1.12!important;overflow-wrap:anywhere}
+.account-page header.top{display:flex!important;align-items:center!important;gap:14px!important}
+.account-page header.top>.brand{margin-right:0!important}
+.account-page header.top>.kenji-theme-toggle{margin:0 auto!important;position:static!important}
+.account-page header.top nav{margin-left:auto!important}
+@media(max-width:760px){
+ .account-page .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .account-page .grid:nth-of-type(2){grid-template-columns:1fr}
+}
+@media(max-width:480px){
+ .account-page .grid{grid-template-columns:1fr}
+ .account-page header.top{flex-wrap:wrap!important}
+ .account-page header.top nav{width:100%;margin-left:0!important}
+ .account-page header.top>.kenji-theme-toggle{margin-left:auto!important;margin-right:0!important}
+}
