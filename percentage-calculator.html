@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Percentage Calculator - Free Online | KENJI Smart Tools</title>
+<meta name="description" content="Free percentage calculator: find X% of Y, what percent X is of Y, and percent change. Instant results in your browser.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://kenji-smart-tools.vercel.app/percentage-calculator.html">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f6f7fb;color:#1a1d29;line-height:1.6}
+header{background:#fff;border-bottom:1px solid #e5e7f0;padding:14px 20px}
+header a{color:#4f46e5;text-decoration:none;font-weight:700}
+main{max-width:720px;margin:32px auto;padding:0 16px}
+h1{font-size:26px;margin-bottom:8px}
+.sub{color:#5b6070;margin-bottom:24px}
+.card{background:#fff;border:1px solid #e5e7f0;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(20,20,60,.05)}
+label{display:block;font-size:14px;font-weight:600;margin:14px 0 6px}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid #d4d8e6;border-radius:8px;font-size:15px}
+textarea{min-height:120px;resize:vertical;font-family:inherit}
+button{background:#4f46e5;color:#fff;border:none;padding:11px 20px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px}
+button:hover{background:#4338ca}
+.result{background:#f0f1fa;border-radius:8px;padding:14px;margin-top:16px;font-size:16px;word-break:break-word}
+.result b{font-size:20px;color:#4f46e5}
+.row{display:flex;gap:12px}.row>div{flex:1}
+footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
+
+.seo-guide{margin:28px 0 36px;padding:24px;background:#fff;border:1px solid #e5e7f0;border-radius:12px;box-shadow:0 1px 3px rgba(20,20,60,.04)}.seo-guide h2{font-size:21px;line-height:1.35;margin:22px 0 8px;color:#1a1d29}.seo-guide h2:first-child{margin-top:0}.seo-guide h3{font-size:16px;margin:16px 0 5px;color:#252b3a}.seo-guide p,.seo-guide li{font-size:15px;color:#4b5262;line-height:1.75}.seo-guide ol,.seo-guide ul{padding-left:22px;margin:10px 0}.seo-guide a,footer a{color:#4f46e5}.related-tools{margin-top:20px;padding-top:14px;border-top:1px solid #e5e7f0}.row{flex-wrap:wrap}@media(max-width:560px){.row{flex-direction:column;gap:4px}.card,.seo-guide{padding:18px}}
+</style>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<header><a href="/">KENJI Smart Tools</a></header>
+<main>
+<h1>Percentage Calculator</h1>
+<p class="sub">Calculate percentages instantly. What is X% of Y, X is what % of Y, and percent change between two numbers.</p>
+
+<div class="card">
+  <div class="row">
+    <div><label>What is</label><input type="number" id="a1" placeholder="15"></div>
+    <div><label>% of</label><input type="number" id="b1" placeholder="200"></div>
+  </div>
+  <button onclick="calc1()">Calculate</button>
+  <div class="result" id="r1">Result will appear here</div>
+</div>
+<div class="card">
+  <div class="row">
+    <div><label>X</label><input type="number" id="a2" placeholder="30"></div>
+    <div><label>is what % of Y</label><input type="number" id="b2" placeholder="200"></div>
+  </div>
+  <button onclick="calc2()">Calculate</button>
+  <div class="result" id="r2">Result will appear here</div>
+</div>
+<div class="card">
+  <div class="row">
+    <div><label>From</label><input type="number" id="a3" placeholder="80"></div>
+    <div><label>To</label><input type="number" id="b3" placeholder="100"></div>
+  </div>
+  <button onclick="calc3()">Calculate % change</button>
+  <div class="result" id="r3">Result will appear here</div>
+</div>
+
+<section class="seo-guide" aria-labelledby="guide-title">
+<h2 id="guide-title">Three ways to calculate percentages</h2>
+<p>This free percentage calculator handles common everyday calculations: finding a percentage of a number, finding what percentage one number is of another, and calculating the percentage change between two values.</p>
+<h3>1. Find a percentage of a number</h3><p>Multiply the number by the percentage and divide by 100. Example: 15% of 200 is 30.</p>
+<h3>2. Find what percentage one number is of another</h3><p>Divide the first number by the second, then multiply by 100. Example: 30 is 15% of 200.</p>
+<h3>3. Calculate percentage change</h3><p>Subtract the starting value from the new value, divide by the starting value, then multiply by 100. A positive result is an increase; a negative result is a decrease. The starting value cannot be zero.</p>
+<h2>Frequently asked questions</h2>
+<h3>Can I use it to calculate a discount?</h3><p>Yes. Calculate the discount amount using the first calculator, then subtract it from the original price to get the sale price.</p>
+<h3>Does it work with decimal numbers?</h3><p>Yes. Enter decimal values for more precise calculations. Results are calculated in your browser.</p>
+<p class="related-tools"><strong>Related tools:</strong> <a href="/tip-calculator.html">Tip Calculator</a> · <a href="/age-calculator.html">Age Calculator</a> · <a href="/">All tools</a></p>
+</section>
+</main>
+<footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; Free, no account needed</footer>
+<script>
+function calc1(){const a=+document.getElementById('a1').value||0,b=+document.getElementById('b1').value||0;
+ document.getElementById('r1').innerHTML='<b>'+(a*b/100).toLocaleString()+'</b>';}
+function calc2(){const a=+document.getElementById('a2').value||0,b=+document.getElementById('b2').value||0;
+ document.getElementById('r2').innerHTML=b===0?'Cannot divide by zero':'<b>'+(a/b*100).toFixed(2)+'%</b>';}
+function calc3(){const a=+document.getElementById('a3').value||0,b=+document.getElementById('b3').value||0;
+ document.getElementById('r3').innerHTML=a===0?'Cannot divide by zero':'<b>'+(((b-a)/a)*100).toFixed(2)+'%</b> change';}
+</script>
+</body>
+</html>
