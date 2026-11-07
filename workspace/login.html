@@ -8,7 +8,15 @@
 <script type="module">
 import {auth,authReady,onAuthStateChanged,signInWithEmailAndPassword,sendEmailVerification,signOut,reload,friendlyAuthError} from "./firebase-auth.js";
 const form=document.getElementById("loginForm"),button=document.getElementById("submitButton"),message=document.getElementById("formMessage"),resend=document.getElementById("resendButton");
-let unverifiedUser=null;\nawait authReady;\nonAuthStateChanged(auth,user=>{if(user && user.emailVerified){showMessage("You are already signed in. Opening your account…");location.replace("/workspace/account.html");}});
+let unverifiedUser=null;
+await authReady;
+onAuthStateChanged(auth,user=>{
+ if(user && user.emailVerified){
+  message.textContent="You are already signed in. Opening your account…";
+  message.hidden=false;
+  location.replace("/workspace/account.html");
+ }
+});
 function showMessage(text,isError=false){message.textContent=text;message.hidden=false;message.classList.toggle("error",isError);}
 form.addEventListener("submit",async event=>{
  event.preventDefault();button.disabled=true;button.textContent="Signing in…";resend.hidden=true;message.hidden=true;unverifiedUser=null;
