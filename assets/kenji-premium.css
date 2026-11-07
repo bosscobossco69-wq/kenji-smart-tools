@@ -556,3 +556,32 @@ body:has(> main) .card .secondary{background:#3A3329!important;color:#F3EBDD!imp
 :root[data-theme="light"] body:has(> main.wrap) .links a,:root[data-theme="light"] body:has(> main.wrap) a{color:#79552F!important}
 :root[data-theme="light"] body:has(> main.wrap) .foot{color:#62584C!important}
 @media(max-width:650px){.workspace-nav{gap:8px}.workspace-nav .nav-cta,.workspace-nav .btn.secondary{padding:8px 11px;font-size:.82rem}header.top{flex-wrap:wrap}header.top nav{width:100%;justify-content:space-between}}
+
+
+/* WORKSPACE HEADER FINAL FIX: readable first hero line and centered theme control */
+:root[data-theme="light"] body:has(> .shell) .hero h1{color:#28231D!important}
+:root:not([data-theme="light"]) body:has(> .shell) .hero h1{color:#F7F1E8!important}
+:root[data-theme="light"] body:has(> .shell) .hero h1 .gradient-text{
+  background:linear-gradient(100deg,#795A39,#B18B5D)!important;
+  -webkit-background-clip:text!important;background-clip:text!important;
+  -webkit-text-fill-color:transparent!important;color:transparent!important;
+}
+:root:not([data-theme="light"]) body:has(> .shell) .hero h1 .gradient-text{
+  background:linear-gradient(100deg,#F7F1E8,#C6A477)!important;
+  -webkit-background-clip:text!important;background-clip:text!important;
+  -webkit-text-fill-color:transparent!important;color:transparent!important;
+}
+/* On Workspace home, place the theme switch in the visual center of the header */
+body:has(> .shell) header.top{display:flex!important;align-items:center!important;gap:14px!important}
+body:has(> .shell) header.top > .brand{margin-right:0!important;flex:0 0 auto!important}
+body:has(> .shell) header.top > .kenji-theme-toggle{
+  position:static!important;inset:auto!important;transform:none!important;
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  flex:0 0 auto!important;margin:0 auto!important;z-index:auto!important;
+}
+body:has(> .shell) header.top > .workspace-nav{margin-left:auto!important;flex:0 1 auto!important}
+@media(max-width:650px){
+  body:has(> .shell) header.top{flex-wrap:wrap!important}
+  body:has(> .shell) header.top > .kenji-theme-toggle{margin-left:auto!important;margin-right:0!important}
+  body:has(> .shell) header.top > .workspace-nav{width:100%!important;justify-content:space-between!important}
+}
