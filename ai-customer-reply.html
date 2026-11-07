@@ -45,6 +45,24 @@ body.ai-reply-page{min-height:100vh;margin:0;background:#17120e;color:#f4efe6;fo
 .ai-reply-page .status{min-height:22px;color:#d6b88c}
 .ai-reply-page .kenji-theme-toggle{position:static!important;margin:0 auto!important;flex:0 0 auto!important;background:#302a23!important;color:#f3ebdd!important;border:1px solid #655640!important;padding:7px 11px!important}
 @media(max-width:720px){.ai-reply-page .tool-grid{grid-template-columns:1fr}.ai-reply-page .hero{padding-top:38px}.ai-reply-page .tool-card{padding:19px}.ai-reply-page header.nav{flex-wrap:wrap}.ai-reply-page header.nav .back-link{margin-left:auto}}
+
+/* LIGHT THEME: keep AI reply controls readable against pale backgrounds */
+:root[data-theme="light"] body.ai-reply-page .tone:not([aria-pressed="true"]),
+:root[data-theme="light"] body.ai-reply-page .secondary {
+  color: #302A23 !important;
+}
+:root[data-theme="light"] body.ai-reply-page .tone[aria-pressed="true"] {
+  background: #302A23 !important;
+  color: #FFF9F0 !important;
+  border-color: #302A23 !important;
+}
+:root[data-theme="light"] body.ai-reply-page .primary {
+  color: #28231D !important;
+}
+:root[data-theme="light"] body.ai-reply-page .primary:disabled {
+  color: #51483D !important;
+  opacity: .72;
+}
 </style>
 </head>
 <body class="ai-reply-page">
