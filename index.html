@@ -166,6 +166,14 @@
     .principle span { color: var(--muted); font-size: .85rem; line-height: 1.5; }
     footer { padding: 34px 0 50px; color: var(--muted); font-size: .82rem; border-top: 1px solid rgba(142,164,200,.12); }
     .footer-inner { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .integration-card .integration-note,.integration-note{color:var(--kenji-muted);font-size:.78rem;line-height:1.55;margin:12px 0 0}
+    .coming-soon{color:var(--kenji-gold);font-weight:800}
+    .upcoming-integrations{margin-top:14px}
+    .feedback-panel{max-width:850px}
+    .feedback-panel form{display:grid;gap:8px}
+    .feedback-panel textarea{resize:vertical;min-height:130px}
+    .feedback-consent{display:flex;align-items:flex-start;gap:9px;line-height:1.5}
+    .feedback-consent input{width:auto;flex:0 0 auto;margin-top:3px}
     @media (max-width: 850px) { .hero { grid-template-columns: 1fr; padding-top: 80px; gap:24px; } .hero-orbit { min-height: 300px; } .tools-grid, .about-grid { grid-template-columns: 1fr; } .more-tools-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     @media (max-width: 560px) { .shell { width: min(100% - 24px, 1180px); } .nav-links { display: none; } .nav-inner { gap:8px; padding:11px; } .brand { gap:7px; font-size:.74rem; letter-spacing:.04em; } .brand-mark { flex:0 0 28px; width:28px; height:28px; } .nav-cta { padding:8px 9px; font-size:.75rem; } h1 { font-size:clamp(2.8rem,13vw,3.6rem); } .hero { padding-top:60px; } .hero-orbit { min-height:250px; } .section-head { display: block; } .form-row, .principles { grid-template-columns: 1fr; } .tool-card { padding: 19px; } .file-picker { min-height: 56px; } .file-button { min-height: 42px; padding-inline: 13px; } .more-tools-grid { grid-template-columns:1fr; } .hero-actions .btn { text-align:center; } input,select,textarea { min-width:0; font-size:16px; } }
   </style>
@@ -174,7 +182,7 @@
 <body>
   <header class="nav shell"><div class="nav-inner">
     <a class="brand" href="#home"><span class="brand-mark"></span><span>KENJI / SMART TOOLS</span></a>
-    <nav class="nav-links"><a href="#tools">Tools</a><a href="#about">About</a><a href="#privacy">Privacy</a><a href="#contact">Contact</a></nav>
+    <nav class="nav-links"><a href="#tools">Tools</a><a href="#integrations">Integrations</a><a href="#feedback">Feedback</a><a href="#about">About</a><a href="#privacy">Privacy</a><a href="#contact">Contact</a></nav>
     <div class="nav-actions"><a class="nav-cta" href="#tools">Open tools ↗</a><a class="login-cta" href="/workspace/login.html">Log in</a></div>
   </div></header>
 
@@ -219,6 +227,56 @@
       </div>
     </section>
 
+    <section class="section shell" id="integrations" aria-labelledby="integrations-title">
+      <div class="section-head"><div><div class="section-kicker">02 / business messaging</div><h2 id="integrations-title">Connect the conversations.</h2></div><p class="section-intro">Start with the channels customers already use. More workplace integrations will be considered after we hear from customers.</p></div>
+      <div class="tools-grid">
+        <article class="tool-card integration-card">
+          <div class="tool-top"><div class="tool-icon" aria-hidden="true">W</div><span class="badge">Phase 1 · Priority</span></div>
+          <h3>WhatsApp Business</h3>
+          <p>Plan a business messaging connection for customer support, approved replies, and future automation.</p>
+          <div class="tool-actions"><a class="small-btn" href="mailto:kenjing3073@gmail.com?subject=WhatsApp%20Business%20early%20access">Request WhatsApp setup</a></div>
+          <p class="integration-note">Early access planning — API connection is not live yet.</p>
+        </article>
+        <article class="tool-card integration-card">
+          <div class="tool-top"><div class="tool-icon" aria-hidden="true">➤</div><span class="badge">Phase 1 · Priority</span></div>
+          <h3>Telegram</h3>
+          <p>Plan a Telegram Bot connection for customer conversations, notifications, and AI-assisted replies.</p>
+          <div class="tool-actions"><a class="small-btn" href="mailto:kenjing3073@gmail.com?subject=Telegram%20early%20access">Request Telegram setup</a></div>
+          <p class="integration-note">Early access planning — bot connection is not live yet.</p>
+        </article>
+      </div>
+      <div class="more-tools-grid upcoming-integrations" aria-label="Future integrations">
+        <div class="more-tool-link"><strong>Slack</strong><span><b class="coming-soon">Coming soon</b> · Under consideration</span></div>
+        <div class="more-tool-link"><strong>Microsoft Teams</strong><span><b class="coming-soon">Coming soon</b> · Under consideration</span></div>
+        <div class="more-tool-link"><strong>Gmail / Google Workspace</strong><span><b class="coming-soon">Coming soon</b> · Under consideration</span></div>
+      </div>
+    </section>
+
+    <section class="section shell" id="feedback" aria-labelledby="feedback-title">
+      <div class="section-head"><div><div class="section-kicker">03 / customer voice</div><h2 id="feedback-title">Your feedback shapes what we build.</h2></div><p class="section-intro">Tell us what works, what is missing, and which messaging integrations matter most to your team.</p></div>
+      <div class="glass feedback-panel">
+        <form id="customer-feedback-form" onsubmit="submitCustomerFeedback(event)">
+          <div class="form-row">
+            <div><label for="feedback-name">Name (optional)</label><input id="feedback-name" name="name" autocomplete="name" placeholder="Your name" /></div>
+            <div><label for="feedback-email">Email (optional)</label><input id="feedback-email" name="email" type="email" autocomplete="email" placeholder="you@company.com" /></div>
+          </div>
+          <label for="feedback-rating">How would you rate KENJI Smart Tools?</label>
+          <select id="feedback-rating" name="rating" required>
+            <option value="">Choose a rating</option><option value="5/5">★★★★★ — Excellent</option><option value="4/5">★★★★☆ — Good</option><option value="3/5">★★★☆☆ — Average</option><option value="2/5">★★☆☆☆ — Needs improvement</option><option value="1/5">★☆☆☆☆ — Poor</option>
+          </select>
+          <label for="feedback-type">What is your feedback about?</label>
+          <select id="feedback-type" name="type" required>
+            <option value="">Choose a topic</option><option>WhatsApp Business integration</option><option>Telegram integration</option><option>Existing tools</option><option>Feature request</option><option>Bug report</option><option>General experience</option>
+          </select>
+          <label for="feedback-message">Your review or feedback</label>
+          <textarea id="feedback-message" name="message" rows="5" required maxlength="3000" placeholder="Share your experience, suggestions, or the features your business needs…"></textarea>
+          <label class="feedback-consent"><input id="feedback-publish" type="checkbox" name="publishConsent" /> I give KENJI permission to contact me about this feedback. This does not grant permission to publish my review.</label>
+          <div class="tool-actions"><button class="small-btn" type="submit">Send review &amp; feedback</button></div>
+          <p class="integration-note" id="feedback-status" role="status">Submitting opens a pre-filled email to KENJI. Your feedback is sent only when you send that email.</p>
+        </form>
+      </div>
+    </section>
+
     <section class="section shell" id="about"><div class="about-grid"><div class="glass"><div class="section-kicker">03 / the idea</div><h2>Less noise.<br>More momentum.</h2><p>KENJI Smart Tools is an independent collection of practical browser utilities for everyday business tasks. The redesigned interface uses a dark command-center feel while keeping every action approachable.</p></div><div class="glass"><div class="section-kicker">design principles</div><div class="principles"><div class="principle"><strong>Private by default</strong><span>Keep data processing close to the user's device whenever possible.</span></div><div class="principle"><strong>Fast to understand</strong><span>Clear labels, focused cards, and one obvious next action.</span></div><div class="principle"><strong>Built for mobile</strong><span>Responsive layouts with comfortable touch targets and readable contrast.</span></div><div class="principle"><strong>Quietly futuristic</strong><span>Midnight coffee surfaces with champagne-gold accents and clear ivory typography.</span></div></div></div></div></section>
     <section class="section shell" id="privacy"><div class="glass"><div class="section-kicker">04 / privacy overview</div><h2>Your inputs stay close.</h2><p>WhatsApp links, invoice calculations, and image resizing run in your browser. QR codes are generated with a client-side library. Most tools run directly in your browser without an account. The AI Customer Reply Generator sends the message you submit to an AI service to create a reply. Advertising and hosting providers may also process technical information. Read our Privacy Policy for details.</p></div></section>
     <section class="section shell" id="contact" aria-labelledby="contact-title">
@@ -236,6 +294,21 @@
 
 <footer class="shell"><div class="footer-inner"><span>© 2026 KENJI Smart Tools</span><span><a href="#about">About</a> · <a href="#privacy">Privacy Overview</a> · <a href="/privacy.html">Privacy Policy</a> · <a href="#contact">Contact</a> · <a href="/terms.html">Terms of Service</a> · <a href="https://mail.google.com/mail/?view=cm&fs=1&to=kenjing3073%40gmail.com" target="_blank" rel="noopener noreferrer">Email us</a> · Free tools for everyday work</span></div></footer>
   <script>
+    function submitCustomerFeedback(event){
+      event.preventDefault();
+      const form=byId('customer-feedback-form');
+      if(!form.reportValidity())return;
+      const name=byId('feedback-name').value.trim()||'Not provided';
+      const email=byId('feedback-email').value.trim()||'Not provided';
+      const rating=byId('feedback-rating').value;
+      const topic=byId('feedback-type').value;
+      const message=byId('feedback-message').value.trim();
+      const consent=byId('feedback-publish').checked?'May be contacted about feedback':'No contact permission given';
+      const subject=encodeURIComponent('KENJI customer review and feedback');
+      const body=encodeURIComponent('Name: '+name+'\nEmail: '+email+'\nRating: '+rating+'\nTopic: '+topic+'\nContact permission: '+consent+'\n\nFeedback:\n'+message);
+      byId('feedback-status').textContent='Your email app is opening with the feedback. Review it and press Send to submit.';
+      window.location.href='mailto:kenjing3073@gmail.com?subject='+subject+'&body='+body;
+    }
     let lastWa = '', sourceImage = null, resizedBlob = null, sourceImageUrl = null;
     const byId = (id) => document.getElementById(id);
     function makeQr(){
