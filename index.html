@@ -183,7 +183,7 @@
   <header class="nav shell"><div class="nav-inner">
     <a class="brand" href="#home"><span class="brand-mark"></span><span>KENJI / SMART TOOLS</span></a>
     <nav class="nav-links"><a href="#tools">Tools</a><a href="#integrations">Integrations</a><a href="#feedback">Feedback</a><a href="#about">About</a><a href="#privacy">Privacy</a><a href="#contact">Contact</a></nav>
-    <div class="nav-actions"><a class="nav-cta" href="#tools">Open tools ↗</a><a class="login-cta" href="/workspace/login.html">Log in</a></div>
+    <div class="nav-actions"><a class="nav-cta" href="#tools">Open tools ↗</a><div class="login-cta" id="mainAuthNav"><a href="/workspace/login.html">Log in</a></div></div>
   </div></header>
 
   <main>
@@ -383,6 +383,23 @@
       if(!resizedBlob){resizeImage();byId('image-result').textContent='Preparing image… use Download image again when the resized image is ready.';return;}
       const url=URL.createObjectURL(resizedBlob),a=document.createElement('a');a.href=url;a.download='kenji-resized-image.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
     }
+  </script>
+  <script type="module">
+    import {auth,authReady,onAuthStateChanged,signOut} from "./workspace/firebase-auth.js";
+    const authNav=document.getElementById("mainAuthNav");
+    await authReady;
+    onAuthStateChanged(auth,user=>{
+      if(!authNav)return;
+      if(user && user.emailVerified){
+        authNav.innerHTML='<a class="login-cta" href="/workspace/account.html">My account</a><button class="login-cta" id="mainSignOut" type="button">Sign out</button>';
+        document.getElementById("mainSignOut")?.addEventListener("click",async()=>{
+          await signOut(auth);
+          location.reload();
+        });
+      }else{
+        authNav.innerHTML='<a class="login-cta" href="/workspace/login.html">Log in</a>';
+      }
+    });
   </script>
 </body>
 </html>
