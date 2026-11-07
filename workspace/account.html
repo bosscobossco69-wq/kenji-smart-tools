@@ -20,9 +20,10 @@ button:disabled{opacity:.6}.secondary{background:#1a3048;color:var(--text);borde
 footer{margin-top:32px;color:var(--muted);font-size:.82rem}
 @media(max-width:600px){header{align-items:flex-start;flex-direction:column}main{margin:28px auto}}
 </style>
+<link rel="stylesheet" href="/assets/kenji-premium.css">
 </head>
 <body>
-<header><a class="brand" href="/workspace/"><span>KENJI</span> AI WORKSPACE</a><nav><a href="/workspace/">Workspace home</a></nav></header>
+<header class="top"><a class="brand" href="/workspace/"><span>KENJI</span> AI WORKSPACE</a><nav><a href="/workspace/">Workspace home</a></nav></header>
 <main>
 <div class="eyebrow">Account dashboard</div>
 <h1>Welcome, <span id="name">there</span>.</h1>
@@ -72,4 +73,6 @@ const notice=(message,isError=false)=>{el("notice").textContent=message;el("noti
  }catch(e){notice("Account page loaded, but Firebase could not start: "+(e?.message||"Check network and Firebase configuration."),true);}
 })();
 </script>
+<script src="/assets/kenji-motion.js" defer></script>
+<script src="/assets/kenji-theme.js" defer></script>
 </body></html>
