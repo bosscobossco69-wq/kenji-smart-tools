@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://kenji-smart-tools.vercel.app/sitemap.xml
