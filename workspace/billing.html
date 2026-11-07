@@ -70,7 +70,16 @@ const monthly=document.getElementById("monthly"),annual=document.getElementById(
 function setPeriod(yearly){monthly.setAttribute("aria-pressed",String(!yearly));annual.setAttribute("aria-pressed",String(yearly));document.querySelectorAll(".price[data-month]").forEach(el=>{const amount=yearly?el.dataset.year:el.dataset.month;el.innerHTML="$"+amount+'<span> / '+(yearly?"year":"month")+"</span>";});}
 monthly.addEventListener("click",()=>setPeriod(false));annual.addEventListener("click",()=>setPeriod(true));
 </script>
-<script type="module">\nimport {auth,authReady,onAuthStateChanged,signOut} from "./firebase-auth.js";\nconst nav=document.getElementById("billingNav");\nawait authReady;\nonAuthStateChanged(auth,user=>{\n if(!nav)return;\n if(user && user.emailVerified){nav.innerHTML=`<a href="/workspace/account.html">My account</a> · <button id="billingSignOut" type="button" style="width:auto;margin:0;padding:6px 10px">Sign out</button> · <a href="/">Main website</a>`;document.getElementById("billingSignOut")?.addEventListener("click",async()=>{await signOut(auth);location.href="/workspace/login.html";});}\n else{nav.innerHTML=`<a href="/workspace/login.html">Sign in</a> · <a href="/workspace/signup.html">Create account</a> · <a href="/workspace/">Workspace home</a> · <a href="/">Main website</a>`;}\n});\n</script><script src="/assets/kenji-motion.js" defer></script>
+<script type="module">
+import {auth,authReady,onAuthStateChanged,signOut} from "./firebase-auth.js";
+const nav=document.getElementById("billingNav");
+await authReady;
+onAuthStateChanged(auth,user=>{
+ if(!nav)return;
+ if(user && user.emailVerified){nav.innerHTML=`<a href="/workspace/account.html">My account</a> · <button id="billingSignOut" type="button" style="width:auto;margin:0;padding:6px 10px">Sign out</button> · <a href="/">Main website</a>`;document.getElementById("billingSignOut")?.addEventListener("click",async()=>{await signOut(auth);location.href="/workspace/login.html";});}
+ else{nav.innerHTML=`<a href="/workspace/login.html">Sign in</a> · <a href="/workspace/signup.html">Create account</a> · <a href="/workspace/">Workspace home</a> · <a href="/">Main website</a>`;}
+});
+</script><script src="/assets/kenji-motion.js" defer></script>
 
 </body>
 </html>
