@@ -29,6 +29,7 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
 .seo-guide{margin:28px 0 36px;padding:24px;background:#fff;border:1px solid #e5e7f0;border-radius:12px;box-shadow:0 1px 3px rgba(20,20,60,.04)}.seo-guide h2{font-size:21px;line-height:1.35;margin:22px 0 8px;color:#1a1d29}.seo-guide h2:first-child{margin-top:0}.seo-guide h3{font-size:16px;margin:16px 0 5px;color:#252b3a}.seo-guide p,.seo-guide li{font-size:15px;color:#4b5262;line-height:1.75}.seo-guide ol,.seo-guide ul{padding-left:22px;margin:10px 0}.seo-guide a,footer a{color:#4f46e5}.related-tools{margin-top:20px;padding-top:14px;border-top:1px solid #e5e7f0}.row{flex-wrap:wrap}@media(max-width:560px){.row{flex-direction:column;gap:4px}.card,.seo-guide{padding:18px}}
 </style>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/kenji-workspace-ui.css">
 </head>
 <body>
 <header><a href="/">KENJI Smart Tools</a></header>
@@ -71,5 +72,6 @@ function fmt(sp){const t=document.getElementById('in').value,msg=document.getEle
  catch(e){msg.style.display='block';msg.style.color='#dc2626';msg.textContent='Invalid JSON: '+e.message;}}
 function copyOut(){navigator.clipboard.writeText(document.getElementById('out').value);}
 </script>
+<script src="/assets/kenji-workspace-nav.js" defer></script>
 </body>
 </html>
