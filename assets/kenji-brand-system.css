@@ -88,3 +88,26 @@ body.ai-reply-page .tag{background:#40372D!important;color:var(--kenji-gold)!imp
 body.ai-reply-page .hero h1,body.ai-reply-page .hero h1 span{color:var(--kenji-ivory)!important;-webkit-text-fill-color:var(--kenji-ivory)!important}
 body.ai-reply-page .hero h1 span{color:var(--kenji-gold)!important;-webkit-text-fill-color:var(--kenji-gold)!important}
 body.ai-reply-page header.nav{background:transparent!important;border-color:var(--kenji-line)!important}
+
+/* Final legacy-color neutralizer: remove inherited blue, cyan and purple accents */
+body :is(.brand-mark,.tool-icon,.nav-cta,.eyebrow,.section-kicker,.more-tool-link,.more-tool-link:hover,.more-tool-link:focus-visible,.tool-card:nth-child(even) .tool-icon,.small-btn.alt,.btn.secondary,.file-button,.contact-email,.principle strong){
+  border-color:var(--kenji-line)!important;
+  color:var(--kenji-gold)!important;
+  -webkit-text-fill-color:var(--kenji-gold)!important;
+}
+body .brand-mark{background:linear-gradient(135deg,#E8D2AF,#B18B5D)!important;box-shadow:0 0 18px rgba(214,184,140,.16)!important}
+body .brand-mark::after{background:#211A13!important}
+body .nav-cta{background:#40372D!important;border:1px solid #75634D!important;color:var(--kenji-gold)!important}
+body .eyebrow{background:#40372D!important;border-color:#665744!important;color:var(--kenji-gold)!important}
+body .tool-icon{background:#40372D!important;border:1px solid #665744!important;color:var(--kenji-gold)!important}
+body .more-tool-link{display:block!important;background:var(--kenji-panel)!important;border:1px solid var(--kenji-line)!important;border-radius:14px!important;color:var(--kenji-ivory)!important}
+body .more-tool-link strong{color:var(--kenji-ivory)!important}
+body .more-tool-link span{color:var(--kenji-muted)!important}
+body .more-tool-link:hover,body .more-tool-link:focus-visible{background:var(--kenji-panel-raised)!important;border-color:var(--kenji-gold)!important}
+body .small-btn.alt,body .btn.secondary,body .file-button:not(:hover),body .contact-email{background:var(--kenji-panel-raised)!important;color:var(--kenji-ivory)!important;-webkit-text-fill-color:var(--kenji-ivory)!important;border:1px solid #75634D!important}
+body .tool-card::before,body .tool-card:nth-child(even)::before{background:rgba(214,184,140,.07)!important}
+body .tool-card:nth-child(even) .tool-icon{background:#40372D!important}
+body .nav-links a:hover{color:var(--kenji-gold)!important}
+body :is(.result,.output,.status){overflow-wrap:anywhere}
+body :is(.tool-card,.card,.glass,.principle,.seo-guide,.related-tools,.more-tool-link){background-color:var(--kenji-panel)!important}
+body :is(button,.btn,.small-btn,.file-button,.contact-email,.nav-cta):hover{filter:brightness(1.08)!important}
