@@ -484,3 +484,26 @@ html:not([data-theme="light"]) body button.kenji-theme-toggle:hover{
 @media(max-width:560px){
  .nav-inner > .kenji-theme-toggle{margin-left:auto!important}
 }
+
+/* AI tool pages: keep the theme switch inside the header, between brand and back link */
+header.shell.nav > button.kenji-theme-toggle{
+ position:static!important;
+ inset:auto!important;
+ top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;
+ transform:none!important;
+ display:inline-flex!important;
+ align-items:center!important;
+ justify-content:center!important;
+ flex:0 0 auto!important;
+ width:auto!important;
+ max-width:max-content!important;
+ min-height:0!important;
+ height:auto!important;
+ margin:0 18px 0 auto!important;
+ padding:7px 10px!important;
+ z-index:auto!important;
+ white-space:nowrap!important;
+}
+@media(max-width:720px){
+ header.shell.nav > button.kenji-theme-toggle{margin:0 8px!important;padding:6px 8px!important;font-size:11px!important}
+}
