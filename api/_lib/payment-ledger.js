@@ -139,7 +139,9 @@ export async function attachStripeCheckoutSession({
 /**
  * Apply a payment only after the caller has independently verified the Stripe
  * webhook signature and retrieved/reconciled the Stripe payment object.
- * All order, event, Credit and entitlement changes commit atomically.
+ * This records payment and any one-off Credit grant only. It deliberately does
+ * not activate memberships: subscription lifecycle and entitlement expiry
+ * policies must be implemented and tested separately.
  */
 export async function applyVerifiedStripePayment({
   eventId,
@@ -168,7 +170,6 @@ export async function applyVerifiedStripePayment({
   const eventRef = db.collection("paymentEvents").doc(eventDocumentId);
   const orderRef = db.collection("paymentOrders").doc(orderId);
   const ledgerRef = db.collection("creditLedger").doc(eventDocumentId);
-  const entitlementRef = db.collection("entitlements").doc(userId);
   const now = Timestamp.now();
 
   return db.runTransaction(async tx => {
@@ -215,14 +216,11 @@ export async function applyVerifiedStripePayment({
         createdAt: now
       });
     }
-    tx.set(entitlementRef, {
-      userId,
-      planId: order.planId,
-      status: "active",
-      sourceOrderId: orderId,
-      updatedAt: now
-    }, { merge: true });
-
-    return { duplicate: false, applied: true, creditsGranted: grant };
+    return {
+      duplicate: false,
+      applied: true,
+      creditsGranted: grant,
+      entitlementActivated: false
+    };
   });
 }
