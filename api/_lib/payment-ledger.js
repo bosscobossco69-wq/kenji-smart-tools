@@ -156,7 +156,7 @@ export async function applyVerifiedStripePayment({
   eventType = requiredString(eventType, "eventType", 128);
   if (!/^[a-z0-9_.]+$/i.test(eventType)) throw new TypeError("eventType contains unsupported characters.");
   orderId = requiredString(orderId, "orderId");
-  checkoutSessionId = requiredString(checkoutSessionId, "checkoutSessionId");
+  checkoutSessionId = requiredString(checkoutSessionId, "checkoutSessionId", 255);
   userId = requiredString(userId, "userId");
   amountMinor = positiveInteger(amountMinor, "amountMinor");
   if (String(currency).toLowerCase() !== CURRENCY || paymentStatus !== "paid") {
