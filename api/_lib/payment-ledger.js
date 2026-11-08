@@ -167,7 +167,7 @@ export async function applyVerifiedStripePayment({
     if (order.provider !== "stripe" || order.userId !== userId) throw new Error("Payment order ownership/provider mismatch.");
     if (order.status === "paid") throw new Error("Order is already paid.");
     if (order.status !== "pending") throw new Error("Order is not pending.");
-    if (order.providerCheckoutSessionId && order.providerCheckoutSessionId !== checkoutSessionId) {
+    if (!order.providerCheckoutSessionId || order.providerCheckoutSessionId !== checkoutSessionId) {
       throw new Error("Checkout Session does not match the pending order.");
     }
     if (order.expectedAmountMinor !== amountMinor || order.currency !== CURRENCY) {
