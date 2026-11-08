@@ -11,7 +11,7 @@ export function verifyStripeSignature(rawBody, header, secret, nowSeconds = Math
   const fields = header.split(",").map(part => part.trim().split("=", 2));
   const timestamp = fields.find(([key]) => key === "t")?.[1];
   const signatures = fields.filter(([key]) => key === "v1").map(([, value]) => value);
-  if (!timestamp || !/^\\d+$/.test(timestamp) || !signatures.length) return false;
+  if (!timestamp || !/^\d+$/.test(timestamp) || !signatures.length) return false;
   const timestampNumber = Number(timestamp);
   if (!Number.isSafeInteger(timestampNumber) || Math.abs(nowSeconds - timestampNumber) > 300) return false;
 
