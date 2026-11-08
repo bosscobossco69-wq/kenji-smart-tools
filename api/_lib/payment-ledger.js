@@ -85,6 +85,46 @@ export async function createPendingPaymentOrder({
   });
 }
 
+
+/**
+ * Bind a provider Checkout Session to its pending internal order before
+ * returning the redirect URL. Repeated identical binds are safe; a different
+ * session can never replace an existing one.
+ */
+export async function attachStripeCheckoutSession({
+  orderId,
+  userId,
+  checkoutSessionId,
+  stripeCustomerId = null
+}) {
+  orderId = requiredString(orderId, "orderId");
+  userId = requiredString(userId, "userId");
+  checkoutSessionId = requiredString(checkoutSessionId, "checkoutSessionId");
+  const { db, Timestamp } = getFirebaseAdmin();
+  const orderRef = db.collection("paymentOrders").doc(orderId);
+  const now = Timestamp.now();
+
+  return db.runTransaction(async tx => {
+    const snap = await tx.get(orderRef);
+    if (!snap.exists) throw new Error("Payment order was not found.");
+    const order = snap.data();
+    if (order.provider !== "stripe" || order.userId !== userId) {
+      throw new Error("Payment order ownership/provider mismatch.");
+    }
+    if (order.status !== "pending") throw new Error("Payment order is not pending.");
+    if (order.providerCheckoutSessionId &&
+        order.providerCheckoutSessionId !== checkoutSessionId) {
+      throw new Error("A different Checkout Session is already attached.");
+    }
+    tx.update(orderRef, {
+      providerCheckoutSessionId: checkoutSessionId,
+      ...(stripeCustomerId ? { providerCustomerId: requiredString(stripeCustomerId, "stripeCustomerId") } : {}),
+      updatedAt: now
+    });
+    return { attached: true, reused: order.providerCheckoutSessionId === checkoutSessionId };
+  });
+}
+
 /**
  * Apply a payment only after the caller has independently verified the Stripe
  * webhook signature and retrieved/reconciled the Stripe payment object.
