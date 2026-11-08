@@ -155,10 +155,16 @@ export async function applyVerifiedStripePayment({
   paymentStatus
 }) {
   eventId = requiredString(eventId, "eventId", 255);
+  if (!/^evt_[A-Za-z0-9]+$/.test(eventId)) throw new TypeError("eventId is not a valid Stripe event identifier.");
   eventType = requiredString(eventType, "eventType", 128);
   if (!/^[a-z0-9_.]+$/i.test(eventType)) throw new TypeError("eventType contains unsupported characters.");
   orderId = requiredString(orderId, "orderId");
   checkoutSessionId = requiredString(checkoutSessionId, "checkoutSessionId", 255);
+  if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(checkoutSessionId)) throw new TypeError("checkoutSessionId is not a valid Stripe Checkout Session identifier.");
+  if (paymentIntentId !== null) {
+    paymentIntentId = requiredString(paymentIntentId, "paymentIntentId", 255);
+    if (!/^pi_[A-Za-z0-9]+$/.test(paymentIntentId)) throw new TypeError("paymentIntentId is not a valid Stripe PaymentIntent identifier.");
+  }
   userId = requiredString(userId, "userId");
   amountMinor = positiveInteger(amountMinor, "amountMinor");
   if (String(currency).toLowerCase() !== CURRENCY || paymentStatus !== "paid") {
@@ -170,11 +176,19 @@ export async function applyVerifiedStripePayment({
   const eventRef = db.collection("paymentEvents").doc(eventDocumentId);
   const orderRef = db.collection("paymentOrders").doc(orderId);
   const ledgerRef = db.collection("creditLedger").doc(eventDocumentId);
+  const eventFingerprint = createHash("sha256").update(JSON.stringify({
+    eventType, orderId, checkoutSessionId, paymentIntentId, userId, amountMinor, currency: CURRENCY
+  })).digest("hex");
   const now = Timestamp.now();
 
   return db.runTransaction(async tx => {
     const [eventSnap, orderSnap] = await Promise.all([tx.get(eventRef), tx.get(orderRef)]);
-    if (eventSnap.exists) return { duplicate: true, applied: false };
+    if (eventSnap.exists) {
+      if (eventSnap.get("eventFingerprint") !== eventFingerprint) {
+        throw new Error("Stripe event ID was previously recorded with different payment details.");
+      }
+      return { duplicate: true, applied: false };
+    }
     if (!orderSnap.exists) throw new Error("Payment order was not found.");
 
     const order = orderSnap.data();
@@ -192,6 +206,7 @@ export async function applyVerifiedStripePayment({
     tx.create(eventRef, {
       provider: "stripe",
       eventType,
+      eventFingerprint,
       orderId,
       checkoutSessionId,
       paymentIntentId,
