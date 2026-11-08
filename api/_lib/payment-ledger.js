@@ -3,11 +3,19 @@ import { getFirebaseAdmin } from "./firebase-admin.js";
 
 const CURRENCY = "myr";
 
-function requiredString(value, name) {
+function requiredString(value, name, maxLength = 256) {
   if (typeof value !== "string" || !value.trim()) {
     throw new TypeError(`${name} is required.`);
   }
-  return value.trim();
+  const normalized = value.trim();
+  if (normalized.length > maxLength) {
+    throw new TypeError(`${name} exceeds the maximum length.`);
+  }
+  return normalized;
+}
+
+function safeDocumentId(value) {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 function positiveInteger(value, name, allowZero = false) {
@@ -38,7 +46,7 @@ export async function createPendingPaymentOrder({
 }) {
   userId = requiredString(userId, "userId");
   planId = requiredString(planId, "planId");
-  idempotencyKey = requiredString(idempotencyKey, "idempotencyKey");
+  idempotencyKey = requiredString(idempotencyKey, "idempotencyKey", 200);
   amountMinor = positiveInteger(amountMinor, "amountMinor");
   creditsGrant = positiveInteger(creditsGrant, "creditsGrant", true);
   if (provider !== "stripe") throw new TypeError("Unsupported payment provider.");
@@ -141,8 +149,8 @@ export async function applyVerifiedStripePayment({
   currency,
   paymentStatus
 }) {
-  eventId = requiredString(eventId, "eventId");
-  eventType = requiredString(eventType, "eventType");
+  eventId = requiredString(eventId, "eventId", 255);
+  eventType = requiredString(eventType, "eventType", 128);
   orderId = requiredString(orderId, "orderId");
   checkoutSessionId = requiredString(checkoutSessionId, "checkoutSessionId");
   userId = requiredString(userId, "userId");
@@ -152,9 +160,9 @@ export async function applyVerifiedStripePayment({
   }
 
   const { db, Timestamp } = getFirebaseAdmin();
-  const eventRef = db.collection("paymentEvents").doc(eventId);
+  const eventDocumentId = safeDocumentId(eventId);\n  const eventRef = db.collection("paymentEvents").doc(eventDocumentId);
   const orderRef = db.collection("paymentOrders").doc(orderId);
-  const ledgerRef = db.collection("creditLedger").doc(eventId);
+  const ledgerRef = db.collection("creditLedger").doc(eventDocumentId);
   const entitlementRef = db.collection("entitlements").doc(userId);
   const now = Timestamp.now();
 
