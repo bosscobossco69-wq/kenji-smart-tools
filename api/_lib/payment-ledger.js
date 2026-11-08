@@ -120,16 +120,18 @@ export async function attachStripeCheckoutSession({
       throw new Error("Payment order ownership/provider mismatch.");
     }
     if (order.status !== "pending") throw new Error("Payment order is not pending.");
-    if (order.providerCheckoutSessionId &&
-        order.providerCheckoutSessionId !== checkoutSessionId) {
-      throw new Error("A different Checkout Session is already attached.");
+    if (order.providerCheckoutSessionId) {
+      if (order.providerCheckoutSessionId !== checkoutSessionId) {
+        throw new Error("A different Checkout Session is already attached.");
+      }
+      return { attached: true, reused: true };
     }
     tx.update(orderRef, {
       providerCheckoutSessionId: checkoutSessionId,
       ...(stripeCustomerId ? { providerCustomerId: requiredString(stripeCustomerId, "stripeCustomerId") } : {}),
       updatedAt: now
     });
-    return { attached: true, reused: order.providerCheckoutSessionId === checkoutSessionId };
+    return { attached: true, reused: false };
   });
 }
 
