@@ -43,6 +43,8 @@ export async function createPendingPaymentOrder({
   creditsGrant = positiveInteger(creditsGrant, "creditsGrant", true);
   if (provider !== "stripe") throw new TypeError("Unsupported payment provider.");
   if (String(currency).toLowerCase() !== CURRENCY) throw new TypeError("Only MYR plans are currently supported.");
+  if (!["month", "year", "one_time"].includes(billingInterval)) throw new TypeError("Unsupported billing interval.");
+  const requestFingerprint = createHash("sha256").update(JSON.stringify({ planId, provider, amountMinor, currency: CURRENCY, creditsGrant, billingInterval })).digest("hex");
 
   const { db, Timestamp } = getFirebaseAdmin();
   const now = Timestamp.now();
@@ -56,6 +58,9 @@ export async function createPendingPaymentOrder({
       const existingOrderId = existing.get("orderId");
       const existingOrder = await tx.get(db.collection("paymentOrders").doc(existingOrderId));
       if (!existingOrder.exists) throw new Error("Idempotency record points to a missing order.");
+      if (existing.get("requestFingerprint") !== requestFingerprint) {
+        throw new Error("Idempotency key was already used with different order details.");
+      }
       return { orderId: existingOrderId, order: existingOrder.data(), reused: true };
     }
 
@@ -75,7 +80,7 @@ export async function createPendingPaymentOrder({
       paidAt: null
     };
     tx.create(orderRef, order);
-    tx.create(idemRef, { userId, orderId, createdAt: now });
+    tx.create(idemRef, { userId, orderId, requestFingerprint, createdAt: now });
     return { orderId, order, reused: false };
   });
 }
