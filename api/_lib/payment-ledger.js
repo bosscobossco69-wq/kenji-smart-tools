@@ -46,7 +46,8 @@ export async function createPendingPaymentOrder({
 }) {
   userId = requiredString(userId, "userId");
   planId = requiredString(planId, "planId");
-  idempotencyKey = requiredString(idempotencyKey, "idempotencyKey", 200);\n  if (idempotencyKey.length < 16) throw new TypeError("idempotencyKey must contain at least 16 characters.");
+  idempotencyKey = requiredString(idempotencyKey, "idempotencyKey", 200);
+  if (idempotencyKey.length < 16) throw new TypeError("idempotencyKey must contain at least 16 characters.");
   amountMinor = positiveInteger(amountMinor, "amountMinor");
   creditsGrant = positiveInteger(creditsGrant, "creditsGrant", true);
   if (provider !== "stripe") throw new TypeError("Unsupported payment provider.");
@@ -152,7 +153,8 @@ export async function applyVerifiedStripePayment({
   paymentStatus
 }) {
   eventId = requiredString(eventId, "eventId", 255);
-  eventType = requiredString(eventType, "eventType", 128);\n  if (!/^[a-z0-9_.]+$/i.test(eventType)) throw new TypeError("eventType contains unsupported characters.");
+  eventType = requiredString(eventType, "eventType", 128);
+  if (!/^[a-z0-9_.]+$/i.test(eventType)) throw new TypeError("eventType contains unsupported characters.");
   orderId = requiredString(orderId, "orderId");
   checkoutSessionId = requiredString(checkoutSessionId, "checkoutSessionId");
   userId = requiredString(userId, "userId");
