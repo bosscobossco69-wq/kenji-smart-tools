@@ -1,0 +1,26 @@
+name: Stripe Sandbox Safety Tests
+
+on:
+  pull_request:
+    branches:
+      - feature/kenji-ai-workspace-foundation
+  push:
+    branches:
+      - feature/stripe-sandbox-integration-preview
+
+permissions:
+  contents: read
+
+jobs:
+  node-tests:
+    name: Node.js tests (no payment credentials)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Run automated tests
+        run: npm test
