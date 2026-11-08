@@ -23,15 +23,34 @@
   <meta name="twitter:description" content="Free online tools for writing, calculations, password generation, unit conversion, JSON formatting, QR codes, and everyday tasks." />
   <meta name="twitter:image" content="https://kenji-smart-tools.vercel.app/og-image.svg" />
   <script type="application/ld+json">
-  {
-    "@context":"https://schema.org",
-    "@type":"WebSite",
-    "name":"KENJI Smart Tools",
-    "url":"https://kenji-smart-tools.vercel.app/",
-    "description":"A practical collection of free online tools for writing, calculations, password generation, unit conversion, JSON formatting, and everyday tasks.",
-    "inLanguage":"en"
-  }
-  </script>
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://kenji-smart-tools.vercel.app/#organization",
+      "name": "KENJI Smart Tools",
+      "url": "https://kenji-smart-tools.vercel.app/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://kenji-smart-tools.vercel.app/favicon.svg"
+      },
+      "description": "KENJI Smart Tools provides practical free online tools for writing, calculations, conversions, and everyday tasks."
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://kenji-smart-tools.vercel.app/#website",
+      "name": "KENJI Smart Tools",
+      "url": "https://kenji-smart-tools.vercel.app/",
+      "description": "A practical collection of free online tools for writing, calculations, password generation, unit conversion, JSON formatting, and everyday tasks.",
+      "inLanguage": "en",
+      "publisher": {
+        "@id": "https://kenji-smart-tools.vercel.app/#organization"
+      }
+    }
+  ]
+}
+</script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
   <style>
     :root {
