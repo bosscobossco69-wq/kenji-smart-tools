@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { verifyStripeSignature } from "../_lib/stripe-webhook-signature.js";
 
 export const config = {
   api: { bodyParser: false }
@@ -21,29 +21,6 @@ async function readRawBody(req, maxBytes = 1024 * 1024) {
     chunks.push(buffer);
   }
   return Buffer.concat(chunks);
-}
-
-/**
- * Verify Stripe's v1 signature over the exact raw request bytes.
- * The secret must be the endpoint-specific Sandbox signing secret.
- */
-function verifyStripeSignature(rawBody, header, secret, nowSeconds = Math.floor(Date.now() / 1000)) {
-  if (typeof header !== "string" || !secret) return false;
-  const fields = header.split(",").map(part => part.split("=", 2));
-  const timestamp = fields.find(([key]) => key === "t")?.[1];
-  const signatures = fields.filter(([key]) => key === "v1").map(([, value]) => value);
-  if (!timestamp || !/^\d+$/.test(timestamp) || !signatures.length) return false;
-  const timestampNumber = Number(timestamp);
-  if (!Number.isSafeInteger(timestampNumber) || Math.abs(nowSeconds - timestampNumber) > 300) return false;
-
-  const expected = createHmac("sha256", secret)
-    .update(Buffer.concat([Buffer.from(`${timestamp}.`), rawBody]))
-    .digest();
-  return signatures.some(signature => {
-    if (!/^[a-f0-9]{64}$/i.test(signature)) return false;
-    const supplied = Buffer.from(signature, "hex");
-    return supplied.length === expected.length && timingSafeEqual(supplied, expected);
-  });
 }
 
 export default async function handler(req, res) {
