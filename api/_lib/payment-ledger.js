@@ -162,7 +162,8 @@ export async function applyVerifiedStripePayment({
   }
 
   const { db, Timestamp } = getFirebaseAdmin();
-  const eventDocumentId = safeDocumentId(eventId);\n  const eventRef = db.collection("paymentEvents").doc(eventDocumentId);
+  const eventDocumentId = safeDocumentId(eventId);
+  const eventRef = db.collection("paymentEvents").doc(eventDocumentId);
   const orderRef = db.collection("paymentOrders").doc(orderId);
   const ledgerRef = db.collection("creditLedger").doc(eventDocumentId);
   const entitlementRef = db.collection("entitlements").doc(userId);
