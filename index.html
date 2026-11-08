@@ -77,6 +77,17 @@
     .brand-mark::after { content: ""; position: absolute; inset: 5px; border-radius: 7px; background: #071126; }
     .nav-links { display: flex; gap: 22px; color: var(--muted); font-size: .88rem; }
     .nav-links a:hover { color: var(--cyan); }
+    .mobile-menu-toggle { display:none; border:1px solid rgba(87,233,255,.45); border-radius:10px; padding:8px 11px; color:var(--cyan); background:rgba(5,10,24,.7); font:inherit; font-weight:750; cursor:pointer; }
+    .mobile-menu-toggle:focus-visible,.nav-links a:focus-visible { outline:2px solid var(--cyan); outline-offset:3px; }
+    @media (max-width:560px) {
+      .nav-inner { position:relative; flex-wrap:wrap; }
+      .mobile-menu-toggle { display:inline-flex; align-items:center; justify-content:center; min-height:38px; }
+      .nav-links { display:none; order:3; flex:0 0 100%; flex-direction:column; gap:0; padding:8px 2px 2px; border-top:1px solid var(--line); }
+      .nav-links.is-open { display:flex; }
+      .nav-links a { padding:12px 10px; border-radius:9px; }
+      .nav-links a:active { background:rgba(87,233,255,.1); }
+      .nav-actions { margin-left:auto; display:flex; align-items:center; gap:8px; }
+    }
     .nav-cta { border: 1px solid rgba(87,233,255,.5); color: var(--cyan); border-radius: 11px; padding: 9px 13px; font-size: .82rem; font-weight: 700; }
     .hero { padding: 108px 0 76px; display: grid; grid-template-columns: 1.12fr .88fr; align-items: center; gap: 60px; }
     .eyebrow { display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(87,233,255,.28); border-radius: 999px; padding: 8px 12px; color: var(--cyan); background: rgba(24, 102, 143, .12); font-size: .76rem; letter-spacing: .08em; text-transform: uppercase; }
@@ -182,7 +193,7 @@
 <body>
   <header class="nav shell"><div class="nav-inner">
     <a class="brand" href="#home"><span class="brand-mark"></span><span>KENJI / SMART TOOLS</span></a>
-    <nav class="nav-links"><a href="#tools">Tools</a><a href="#integrations">Integrations</a><a href="#feedback">Feedback</a><a href="#about">About</a><a href="#privacy">Privacy</a><a href="#contact">Contact</a></nav>
+    <nav class="nav-links" id="mobileNavLinks"><a href="#tools">Tools</a><a href="#integrations">Integrations</a><a href="#feedback">Feedback</a><a href="#about">About</a><a href="#privacy">Privacy</a><a href="#contact">Contact</a></nav><button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" aria-controls="mobileNavLinks" aria-expanded="false">Menu ☰</button>
     <div class="nav-actions"><a class="nav-cta" href="#tools">Open tools ↗</a><div class="login-cta" id="mainAuthNav"><a href="/workspace/login.html">Log in</a></div></div>
   </div></header>
 
@@ -383,6 +394,22 @@
       if(!resizedBlob){resizeImage();byId('image-result').textContent='Preparing image… use Download image again when the resized image is ready.';return;}
       const url=URL.createObjectURL(resizedBlob),a=document.createElement('a');a.href=url;a.download='kenji-resized-image.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
     }
+  </script>
+  <script>
+    (()=>{
+      const toggle=document.getElementById("mobileMenuToggle");
+      const menu=document.getElementById("mobileNavLinks");
+      if(!toggle||!menu)return;
+      const close=()=>{menu.classList.remove("is-open");toggle.setAttribute("aria-expanded","false");toggle.textContent="Menu ☰";};
+      toggle.addEventListener("click",()=>{
+        const open=toggle.getAttribute("aria-expanded")!=="true";
+        menu.classList.toggle("is-open",open);
+        toggle.setAttribute("aria-expanded",String(open));
+        toggle.textContent=open?"Close ✕":"Menu ☰";
+      });
+      menu.querySelectorAll("a").forEach(link=>link.addEventListener("click",close));
+      document.addEventListener("keydown",event=>{if(event.key==="Escape")close();});
+    })();
   </script>
   <script type="module">
     import {auth,authReady,onAuthStateChanged,signOut} from "./workspace/firebase-auth.js";
