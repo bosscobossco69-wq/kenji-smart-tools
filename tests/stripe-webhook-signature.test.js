@@ -33,3 +33,30 @@ test("rejects malformed signatures and missing secrets", () => {
   assert.equal(verifyStripeSignature(body, "t=abc,v1=xyz", secret, now), false);
   assert.equal(verifyStripeSignature(body, signatureFor(body), "", now), false);
 });
+
+test("accepts one valid signature among multiple v1 signatures", () => {
+  const body = Buffer.from('{"id":"evt_multi"}');
+  const valid = signatureFor(body);
+  const invalid = "0".repeat(64);
+  assert.equal(
+    verifyStripeSignature(body, `t=${now},v1=${invalid},v1=${valid.split("v1=")[1]}`, secret, now),
+    true
+  );
+});
+
+test("rejects timestamps too far in the future", () => {
+  const body = Buffer.from("{}");
+  assert.equal(verifyStripeSignature(body, signatureFor(body, now + 301), secret, now), false);
+});
+
+test("rejects a signature made with the wrong secret", () => {
+  const body = Buffer.from("{}");
+  const wrongSecretDigest = createHmac("sha256", "whsec_wrong")
+    .update(Buffer.concat([Buffer.from(`${now}.`), body]))
+    .digest("hex");
+  assert.equal(verifyStripeSignature(body, `t=${now},v1=${wrongSecretDigest}`, secret, now), false);
+});
+
+test("rejects non-Buffer raw bodies", () => {
+  assert.equal(verifyStripeSignature("{}", signatureFor(Buffer.from("{}")), secret, now), false);
+});
