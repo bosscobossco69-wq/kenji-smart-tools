@@ -122,3 +122,34 @@ Never trust a redirect to a success page as payment proof. Never use a screensho
 ## Stripe account eligibility note
 
 The onboarding screenshot showed the business location selector set to United States. Keep this account in Sandbox while testing. Before enabling Live payments, the Stripe account country, legal identity, business details, and settlement bank must accurately reflect the merchant's real eligibility. Do not use a false country or address to bypass eligibility checks.
+
+## Refund and dispute reversal contract — not implemented
+
+Refunds and disputes must remain disabled until the following state machine is implemented and tested. The current payment helper handles only an initial verified paid Checkout Session; it does not process refunds, disputes, chargebacks, or reversals.
+
+### Refunds
+
+- Accept refund notifications only after verifying the Stripe webhook signature and retrieving the canonical Refund and PaymentIntent/Charge from Stripe using the server secret.
+- Match the canonical payment to exactly one paid internal order. Verify Stripe account/mode, currency, amount, payment intent, and order/customer metadata; never trust browser-supplied refund amounts.
+- Support partial and multiple refunds by tracking cumulative refunded minor units per payment. Reject a refund that would make the cumulative refunded amount exceed the captured amount.
+- Write one immutable reversal ledger entry per unique Stripe refund ID, with a negative Credit amount calculated from the original grant and cumulative refunded amount. Use deterministic document IDs derived from the provider refund ID.
+- Update refund totals, order payment/refund state, event record, and any spendable Credit balance in one database transaction. A repeated refund ID with identical details is a no-op; the same ID with different details is an integrity error.
+- If Credits have already been spent, do not silently create a negative balance or erase spend history. Mark the account/order for review and apply a documented debt/hold policy before any further spending.
+
+### Disputes and chargebacks
+
+- Treat dispute opened, funds withdrawn, funds reinstated, and dispute closed as distinct state transitions, not as ordinary refunds.
+- On an opened dispute, place the relevant order/account Credits or entitlements on hold according to a documented policy; do not delete ledger entries.
+- On a lost dispute or confirmed chargeback, post an immutable reversal linked to the dispute/payment and reconcile the final Stripe balance transaction.
+- On a won dispute or reinstated funds, release the hold or post a compensating entry exactly once.
+- Handle out-of-order events by retrieving current canonical Stripe objects and reconciling state; event arrival order alone is not authoritative.
+
+### Required tests before enabling any refund/dispute handler
+
+- Full refund, partial refund, multiple partial refunds, duplicate refund event, duplicate refund ID with altered details.
+- Refund amount greater than captured amount, wrong currency, unknown PaymentIntent, and refund for an unpaid order.
+- Credits already partially or fully spent at refund time.
+- Dispute opened, lost, won, funds reinstated, duplicate and out-of-order dispute events.
+- Concurrent refund events for the same payment and atomic balance consistency.
+
+Until these conditions are met, refund/dispute webhooks must not mutate the ledger or account balance. Keep payment activation disabled.
