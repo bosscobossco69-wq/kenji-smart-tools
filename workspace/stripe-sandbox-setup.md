@@ -6,6 +6,16 @@ This branch prepares the Stripe test-mode integration only. It does not enable c
 
 The Stripe Dashboard account currently shown in the user's screenshots is in Sandbox/Test mode. The earlier onboarding screen showed the business location as United States; before any Live activation, confirm that the actual Stripe account country and legal business details accurately match the merchant's real eligibility. Do not use false country, address, entity, or tax details.
 
+## Supported scope: deliberately not enabled
+
+The current ledger helper is only a persistence primitive, not a complete billing implementation. In particular:
+
+- Do not expose any plan as purchasable yet. The Checkout route intentionally returns HTTP 503.
+- Do not enable monthly or yearly plans. Subscription creation, renewal, period boundaries, cancellation, past-due handling, and entitlement expiry are not implemented.
+- Do not grant an ongoing membership from a one-time payment without a separately defined entitlement duration and renewal policy.
+- The webhook currently verifies the signature and then returns HTTP 503. It does not parse events, retrieve Stripe objects, reconcile payments, or grant Credits.
+- A future first release should explicitly choose either one-time Credit packs or recurring subscriptions, then implement and test that complete lifecycle before enabling checkout.
+
 ## Required environment variables (Vercel server-side only)
 
 - `STRIPE_SECRET_KEY` — test secret key beginning `sk_test_`; never expose to browser or commit to Git.
