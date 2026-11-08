@@ -26,7 +26,7 @@ function positiveInteger(value, name, allowZero = false) {
 }
 
 function idempotencyDocumentId(userId, key) {
-  return createHash("sha256").update(`${userId}:${key}`).digest("hex");
+  return createHash("sha256").update(JSON.stringify([userId, key])).digest("hex");
 }
 
 /**
