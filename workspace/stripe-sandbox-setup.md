@@ -1,53 +1,66 @@
-# Stripe Sandbox integration — safe preparation
+# Stripe Sandbox integration — implementation status
 
 ## Current status
 
-This branch prepares the Stripe test-mode integration only. It does not enable checkout, create subscriptions, activate memberships, or issue Credits.
+This branch contains a server-side Stripe Sandbox Checkout and webhook implementation for one-time MYR Credits packs. It is not a production billing launch and has not been proven by a complete live Stripe Sandbox end-to-end payment run.
 
-The Stripe Dashboard account currently shown in the user's screenshots is in Sandbox/Test mode. The earlier onboarding screen showed the business location as United States; before any Live activation, confirm that the actual Stripe account country and legal business details accurately match the merchant's real eligibility. Do not use false country, address, entity, or tax details.
+Implemented in code:
+- `POST /api/stripe/create-checkout-session` authenticates a verified Firebase user, loads an active plan on the server, creates a pending order, and requests a one-time Stripe Checkout Session.
+- Checkout is restricted to server-validated MYR order data and accepts only a returned `cs_test_` Session. The response explicitly reports `mode: "test"`.
+- `POST /api/stripe/webhook` verifies the signature against the raw request body, retrieves the canonical Checkout Session from Stripe, requires `livemode === false` and `payment_status === "paid"`, and delegates the grant to the transactional ledger.
+- The payment ledger uses Firestore transactions and idempotency protections for orders, payment grants, Credit spending, refunds, and dispute observations.
+- `POST /api/stripe/portal` remains disabled and returns HTTP 503.
+- The billing page remains a disabled product-design preview. It does not start checkout, display a verified balance, or issue Credits.
 
-## Supported scope: deliberately not enabled
+Not yet established:
+- A full end-to-end run using actual Stripe Sandbox credentials, a configured Sandbox webhook endpoint, and the deployed preview environment.
+- A complete automated refund/dispute webhook ingestion and operational review workflow.
+- Customer Portal, subscriptions, recurring renewals, membership entitlements, and frontend balance/ledger integration.
+- Production readiness, merchant approval, or any Live-mode payment capability.
 
-The current ledger helper is only a persistence primitive, not a complete billing implementation. In particular:
+## Security boundaries
 
-- Do not expose any plan as purchasable yet. The Checkout route intentionally returns HTTP 503.
-- Do not enable monthly or yearly plans. Subscription creation, renewal, period boundaries, cancellation, past-due handling, and entitlement expiry are not implemented.
-- Do not grant an ongoing membership from a one-time payment without a separately defined entitlement duration and renewal policy.
-- The webhook currently verifies the signature and then returns HTTP 503. It does not parse events, retrieve Stripe objects, reconcile payments, or grant Credits.
-- A future first release should explicitly choose either one-time Credit packs or recurring subscriptions, then implement and test that complete lifecycle before enabling checkout.
+- Use Stripe Sandbox/Test mode only. Never configure or use Live credentials for this branch.
+- `STRIPE_SECRET_KEY` must be a server-only `sk_test_` value. `STRIPE_WEBHOOK_SECRET` must be a Sandbox webhook signing secret. Never paste either secret into chat, HTML, browser JavaScript, or Git.
+- The browser must never choose the amount, currency, user ID, or Credits grant. The server derives these from the authenticated identity and active Firestore plan.
+- Firestore client SDK access is denied for every document and operation by `firestore.rules`. Trusted server operations use the Firebase Admin SDK; server-side authorization must remain explicit.
+- Payment orders, Credit balances, and ledger entries are server-managed. Do not add client write exceptions.
+- Checkout is one-time payment only. Do not enable subscription, automatic renewal, or ongoing membership entitlements.
+- A successful CI run validates automated tests; it does not prove a real Stripe Sandbox checkout/webhook round trip.
 
-## Required environment variables (Vercel server-side only)
+## Required server-side environment
 
-- `STRIPE_SECRET_KEY` — test secret key beginning `sk_test_`; never expose to browser or commit to Git.
-- `STRIPE_PUBLISHABLE_KEY` — test publishable key beginning `pk_test_`; safe for browser only if/when needed.
-- `STRIPE_WEBHOOK_SECRET` — test webhook signing secret, created only after registering the test endpoint.
-- `STRIPE_CHECKOUT_ENABLED` — keep unset or `false` until the dedicated order/entitlement ledger and payment verification are implemented.
-- `PAYMENT_LEDGER_READY` — keep unset or `false` until the dedicated KENJI Workspace database and atomic ledger are verified.
+- `STRIPE_SECRET_KEY`: Sandbox secret beginning `sk_test_`.
+- `STRIPE_WEBHOOK_SECRET`: Sandbox endpoint signing secret.
+- `APP_BASE_URL`: approved HTTPS KENJI preview origin.
+- Firebase Admin credentials/configuration: server-side only.
 
-Do not paste any secret into chat, source code, HTML, client-side JavaScript, or GitHub. Never mix test keys with live endpoints or live webhook secrets.
+Do not add secrets to source control. Keep payment feature flags and plan activation decisions separately reviewed.
 
-## Planned server routes
+## Data and event handling
 
-- `POST /api/stripe/create-checkout-session` — create a Checkout Session only after authenticated user identity, server-side plan pricing, pending-order persistence, and idempotency are implemented.
-- `POST /api/stripe/webhook` — verify Stripe's signature using the raw request body and `STRIPE_WEBHOOK_SECRET`; reconcile the event with a pending order; atomically post a single entitlement/Credit ledger event.
-- `POST /api/stripe/portal` — create a customer portal session only for the authenticated owner of the Stripe customer record.
+- Plan price, currency, and Credits are loaded by the server from the active plan catalog.
+- A pending internal order is created before a Checkout Session is returned.
+- The webhook verifies the signature, retrieves the canonical Session server-to-server, and checks Sandbox mode, paid status, MYR amount/currency, and order metadata before ledger application.
+- Duplicate event/order processing must not create duplicate grants.
+- Refund handling uses immutable reversal entries and may require manual review if Credits have already been spent.
+- Disputes are recorded for review; a dispute observation is not by itself proof of a final loss or authorization to claw back Credits.
 
-Until those prerequisites exist, routes must fail closed with HTTP 503 and must not call Stripe or grant access.
+## Validation still required before enabling broader billing
 
-## Blocking prerequisites
+1. Run a controlled Stripe Sandbox checkout from the approved preview origin.
+2. Confirm the signed webhook reaches the preview endpoint and canonical Session retrieval succeeds.
+3. Verify exactly one pending order, one paid transition, one grant, and the expected materialized balance.
+4. Replay the same event and verify no second grant is created.
+5. Test cancellation, expiry, mismatched amount/currency, invalid signature, and transient webhook retry behavior.
+6. Separately validate refund and dispute workflows, including insufficient-balance/manual-review cases.
+7. Review account country, legal business details, tax obligations, and merchant eligibility before any future Live-mode proposal.
 
-1. Provision a dedicated KENJI AI Workspace database. Do not reuse Cardora or Pokémon Treasure Supabase projects.
-2. Implement authenticated user-to-customer mapping and server-side plan catalog/pricing in MYR.
-3. Add pending orders with unique internal IDs, Stripe Checkout Session IDs, expected amount/currency, user ID, plan ID, status, and timestamps.
-4. Add an append-only entitlement/Credit ledger with unique payment/event constraints and atomic writes.
-5. Verify webhook signatures and reconcile paid status, amount, currency, customer, and order reference before activation.
-6. Handle duplicate events, delayed events, refunds, disputes, cancellations, failed renewals, and subscription lifecycle changes.
-7. Test success, decline, expired Checkout Session, forged webhook, duplicate webhook, amount/currency mismatch, unknown order, refund, and renewal failure.
-8. Only after Sandbox tests and Stripe merchant approval, separately configure Live credentials and complete a reviewed Live activation.
+## Branch and deployment boundary
 
-## Current deployment boundary
-
-- Work on `feature/stripe-sandbox-integration-preview`.
-- Open a review PR into `feature/kenji-ai-workspace-foundation`; do not merge without explicit user approval.
-- Keep the existing ToyyibPay PR #12 separate.
-- Do not enable live payments or modify `main`.
+- Work only on `feature/stripe-sandbox-integration-preview`.
+- Review through PR #13 into `feature/kenji-ai-workspace-foundation`.
+- Keep PR #13 Draft until explicitly approved.
+- Keep ToyyibPay PR #12 separate.
+- Do not merge, deploy production, modify `main`, or enable Live payments without explicit approval.
+- Do not modify Cardora or Pokémon Treasure projects.
