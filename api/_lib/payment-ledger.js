@@ -2,6 +2,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { getFirebaseAdmin } from "./firebase-admin.js";
 
 const CURRENCY = "myr";
+const SUPPORTED_PAID_EVENT_TYPES = new Set([
+  "checkout.session.completed",
+  "checkout.session.async_payment_succeeded"
+]);
 
 function requiredString(value, name, maxLength = 256) {
   if (typeof value !== "string" || !value.trim()) {
@@ -109,6 +113,15 @@ export async function attachStripeCheckoutSession({
   orderId = requiredString(orderId, "orderId");
   userId = requiredString(userId, "userId");
   checkoutSessionId = requiredString(checkoutSessionId, "checkoutSessionId", 255);
+  if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(checkoutSessionId)) {
+    throw new TypeError("checkoutSessionId is not a valid Stripe Checkout Session identifier.");
+  }
+  if (stripeCustomerId !== null) {
+    stripeCustomerId = requiredString(stripeCustomerId, "stripeCustomerId", 255);
+    if (!/^cus_[A-Za-z0-9]+$/.test(stripeCustomerId)) {
+      throw new TypeError("stripeCustomerId is not a valid Stripe Customer identifier.");
+    }
+  }
   const { db, Timestamp } = getFirebaseAdmin();
   const orderRef = db.collection("paymentOrders").doc(orderId);
   const now = Timestamp.now();
@@ -157,7 +170,9 @@ export async function applyVerifiedStripePayment({
   eventId = requiredString(eventId, "eventId", 255);
   if (!/^evt_[A-Za-z0-9]+$/.test(eventId)) throw new TypeError("eventId is not a valid Stripe event identifier.");
   eventType = requiredString(eventType, "eventType", 128);
-  if (!/^[a-z0-9_.]+$/i.test(eventType)) throw new TypeError("eventType contains unsupported characters.");
+  if (!SUPPORTED_PAID_EVENT_TYPES.has(eventType)) {
+    throw new TypeError("eventType is not a supported paid Checkout event.");
+  }
   orderId = requiredString(orderId, "orderId");
   checkoutSessionId = requiredString(checkoutSessionId, "checkoutSessionId", 255);
   if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(checkoutSessionId)) throw new TypeError("checkoutSessionId is not a valid Stripe Checkout Session identifier.");
