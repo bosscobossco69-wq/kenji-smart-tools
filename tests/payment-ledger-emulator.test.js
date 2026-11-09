@@ -29,6 +29,40 @@ integration("Firestore ledger: same idempotency key reuses the same order", asyn
   assert.equal(second.order.status, "pending");
 });
 
+integration("Firestore ledger: concurrent same-key order creation reuses one order", async () => {
+  const userId = `test_${randomUUID()}`;
+  const idempotencyKey = `idem_${randomUUID()}_key`;
+  const input = {
+    userId, planId: "sandbox_plan", idempotencyKey,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  };
+  const results = await Promise.all([
+    createPendingPaymentOrder(input),
+    createPendingPaymentOrder(input)
+  ]);
+  assert.equal(results[0].orderId, results[1].orderId);
+  assert.equal(results.filter(x => x.reused).length, 1);
+  const { db } = getFirebaseAdmin();
+  const orders = await db.collection("paymentOrders").where("userId", "==", userId).get();
+  assert.equal(orders.size, 1);
+});
+
+integration("Firestore ledger: idempotent retry preserves attached Checkout Session", async () => {
+  const userId = `test_${randomUUID()}`;
+  const input = {
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  };
+  const created = await createPendingPaymentOrder(input);
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  const retry = await createPendingPaymentOrder(input);
+  assert.equal(retry.orderId, created.orderId);
+  assert.equal(retry.reused, true);
+  assert.equal(retry.order.providerCheckoutSessionId, sessionId);
+  assert.equal(retry.order.status, "pending");
+});
+
 integration("Firestore ledger: reused idempotency key rejects changed order details", async () => {
   const userId = `test_${randomUUID()}`;
   const key = `idem_${randomUUID()}_key`;
