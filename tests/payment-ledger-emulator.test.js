@@ -8,6 +8,8 @@ import {
   attachStripeCheckoutSession,
   applyVerifiedStripePayment,
   spendCredits,
+  applyVerifiedStripeRefund,
+  recordVerifiedStripeDispute,
   recordVerifiedPaymentOrderOutcome
 } from "../api/_lib/payment-ledger.js";
 
@@ -421,6 +423,103 @@ integration("Firestore ledger: malformed materialized balance fails closed", asy
   assert.equal(order.get("status"), "pending");
   const balance = await db.collection("creditBalances").doc(userId).get();
   assert.equal(balance.get("balance"), -4);
+});
+
+
+integration("Firestore ledger: partial refunds accumulate proportionally and duplicate refund is idempotent", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 10000, currency: "myr", creditsGrant: 100, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  const paymentIntentId = `pi_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  await applyVerifiedStripePayment({
+    eventId: `evt_${randomUUID().replaceAll("-", "")}`, eventType: "checkout.session.completed",
+    orderId: created.orderId, checkoutSessionId: sessionId, paymentIntentId, userId,
+    amountMinor: 10000, currency: "myr", paymentStatus: "paid"
+  });
+  const fp = "a".repeat(64);
+  const first = await applyVerifiedStripeRefund({
+    refundId: `re_${randomUUID().replaceAll("-", "")}`, paymentIntentId,
+    orderId: created.orderId, userId, amountMinor: 2500, currency: "myr",
+    refundStatus: "succeeded", evidenceFingerprint: fp
+  });
+  assert.equal(first.creditReversal, 25);
+  const refundId = `re_${randomUUID().replaceAll("-", "")}`;
+  const secondInput = {
+    refundId, paymentIntentId, orderId: created.orderId, userId,
+    amountMinor: 2500, currency: "myr", refundStatus: "succeeded",
+    evidenceFingerprint: "b".repeat(64)
+  };
+  const second = await applyVerifiedStripeRefund(secondInput);
+  const duplicate = await applyVerifiedStripeRefund(secondInput);
+  assert.equal(second.creditReversal, 25);
+  assert.equal(duplicate.duplicate, true);
+  const { db } = getFirebaseAdmin();
+  const balance = await db.collection("creditBalances").doc(userId).get();
+  assert.equal(balance.get("balance"), 50);
+  const receipts = await db.collection("refundReceipts").where("orderId", "==", created.orderId).get();
+  assert.equal(receipts.size, 2);
+  const reversals = await db.collection("creditLedger").where("orderId", "==", created.orderId).get();
+  assert.equal(reversals.docs.filter(x => x.get("entryType") === "refund_reversal").length, 2);
+});
+
+integration("Firestore ledger: refund shortfall is recorded for review without negative balance", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 10000, currency: "myr", creditsGrant: 10, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  const paymentIntentId = `pi_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  await applyVerifiedStripePayment({
+    eventId: `evt_${randomUUID().replaceAll("-", "")}`, eventType: "checkout.session.completed",
+    orderId: created.orderId, checkoutSessionId: sessionId, paymentIntentId, userId,
+    amountMinor: 10000, currency: "myr", paymentStatus: "paid"
+  });
+  await spendCredits({ userId, amount: 8, idempotencyKey: `spend_${randomUUID()}_key`, reference: "consumed_before_refund" });
+  const refund = await applyVerifiedStripeRefund({
+    refundId: `re_${randomUUID().replaceAll("-", "")}`, paymentIntentId,
+    orderId: created.orderId, userId, amountMinor: 10000, currency: "myr",
+    refundStatus: "succeeded", evidenceFingerprint: "c".repeat(64)
+  });
+  assert.equal(refund.reviewRequired, true);
+  assert.equal(refund.creditReversal, 0);
+  const { db } = getFirebaseAdmin();
+  const balance = await db.collection("creditBalances").doc(userId).get();
+  assert.equal(balance.get("balance"), 2);
+});
+
+integration("Firestore ledger: dispute observations are idempotent and never mutate Credits", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 10000, currency: "myr", creditsGrant: 10, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  const paymentIntentId = `pi_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  await applyVerifiedStripePayment({
+    eventId: `evt_${randomUUID().replaceAll("-", "")}`, eventType: "checkout.session.completed",
+    orderId: created.orderId, checkoutSessionId: sessionId, paymentIntentId, userId,
+    amountMinor: 10000, currency: "myr", paymentStatus: "paid"
+  });
+  const input = {
+    disputeId: `dp_${randomUUID().replaceAll("-", "")}`,
+    eventId: `evt_${randomUUID().replaceAll("-", "")}`,
+    eventType: "charge.dispute.created", orderId: created.orderId, userId,
+    paymentIntentId, disputeStatus: "needs_response", evidenceFingerprint: "d".repeat(64)
+  };
+  const first = await recordVerifiedStripeDispute(input);
+  const retry = await recordVerifiedStripeDispute(input);
+  assert.equal(first.recorded, true);
+  assert.equal(retry.duplicate, true);
+  const { db } = getFirebaseAdmin();
+  const balance = await db.collection("creditBalances").doc(userId).get();
+  assert.equal(balance.get("balance"), 10);
 });
 
 test("Firestore emulator integration suite is explicitly opt-in", { skip: emulatorEnabled }, () => {
