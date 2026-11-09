@@ -161,7 +161,7 @@ test("Stripe Checkout scaffold rejects non-POST methods", async () => {
   assert.equal(res.headers.Allow, "POST");
 });
 
-test("Stripe Checkout scaffold remains fail-closed without making a payment request", async () => {
+test("Stripe Checkout requires authentication before making a payment request", async () => {
   const req = {
     method: "POST",
     headers: {},
@@ -174,6 +174,6 @@ test("Stripe Checkout scaffold remains fail-closed without making a payment requ
   };
   const res = mockResponse();
   await checkoutHandler(req, res);
-  assert.equal(res.statusCode, 503);
-  assert.equal(res.payload.code, "PAYMENT_LEDGER_REQUIRED");
+  assert.equal(res.statusCode, 401);
+  assert.equal(res.payload.code, "CHECKOUT_UNAVAILABLE");
 });
