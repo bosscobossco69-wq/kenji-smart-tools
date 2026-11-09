@@ -60,3 +60,77 @@ test("rejects a signature made with the wrong secret", () => {
 test("rejects non-Buffer raw bodies", () => {
   assert.equal(verifyStripeSignature("{}", signatureFor(Buffer.from("{}")), secret, now), false);
 });
+
+import webhookHandler from "../api/stripe/webhook.js";
+
+function webhookResponse() {
+  return {
+    headers: {},
+    statusCode: null,
+    payload: null,
+    setHeader(name, value) { this.headers[name] = value; },
+    status(code) { this.statusCode = code; return this; },
+    json(payload) { this.payload = payload; return this; }
+  };
+}
+
+function webhookRequest(method, body, signature) {
+  return {
+    method,
+    headers: signature ? { "stripe-signature": signature } : {},
+    async *[Symbol.asyncIterator]() {
+      if (body?.length) yield body;
+    }
+  };
+}
+
+test("Stripe webhook rejects non-POST requests", async () => {
+  const res = webhookResponse();
+  await webhookHandler(webhookRequest("GET", Buffer.from("{}")), res);
+  assert.equal(res.statusCode, 405);
+  assert.equal(res.headers.Allow, "POST");
+});
+
+test("Stripe webhook fails closed when the signing secret is missing", async () => {
+  const previous = process.env.STRIPE_WEBHOOK_SECRET;
+  delete process.env.STRIPE_WEBHOOK_SECRET;
+  try {
+    const res = webhookResponse();
+    await webhookHandler(webhookRequest("POST", Buffer.from("{}")), res);
+    assert.equal(res.statusCode, 503);
+    assert.equal(res.payload.code, "WEBHOOK_SECRET_MISSING");
+  } finally {
+    if (previous === undefined) delete process.env.STRIPE_WEBHOOK_SECRET;
+    else process.env.STRIPE_WEBHOOK_SECRET = previous;
+  }
+});
+
+test("Stripe webhook rejects an invalid signature before event processing", async () => {
+  const previous = process.env.STRIPE_WEBHOOK_SECRET;
+  process.env.STRIPE_WEBHOOK_SECRET = secret;
+  try {
+    const body = Buffer.from('{"id":"evt_invalid","type":"checkout.session.completed"}');
+    const res = webhookResponse();
+    await webhookHandler(webhookRequest("POST", body, "t=1,v1=invalid"), res);
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.payload.error, "Invalid Stripe webhook signature.");
+  } finally {
+    if (previous === undefined) delete process.env.STRIPE_WEBHOOK_SECRET;
+    else process.env.STRIPE_WEBHOOK_SECRET = previous;
+  }
+});
+
+test("Stripe webhook acknowledges valid signature but remains fail-closed pending ledger processing", async () => {
+  const previous = process.env.STRIPE_WEBHOOK_SECRET;
+  process.env.STRIPE_WEBHOOK_SECRET = secret;
+  try {
+    const body = Buffer.from('{"id":"evt_valid","type":"checkout.session.completed"}');
+    const res = webhookResponse();
+    await webhookHandler(webhookRequest("POST", body, signatureFor(body)), res);
+    assert.equal(res.statusCode, 503);
+    assert.equal(res.payload.code, "PAYMENT_LEDGER_NOT_READY");
+  } finally {
+    if (previous === undefined) delete process.env.STRIPE_WEBHOOK_SECRET;
+    else process.env.STRIPE_WEBHOOK_SECRET = previous;
+  }
+});
