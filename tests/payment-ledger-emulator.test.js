@@ -320,3 +320,70 @@ integration("Firestore ledger: expired transition rejects an active or paid sess
     evidence: { sessionStatus: "open", paymentStatus: "unpaid", expiresAt: Math.floor(Date.now() / 1000) + 3600 }
   }), /requires an expired, unpaid/);
 });
+
+
+integration("Firestore ledger: verified canceled PaymentIntent marks pending order failed", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  const result = await recordVerifiedPaymentOrderOutcome({
+    outcome: "failed", orderId: created.orderId, userId, checkoutSessionId: sessionId,
+    evidence: { paymentIntentId: `pi_${randomUUID().replaceAll("-", "")}`, paymentIntentStatus: "canceled" }
+  });
+  assert.equal(result.status, "failed");
+  const { db } = getFirebaseAdmin();
+  const order = await db.collection("paymentOrders").doc(created.orderId).get();
+  assert.equal(order.get("status"), "failed");
+  const ledger = await db.collection("creditLedger").where("orderId", "==", created.orderId).get();
+  assert.equal(ledger.size, 0);
+});
+
+integration("Firestore ledger: late success evidence after expiry is routed to review", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  await recordVerifiedPaymentOrderOutcome({
+    outcome: "expired", orderId: created.orderId, userId, checkoutSessionId: sessionId,
+    evidence: { sessionStatus: "expired", paymentStatus: "unpaid", expiresAt: Math.floor(Date.now() / 1000) - 60 }
+  });
+  await assert.rejects(applyVerifiedStripePayment({
+    eventId: `evt_${randomUUID().replaceAll("-", "")}`, eventType: "checkout.session.completed",
+    orderId: created.orderId, checkoutSessionId: sessionId, userId,
+    amountMinor: 2500, currency: "myr", paymentStatus: "paid"
+  }), /not pending/);
+  const review = await recordVerifiedPaymentOrderOutcome({
+    outcome: "review_required", orderId: created.orderId, userId, checkoutSessionId: sessionId,
+    evidence: { reference: `evt_${randomUUID().replaceAll("-", "")}`, reason: "Late success evidence conflicts with expired order state." }
+  });
+  assert.equal(review.status, "review_required");
+  const { db } = getFirebaseAdmin();
+  const order = await db.collection("paymentOrders").doc(created.orderId).get();
+  assert.equal(order.get("status"), "review_required");
+  const ledger = await db.collection("creditLedger").where("orderId", "==", created.orderId).get();
+  assert.equal(ledger.size, 0);
+});
+
+integration("Firestore ledger: failure evidence must be canonical canceled state", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  await assert.rejects(recordVerifiedPaymentOrderOutcome({
+    outcome: "failed", orderId: created.orderId, userId, checkoutSessionId: sessionId,
+    evidence: { paymentIntentId: `pi_${randomUUID().replaceAll("-", "")}`, paymentIntentStatus: "processing" }
+  }), /canceled PaymentIntent/);
+  const { db } = getFirebaseAdmin();
+  const order = await db.collection("paymentOrders").doc(created.orderId).get();
+  assert.equal(order.get("status"), "pending");
+});
