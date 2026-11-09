@@ -98,6 +98,35 @@ integration("Firestore ledger: a second event cannot pay an already-paid order",
   }), /already paid/);
 });
 
+integration("Firestore ledger: concurrent distinct events can grant Credits only once", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  const base = {
+    eventType: "checkout.session.completed",
+    orderId: created.orderId,
+    checkoutSessionId: sessionId,
+    userId,
+    amountMinor: 2500,
+    currency: "myr",
+    paymentStatus: "paid"
+  };
+  const attempts = await Promise.allSettled([
+    applyVerifiedStripePayment({ ...base, eventId: `evt_${randomUUID().replaceAll("-", "")}` }),
+    applyVerifiedStripePayment({ ...base, eventId: `evt_${randomUUID().replaceAll("-", "")}` })
+  ]);
+  assert.equal(attempts.filter(x => x.status === "fulfilled" && x.value.applied).length, 1);
+  assert.equal(attempts.filter(x => x.status === "rejected").length, 1);
+  const { db } = getFirebaseAdmin();
+  const ledger = await db.collection("creditLedger").where("orderId", "==", created.orderId).get();
+  assert.equal(ledger.size, 1);
+  assert.equal(ledger.docs[0].get("amount"), 25);
+});
+
 integration("Firestore ledger: amount mismatch does not mark order paid", async () => {
   const userId = `test_${randomUUID()}`;
   const created = await createPendingPaymentOrder({
