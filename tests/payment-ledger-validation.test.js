@@ -139,3 +139,41 @@ test("checkout guard permits only positive one-time Credits plans", () => {
     { message: "Only one-time Credits plans are supported." }
   );
 });
+
+import checkoutHandler from "../api/stripe/create-checkout-session.js";
+
+function mockResponse() {
+  return {
+    headers: {},
+    statusCode: null,
+    payload: null,
+    setHeader(name, value) { this.headers[name] = value; },
+    status(code) { this.statusCode = code; return this; },
+    json(payload) { this.payload = payload; return this; }
+  };
+}
+
+test("Stripe Checkout scaffold rejects non-POST methods", async () => {
+  const req = { method: "GET", headers: {} };
+  const res = mockResponse();
+  await checkoutHandler(req, res);
+  assert.equal(res.statusCode, 405);
+  assert.equal(res.headers.Allow, "POST");
+});
+
+test("Stripe Checkout scaffold remains fail-closed without making a payment request", async () => {
+  const req = {
+    method: "POST",
+    headers: {},
+    body: {
+      planId: "credits_basic",
+      amount: 1,
+      currency: "usd",
+      successUrl: "https://attacker.example"
+    }
+  };
+  const res = mockResponse();
+  await checkoutHandler(req, res);
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.payload.code, "PAYMENT_LEDGER_REQUIRED");
+});
