@@ -280,6 +280,61 @@ export async function applyVerifiedStripePayment({
 
 
 /**
+ * Spend Credits atomically. Call only after the API route has authenticated
+ * the Firebase user and passed the verified UID as userId.
+ */
+export async function spendCredits({ userId, amount, idempotencyKey, reference }) {
+  userId = requiredString(userId, "userId");
+  amount = positiveInteger(amount, "amount");
+  idempotencyKey = requiredString(idempotencyKey, "idempotencyKey", 200);
+  if (idempotencyKey.length < 16) throw new TypeError("idempotencyKey must contain at least 16 characters.");
+  reference = requiredString(reference, "reference", 500);
+
+  const { db, Timestamp } = getFirebaseAdmin();
+  const requestId = idempotencyDocumentId(userId, idempotencyKey);
+  const requestRef = db.collection("creditSpendRequests").doc(requestId);
+  const balanceRef = db.collection("creditBalances").doc(userId);
+  const ledgerRef = db.collection("creditLedger").doc(safeDocumentId(JSON.stringify(["spend", userId, idempotencyKey])));
+  const fingerprint = createHash("sha256").update(JSON.stringify({ userId, amount, reference })).digest("hex");
+  const now = Timestamp.now();
+
+  return db.runTransaction(async tx => {
+    const [requestSnap, balanceSnap] = await Promise.all([tx.get(requestRef), tx.get(balanceRef)]);
+    if (requestSnap.exists) {
+      if (requestSnap.get("requestFingerprint") !== fingerprint) {
+        throw new Error("Credit spend idempotency key was reused with different details.");
+      }
+      return {
+        duplicate: true,
+        spent: requestSnap.get("amount"),
+        balanceAfter: requestSnap.get("balanceAfter")
+      };
+    }
+    if (!balanceSnap.exists) {
+      throw new Error("Credit balance is missing; reconciliation required before spending.");
+    }
+    const currentBalance = balanceSnap.get("balance");
+    if (!Number.isSafeInteger(currentBalance) || currentBalance < 0) {
+      throw new Error("Credit balance is malformed; reconciliation required before spending.");
+    }
+    if (currentBalance < amount) throw new Error("Insufficient Credits.");
+    const nextBalance = currentBalance - amount;
+
+    tx.create(ledgerRef, {
+      userId, entryType: "spend", amount: -amount, reference,
+      idempotencyKeyHash: requestId, balanceAfter: nextBalance, createdAt: now
+    });
+    tx.create(requestRef, {
+      userId, amount, reference, requestFingerprint: fingerprint,
+      ledgerId: ledgerRef.id, balanceAfter: nextBalance, createdAt: now
+    });
+    tx.update(balanceRef, { balance: nextBalance, updatedAt: now });
+    return { duplicate: false, spent: amount, balanceAfter: nextBalance };
+  });
+}
+
+
+/**
  * Persist a terminal/review outcome only after the caller has retrieved the
  * canonical Stripe objects server-to-server and validated their relationship
  * to this order. This helper does not call Stripe and cannot establish that
