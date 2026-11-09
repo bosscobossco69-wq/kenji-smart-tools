@@ -168,9 +168,16 @@ integration("Firestore ledger: a second event cannot pay an already-paid order",
     paymentStatus: "paid"
   };
   await applyVerifiedStripePayment({ ...base, eventId: `evt_${randomUUID().replaceAll("-", "")}` });
-  await assert.rejects(applyVerifiedStripePayment({
+  const retry = await applyVerifiedStripePayment({
     ...base, eventId: `evt_${randomUUID().replaceAll("-", "")}`
-  }), /already paid/);
+  });
+  assert.equal(retry.duplicate, true);
+  assert.equal(retry.applied, false);
+  const { db } = getFirebaseAdmin();
+  const balance = await db.collection("creditBalances").doc(userId).get();
+  assert.equal(balance.get("balance"), 25);
+  const ledger = await db.collection("creditLedger").where("orderId", "==", created.orderId).get();
+  assert.equal(ledger.size, 1);
 });
 
 integration("Firestore ledger: concurrent distinct events can grant Credits only once", async () => {
@@ -195,8 +202,11 @@ integration("Firestore ledger: concurrent distinct events can grant Credits only
     applyVerifiedStripePayment({ ...base, eventId: `evt_${randomUUID().replaceAll("-", "")}` })
   ]);
   assert.equal(attempts.filter(x => x.status === "fulfilled" && x.value.applied).length, 1);
-  assert.equal(attempts.filter(x => x.status === "rejected").length, 1);
+  assert.equal(attempts.filter(x => x.status === "fulfilled" && x.value.duplicate).length, 1);
+  assert.equal(attempts.filter(x => x.status === "rejected").length, 0);
   const { db } = getFirebaseAdmin();
+  const balance = await db.collection("creditBalances").doc(userId).get();
+  assert.equal(balance.get("balance"), 25);
   const ledger = await db.collection("creditLedger").where("orderId", "==", created.orderId).get();
   assert.equal(ledger.size, 1);
   assert.equal(ledger.docs[0].get("amount"), 25);
