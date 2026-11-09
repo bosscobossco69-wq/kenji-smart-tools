@@ -88,3 +88,36 @@ test("webhook rejects Live-mode Checkout Sessions", async () => {
   await handler(reqMock(body),res);
   assert.equal(res.statusCode,400);
 });
+
+for (const eventType of [
+  "refund.created",
+  "refund.updated",
+  "charge.refunded",
+  "charge.dispute.created",
+  "charge.dispute.updated",
+  "charge.dispute.closed"
+]) {
+  test(`webhook safely ignores ${eventType} until canonical reconciliation is implemented`, async () => {
+    let clientCreated = false;
+    let ledgerCalled = false;
+    const handler = createStripeWebhookHandler({
+      signingSecret: () => secret,
+      createClient: () => {
+        clientCreated = true;
+        throw new Error("Unsupported event must not retrieve or mutate Stripe objects.");
+      },
+      applyPayment: async () => { ledgerCalled = true; }
+    });
+    const body = Buffer.from(JSON.stringify({
+      id: "evt_unsupported_123",
+      type: eventType,
+      data: { object: { id: "re_untrusted_or_dp_untrusted", livemode: false, amount: 1, currency: "myr" } }
+    }));
+    const res = resMock();
+    await handler(reqMock(body), res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.payload.ignored, true);
+    assert.equal(clientCreated, false);
+    assert.equal(ledgerCalled, false);
+  });
+}
