@@ -29,5 +29,7 @@ jobs:
           java-version: 21
       - name: Install locked dependencies
         run: npm ci
+      - name: Install Firestore Rules test helpers
+        run: npm install --no-save --package-lock=false @firebase/rules-unit-testing@5.0.0 firebase@12.5.0
       - name: Run unit and Firestore Emulator integration tests
         run: npx --yes firebase-tools@latest emulators:exec --project demo-kenji-sandbox --only firestore "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_PROJECT_ID=demo-kenji-sandbox npm test"
