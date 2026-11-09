@@ -77,7 +77,7 @@ test("rejects malformed PaymentIntent IDs in verified payment input", async () =
   );
 });
 
-import { normalizeActivePaymentPlan } from "../api/_lib/payment-plans.js";
+import { normalizeActivePaymentPlan, requireOneTimeCreditsPlan } from "../api/_lib/payment-plans.js";
 
 const validPlan = {
   active: true,
@@ -121,4 +121,21 @@ test("normalizes supported interval values but rejects unknown intervals", () =>
     assert.equal(normalizeActivePaymentPlan("credits_basic", { ...validPlan, billingInterval }).billingInterval, billingInterval);
   }
   assert.throws(() => normalizeActivePaymentPlan("credits_basic", { ...validPlan, billingInterval: "weekly" }), /billing interval is not configured/);
+});
+
+test("checkout guard permits only positive one-time Credits plans", () => {
+  const plan = normalizeActivePaymentPlan("credits_basic", validPlan);
+  assert.deepEqual(requireOneTimeCreditsPlan(plan), plan);
+  assert.throws(
+    () => requireOneTimeCreditsPlan({ ...plan, billingInterval: "month" }),
+    { message: "Only one-time Credits plans are supported." }
+  );
+  assert.throws(
+    () => requireOneTimeCreditsPlan({ ...plan, billingInterval: "year" }),
+    { message: "Only one-time Credits plans are supported." }
+  );
+  assert.throws(
+    () => requireOneTimeCreditsPlan({ ...plan, creditsGrant: 0 }),
+    { message: "Only one-time Credits plans are supported." }
+  );
 });
