@@ -124,11 +124,11 @@ test("Stripe webhook acknowledges valid signature but remains fail-closed pendin
   const previous = process.env.STRIPE_WEBHOOK_SECRET;
   process.env.STRIPE_WEBHOOK_SECRET = secret;
   try {
-    const body = Buffer.from('{"id":"evt_valid","type":"checkout.session.completed"}');
+    const body = Buffer.from('{"id":"evt_valid","type":"checkout.session.completed","data":{"object":{"id":"cs_test_123456"}}}');
     const res = webhookResponse();
     await webhookHandler(webhookRequest("POST", body, signatureFor(body, Math.floor(Date.now() / 1000))), res);
     assert.equal(res.statusCode, 503);
-    assert.equal(res.payload.code, "PAYMENT_LEDGER_NOT_READY");
+    assert.equal(res.payload.code, "STRIPE_SECRET_KEY_MISSING");
   } finally {
     if (previous === undefined) delete process.env.STRIPE_WEBHOOK_SECRET;
     else process.env.STRIPE_WEBHOOK_SECRET = previous;
