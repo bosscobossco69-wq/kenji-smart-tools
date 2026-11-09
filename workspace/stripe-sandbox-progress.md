@@ -27,10 +27,10 @@ Last updated: 2026-11-09
 9. Vercel feature-branch Preview deployment reported Ready. User visually checked the site and approved the appearance.
 
 ## Not completed / remaining phases
-### Phase A — Refund and dispute webhook tests
-- Add handler tests for successful/full refund, partial refund, duplicate delivery, conflicting refund ID evidence, cumulative amount cap, currency/payment-intent/order mismatch, pending/failed refund statuses, insufficient unspent Credits.
-- Add dispute created/updated/closed tests, including out-of-order and duplicate events.
-- Confirm lost disputes only route to human review and never automatically claw back Credits.
+### Phase A — Refund and dispute ledger tests (partially complete)
+- Added `tests/payment-refund-dispute-emulator.test.js` in commit `d96206b4f6f8382ffc9ed3901857e0eaa64010cc`.
+- New Emulator cases: cumulative refunds cannot exceed paid amount; refund ID reuse with conflicting evidence is rejected; lost dispute is recorded for human review and does not change Credits.
+- Still to add: webhook handler/canonical-object tests for full and partial refunds, duplicate delivery, currency/PaymentIntent/order mismatch, pending/failed refund statuses, dispute created/updated/closed and out-of-order events.
 
 ### Phase B — Canonical Stripe object retrieval and reconciliation
 - Retrieve canonical Refund/Dispute/Charge/PaymentIntent server-to-server from Stripe Sandbox.
@@ -62,5 +62,8 @@ Last updated: 2026-11-09
 - No subscription activation or automatic renewal.
 - No SQL, Firebase Console changes, production deployment, merge, or UI redesign without explicit authorization.
 
+## Latest checkpoint
+- Added three focused refund/dispute ledger Emulator tests; CI result is pending for commit `d96206b4f6f8382ffc9ed3901857e0eaa64010cc`.
+
 ## Next exact action
-Start Phase A: add focused tests for refund/dispute webhook processing and canonical-object mismatch cases. Do not modify the website UI or enable new webhook event handling until those tests and the canonical retrieval path are ready.
+Check CI for commit `d96206b4f6f8382ffc9ed3901857e0eaa64010cc`. Fix any failing test before continuing Phase A webhook/canonical-object test design. Do not modify the website UI or enable new webhook event handling until tests and canonical retrieval path are ready.
