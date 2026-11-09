@@ -200,6 +200,46 @@ integration("Firestore ledger: concurrent distinct events can grant Credits only
   assert.equal(ledger.docs[0].get("amount"), 25);
 });
 
+integration("Firestore ledger: expired orders cannot attach a Checkout Session", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  });
+  const { db } = getFirebaseAdmin();
+  await db.collection("paymentOrders").doc(created.orderId).update({ status: "expired" });
+  await assert.rejects(attachStripeCheckoutSession({
+    orderId: created.orderId, userId,
+    checkoutSessionId: `cs_test_${randomUUID().replaceAll("-", "")}`
+  }), /not pending/);
+});
+
+integration("Firestore ledger: failed orders cannot be paid by a later event", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  const { db } = getFirebaseAdmin();
+  await db.collection("paymentOrders").doc(created.orderId).update({ status: "failed" });
+  await assert.rejects(applyVerifiedStripePayment({
+    eventId: `evt_${randomUUID().replaceAll("-", "")}`,
+    eventType: "checkout.session.completed",
+    orderId: created.orderId,
+    checkoutSessionId: sessionId,
+    userId,
+    amountMinor: 2500,
+    currency: "myr",
+    paymentStatus: "paid"
+  }), /not pending/);
+  const order = await db.collection("paymentOrders").doc(created.orderId).get();
+  assert.equal(order.get("status"), "failed");
+  const ledger = await db.collection("creditLedger").where("orderId", "==", created.orderId).get();
+  assert.equal(ledger.size, 0);
+});
+
 integration("Firestore ledger: amount mismatch does not mark order paid", async () => {
   const userId = `test_${randomUUID()}`;
   const created = await createPendingPaymentOrder({
