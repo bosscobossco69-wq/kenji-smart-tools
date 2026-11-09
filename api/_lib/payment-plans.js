@@ -70,12 +70,15 @@ export async function getActivePaymentPlan(planId) {
  * may be ordered. Subscription plans remain unavailable until their complete
  * renewal, cancellation, refund and entitlement lifecycle is implemented.
  */
-export async function getActiveOneTimeCreditsPlan(planId) {
-  const plan = await getActivePaymentPlan(planId);
-  if (plan.billingInterval !== "one_time" || plan.creditsGrant <= 0) {
+export function requireOneTimeCreditsPlan(plan) {
+  if (!plan || plan.billingInterval !== "one_time" || plan.creditsGrant <= 0) {
     const error = new Error("Only one-time Credits plans are supported.");
     error.statusCode = 409;
     throw error;
   }
   return plan;
+}
+
+export async function getActiveOneTimeCreditsPlan(planId) {
+  return requireOneTimeCreditsPlan(await getActivePaymentPlan(planId));
 }
