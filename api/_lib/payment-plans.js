@@ -50,3 +50,18 @@ export async function getActivePaymentPlan(planId) {
     active: true
   };
 }
+
+/**
+ * First-release checkout guard: only one-time products that grant Credits
+ * may be ordered. Subscription plans remain unavailable until their complete
+ * renewal, cancellation, refund and entitlement lifecycle is implemented.
+ */
+export async function getActiveOneTimeCreditsPlan(planId) {
+  const plan = await getActivePaymentPlan(planId);
+  if (plan.billingInterval !== "one_time" || plan.creditsGrant <= 0) {
+    const error = new Error("Only one-time Credits plans are supported.");
+    error.statusCode = 409;
+    throw error;
+  }
+  return plan;
+}
