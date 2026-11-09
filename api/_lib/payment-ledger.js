@@ -333,6 +333,158 @@ export async function spendCredits({ userId, amount, idempotencyKey, reference }
 
 
 /**
+ * Record a Stripe refund only after a trusted server caller has retrieved the
+ * canonical Refund and PaymentIntent from Stripe and verified their linkage.
+ * This helper never calls Stripe and must not be exposed to browser input.
+ */
+export async function applyVerifiedStripeRefund({
+  refundId, paymentIntentId, orderId, userId, amountMinor, currency,
+  refundStatus, evidenceFingerprint, reviewerId = null
+}) {
+  refundId = requiredString(refundId, "refundId", 255);
+  if (!/^re_[A-Za-z0-9]+$/.test(refundId)) throw new TypeError("refundId is invalid.");
+  paymentIntentId = requiredString(paymentIntentId, "paymentIntentId", 255);
+  if (!/^pi_[A-Za-z0-9]+$/.test(paymentIntentId)) throw new TypeError("paymentIntentId is invalid.");
+  orderId = requiredString(orderId, "orderId");
+  userId = requiredString(userId, "userId");
+  amountMinor = positiveInteger(amountMinor, "amountMinor");
+  if (String(currency).toLowerCase() !== CURRENCY || refundStatus !== "succeeded") {
+    throw new Error("Only canonically verified succeeded MYR refunds can be recorded.");
+  }
+  evidenceFingerprint = requiredString(evidenceFingerprint, "evidenceFingerprint", 128);
+  if (!/^[a-f0-9]{64}$/i.test(evidenceFingerprint)) throw new TypeError("evidenceFingerprint must be a SHA-256 hex digest.");
+  if (reviewerId !== null) reviewerId = requiredString(reviewerId, "reviewerId");
+
+  const { db, Timestamp } = getFirebaseAdmin();
+  const refundRef = db.collection("refundReceipts").doc(safeDocumentId(refundId));
+  const orderRef = db.collection("paymentOrders").doc(orderId);
+  const grantRef = db.collection("creditLedger").doc(safeDocumentId(JSON.stringify(["grant", orderId])));
+  const balanceRef = db.collection("creditBalances").doc(userId);
+  const now = Timestamp.now();
+
+  return db.runTransaction(async tx => {
+    const [refundSnap, orderSnap, grantSnap] = await Promise.all([
+      tx.get(refundRef), tx.get(orderRef), tx.get(grantRef)
+    ]);
+    if (refundSnap.exists) {
+      if (refundSnap.get("evidenceFingerprint") !== evidenceFingerprint) {
+        throw new Error("Refund ID was previously recorded with conflicting evidence.");
+      }
+      return { duplicate: true, creditReversal: refundSnap.get("creditReversal") || 0 };
+    }
+    if (!orderSnap.exists) throw new Error("Refund order was not found.");
+    const order = orderSnap.data();
+    if (order.provider !== "stripe" || order.status !== "paid" || order.userId !== userId ||
+        order.providerPaymentIntentId !== paymentIntentId || order.currency !== CURRENCY) {
+      throw new Error("Refund does not match a paid Stripe order.");
+    }
+    if (amountMinor > order.expectedAmountMinor) throw new Error("Refund amount exceeds the paid amount.");
+    const grantAmount = positiveInteger(order.creditsGrant || 0, "creditsGrant", true);
+    if (grantAmount > 0 && !grantSnap.exists) throw new Error("Original Credit grant is missing; reconciliation required.");
+
+    const priorRefunds = await tx.get(db.collection("refundReceipts").where("orderId", "==", orderId));
+    let cumulativeRefunded = amountMinor;
+    let previouslyReversed = 0;
+    for (const doc of priorRefunds.docs) {
+      cumulativeRefunded += doc.get("amountMinor");
+      previouslyReversed += doc.get("creditReversal") || 0;
+    }
+    if (!Number.isSafeInteger(cumulativeRefunded) || cumulativeRefunded > order.expectedAmountMinor) {
+      throw new Error("Cumulative refunds exceed the paid amount.");
+    }
+    const eligibleTotal = grantAmount === 0 ? 0 :
+      Math.floor((cumulativeRefunded * grantAmount + Math.floor(order.expectedAmountMinor / 2)) / order.expectedAmountMinor);
+    const reversal = eligibleTotal - previouslyReversed;
+    if (reversal < 0 || reversal > grantAmount - previouslyReversed) {
+      throw new Error("Calculated Credit reversal exceeds the original grant.");
+    }
+
+    let balanceSnap = null;
+    let balance = null;
+    let reviewRequired = false;
+    if (reversal > 0) {
+      balanceSnap = await tx.get(balanceRef);
+      if (!balanceSnap.exists) throw new Error("Credit balance is missing; reconciliation required.");
+      balance = balanceSnap.get("balance");
+      if (!Number.isSafeInteger(balance) || balance < 0) throw new Error("Credit balance is malformed; reconciliation required.");
+      if (balance < reversal) reviewRequired = true;
+    }
+
+    const status = reviewRequired ? "review_required" : "recorded";
+    tx.create(refundRef, {
+      provider: "stripe", refundId, paymentIntentId, orderId, userId,
+      amountMinor, currency: CURRENCY, refundStatus, evidenceFingerprint,
+      cumulativeRefundedMinor: cumulativeRefunded,
+      creditReversal: reviewRequired ? 0 : reversal,
+      requestedCreditReversal: reversal,
+      processingStatus: status, reviewerId, receivedAt: now
+    });
+    if (reversal > 0 && !reviewRequired) {
+      const reversalRef = db.collection("creditLedger").doc(safeDocumentId(JSON.stringify(["refund", refundId])));
+      tx.create(reversalRef, {
+        userId, orderId, entryType: "refund_reversal", amount: -reversal,
+        refundId, originalGrantId: grantRef.id, balanceAfter: balance - reversal, createdAt: now
+      });
+      tx.update(balanceRef, { balance: balance - reversal, updatedAt: now });
+    }
+    return { duplicate: false, recorded: true, reviewRequired, creditReversal: reviewRequired ? 0 : reversal, requestedCreditReversal: reversal };
+  });
+}
+
+/**
+ * Append a canonical, server-verified dispute observation. Dispute observations
+ * do not alter balances or entitlements; a final loss needs separate human review.
+ */
+export async function recordVerifiedStripeDispute({
+  disputeId, eventId, eventType, orderId, userId, paymentIntentId,
+  disputeStatus, evidenceFingerprint
+}) {
+  disputeId = requiredString(disputeId, "disputeId", 255);
+  if (!/^dp_[A-Za-z0-9]+$/.test(disputeId)) throw new TypeError("disputeId is invalid.");
+  eventId = requiredString(eventId, "eventId", 255);
+  if (!/^evt_[A-Za-z0-9]+$/.test(eventId)) throw new TypeError("eventId is invalid.");
+  if (!["charge.dispute.created", "charge.dispute.updated", "charge.dispute.closed"].includes(eventType)) {
+    throw new TypeError("Unsupported dispute event type.");
+  }
+  if (!["needs_response", "under_review", "won", "lost", "warning_needs_response", "warning_under_review", "warning_closed"].includes(disputeStatus)) {
+    throw new TypeError("Unsupported dispute status.");
+  }
+  orderId = requiredString(orderId, "orderId");
+  userId = requiredString(userId, "userId");
+  paymentIntentId = requiredString(paymentIntentId, "paymentIntentId", 255);
+  evidenceFingerprint = requiredString(evidenceFingerprint, "evidenceFingerprint", 128);
+  if (!/^[a-f0-9]{64}$/i.test(evidenceFingerprint)) throw new TypeError("evidenceFingerprint must be a SHA-256 hex digest.");
+
+  const { db, Timestamp } = getFirebaseAdmin();
+  const eventRef = db.collection("disputeEvents").doc(safeDocumentId(eventId));
+  const orderRef = db.collection("paymentOrders").doc(orderId);
+  const now = Timestamp.now();
+  const fingerprint = createHash("sha256").update(JSON.stringify({
+    disputeId, eventType, orderId, userId, paymentIntentId, disputeStatus, evidenceFingerprint
+  })).digest("hex");
+  return db.runTransaction(async tx => {
+    const [eventSnap, orderSnap] = await Promise.all([tx.get(eventRef), tx.get(orderRef)]);
+    if (eventSnap.exists) {
+      if (eventSnap.get("fingerprint") !== fingerprint) throw new Error("Dispute event ID conflicts with previously recorded evidence.");
+      return { duplicate: true };
+    }
+    if (!orderSnap.exists) throw new Error("Dispute order was not found.");
+    const order = orderSnap.data();
+    if (order.provider !== "stripe" || order.userId !== userId || order.providerPaymentIntentId !== paymentIntentId) {
+      throw new Error("Dispute does not match the internal Stripe order.");
+    }
+    tx.create(eventRef, {
+      provider: "stripe", disputeId, eventId, eventType, orderId, userId,
+      paymentIntentId, disputeStatus, evidenceFingerprint, fingerprint,
+      processingStatus: disputeStatus === "lost" ? "human_review_required" : "recorded",
+      receivedAt: now
+    });
+    return { duplicate: false, recorded: true, humanReviewRequired: disputeStatus === "lost" };
+  });
+}
+
+
+/**
  * Persist a terminal/review outcome only after the caller has retrieved the
  * canonical Stripe objects server-to-server and validated their relationship
  * to this order. This helper does not call Stripe and cannot establish that
