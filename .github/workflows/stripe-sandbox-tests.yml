@@ -22,7 +22,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+      - name: Set up Java for Firebase Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
       - name: Install locked dependencies
         run: npm ci
-      - name: Run automated tests
-        run: npm test
+      - name: Run unit and Firestore Emulator integration tests
+        run: npx --yes firebase-tools@latest emulators:exec --project demo-kenji-sandbox --only firestore "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_PROJECT_ID=demo-kenji-sandbox npm test"
