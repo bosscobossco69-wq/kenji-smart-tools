@@ -190,14 +190,12 @@ export async function applyVerifiedStripePayment({
   const eventDocumentId = safeDocumentId(eventId);
   const eventRef = db.collection("paymentEvents").doc(eventDocumentId);
   const orderRef = db.collection("paymentOrders").doc(orderId);
-  const grant = null;
   const eventFingerprint = createHash("sha256").update(JSON.stringify({
     eventType, orderId, checkoutSessionId, paymentIntentId, userId, amountMinor, currency: CURRENCY
   })).digest("hex");
   const now = Timestamp.now();
 
   return db.runTransaction(async tx => {
-    const grantAmount = null;
     const grantRef = db.collection("creditLedger").doc(safeDocumentId(JSON.stringify(["grant", orderId])));
     const balanceRef = db.collection("creditBalances").doc(userId);
     const [eventSnap, orderSnap, grantSnap, balanceSnap] = await Promise.all([
