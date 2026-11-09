@@ -28,6 +28,8 @@ Last updated: 2026-11-09
 
 ## Not completed / remaining phases
 ### Phase A — Refund and dispute ledger tests (partially complete)
+- Confirmed commit `d96206b4f6f8382ffc9ed3901857e0eaa64010cc` CI: Push run `42574919596` and PR run `42574928443` both succeeded. Push log: 93 tests, 91 pass, 0 fail, 2 explicitly skipped opt-in guard tests; the three new refund/dispute tests executed and passed.
+- Added six webhook regression tests in commit `bc6e067419f847198369cb7972eac682484898ce` for `refund.created`, `refund.updated`, `charge.refunded`, and dispute created/updated/closed. They assert these events remain safely ignored and cannot trigger Stripe retrieval or ledger mutation until canonical reconciliation is implemented. CI pending.
 - Added `tests/payment-refund-dispute-emulator.test.js` in commit `d96206b4f6f8382ffc9ed3901857e0eaa64010cc`.
 - New Emulator cases: cumulative refunds cannot exceed paid amount; refund ID reuse with conflicting evidence is rejected; lost dispute is recorded for human review and does not change Credits.
 - Still to add: webhook handler/canonical-object tests for full and partial refunds, duplicate delivery, currency/PaymentIntent/order mismatch, pending/failed refund statuses, dispute created/updated/closed and out-of-order events.
@@ -63,7 +65,8 @@ Last updated: 2026-11-09
 - No SQL, Firebase Console changes, production deployment, merge, or UI redesign without explicit authorization.
 
 ## Latest checkpoint
-- Added three focused refund/dispute ledger Emulator tests; CI result is pending for commit `d96206b4f6f8382ffc9ed3901857e0eaa64010cc`.
+- Refund/dispute ledger tests at `d96206b4f6f8382ffc9ed3901857e0eaa64010cc`: both CI runs passed; 93 tests, 91 passed, 0 failed, 2 expected opt-in guards skipped. All three new refund/dispute tests executed and passed.
+- Added six webhook safety regression tests at `bc6e067419f847198369cb7972eac682484898ce`; these ensure refund/dispute events remain ignored with no Stripe retrieval or ledger mutation until canonical reconciliation exists. CI pending.
 
 ## Next exact action
-Check CI for commit `d96206b4f6f8382ffc9ed3901857e0eaa64010cc`. Fix any failing test before continuing Phase A webhook/canonical-object test design. Do not modify the website UI or enable new webhook event handling until tests and canonical retrieval path are ready.
+Check CI for commit `bc6e067419f847198369cb7972eac682484898ce`. If green, design and implement a separate canonical refund/dispute verifier with mocked Stripe object retrieval tests before enabling any refund/dispute webhook event. Do not modify UI or activate event handling prematurely.
