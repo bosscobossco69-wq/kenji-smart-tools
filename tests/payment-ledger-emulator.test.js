@@ -76,6 +76,45 @@ integration("Firestore ledger: reused idempotency key rejects changed order deta
   }), /different order details/);
 });
 
+integration("Firestore ledger: identical Checkout Session attachment is idempotent", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  const first = await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  const second = await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  assert.equal(first.reused, false);
+  assert.equal(second.reused, true);
+});
+
+integration("Firestore ledger: a different Checkout Session cannot replace an attached one", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  await assert.rejects(attachStripeCheckoutSession({
+    orderId: created.orderId, userId,
+    checkoutSessionId: `cs_test_${randomUUID().replaceAll("-", "")}`
+  }), /different Checkout Session is already attached/);
+});
+
+integration("Firestore ledger: another user cannot attach a Checkout Session", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  });
+  await assert.rejects(attachStripeCheckoutSession({
+    orderId: created.orderId, userId: `other_${randomUUID()}`,
+    checkoutSessionId: `cs_test_${randomUUID().replaceAll("-", "")}`
+  }), /ownership\/provider mismatch/);
+});
+
 integration("Firestore ledger: duplicate Stripe event grants Credits exactly once", async () => {
   const userId = `test_${randomUUID()}`;
   const created = await createPendingPaymentOrder({
