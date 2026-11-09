@@ -374,6 +374,55 @@ integration("Firestore ledger: concurrent spends cannot overspend", async () => 
   assert.equal(balance.get("balance"), 3);
 });
 
+
+integration("Firestore ledger: missing materialized balance with prior ledger history fails closed", async () => {
+  const userId = `test_${randomUUID()}`;
+  const { db } = getFirebaseAdmin();
+  await db.collection("creditLedger").doc(`legacy_${randomUUID()}`).set({
+    userId, entryType: "grant", amount: 12, createdAt: new Date()
+  });
+  await assert.rejects(spendCredits({
+    userId, amount: 1, idempotencyKey: `spend_${randomUUID()}_key`, reference: "legacy_balance_check"
+  }), /balance is missing/);
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 5, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  await assert.rejects(applyVerifiedStripePayment({
+    eventId: `evt_${randomUUID().replaceAll("-", "")}`, eventType: "checkout.session.completed",
+    orderId: created.orderId, checkoutSessionId: sessionId, userId,
+    amountMinor: 2500, currency: "myr", paymentStatus: "paid"
+  }), /balance is missing/);
+  const order = await db.collection("paymentOrders").doc(created.orderId).get();
+  assert.equal(order.get("status"), "pending");
+});
+
+integration("Firestore ledger: malformed materialized balance fails closed", async () => {
+  const userId = `test_${randomUUID()}`;
+  const { db } = getFirebaseAdmin();
+  await db.collection("creditBalances").doc(userId).set({ userId, balance: -4 });
+  await assert.rejects(spendCredits({
+    userId, amount: 1, idempotencyKey: `spend_${randomUUID()}_key`, reference: "malformed_balance_check"
+  }), /malformed/);
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 5, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  await assert.rejects(applyVerifiedStripePayment({
+    eventId: `evt_${randomUUID().replaceAll("-", "")}`, eventType: "checkout.session.completed",
+    orderId: created.orderId, checkoutSessionId: sessionId, userId,
+    amountMinor: 2500, currency: "myr", paymentStatus: "paid"
+  }), /malformed/);
+  const order = await db.collection("paymentOrders").doc(created.orderId).get();
+  assert.equal(order.get("status"), "pending");
+  const balance = await db.collection("creditBalances").doc(userId).get();
+  assert.equal(balance.get("balance"), -4);
+});
+
 test("Firestore emulator integration suite is explicitly opt-in", { skip: emulatorEnabled }, () => {
   assert.equal(emulatorEnabled, false);
 });
