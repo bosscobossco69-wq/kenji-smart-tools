@@ -6,7 +6,8 @@ import { getFirebaseAdmin } from "../api/_lib/firebase-admin.js";
 import {
   createPendingPaymentOrder,
   attachStripeCheckoutSession,
-  applyVerifiedStripePayment
+  applyVerifiedStripePayment,
+  recordVerifiedPaymentOrderOutcome
 } from "../api/_lib/payment-ledger.js";
 
 const emulatorEnabled = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
@@ -269,4 +270,53 @@ test("Firestore emulator integration suite is explicitly opt-in", { skip: emulat
 
 test.after(async () => {
   for (const app of getApps()) await deleteApp(app);
+});
+
+
+integration("Firestore ledger: verified expired session transitions pending order once", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  const evidence = { sessionStatus: "expired", paymentStatus: "unpaid", expiresAt: Math.floor(Date.now() / 1000) - 60 };
+  const first = await recordVerifiedPaymentOrderOutcome({ outcome: "expired", orderId: created.orderId, userId, checkoutSessionId: sessionId, evidence });
+  const second = await recordVerifiedPaymentOrderOutcome({ outcome: "expired", orderId: created.orderId, userId, checkoutSessionId: sessionId, evidence });
+  assert.equal(first.status, "expired");
+  assert.equal(second.duplicate, true);
+});
+
+integration("Firestore ledger: paid order cannot be downgraded by verified failure", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  await applyVerifiedStripePayment({
+    eventId: `evt_${randomUUID().replaceAll("-", "")}`, eventType: "checkout.session.completed",
+    orderId: created.orderId, checkoutSessionId: sessionId, userId,
+    amountMinor: 2500, currency: "myr", paymentStatus: "paid"
+  });
+  await assert.rejects(recordVerifiedPaymentOrderOutcome({
+    outcome: "failed", orderId: created.orderId, userId, checkoutSessionId: sessionId,
+    evidence: { paymentIntentId: `pi_${randomUUID().replaceAll("-", "")}`, paymentIntentStatus: "canceled" }
+  }), /cannot be downgraded/);
+});
+
+integration("Firestore ledger: expired transition rejects an active or paid session", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  await assert.rejects(recordVerifiedPaymentOrderOutcome({
+    outcome: "expired", orderId: created.orderId, userId, checkoutSessionId: sessionId,
+    evidence: { sessionStatus: "open", paymentStatus: "unpaid", expiresAt: Math.floor(Date.now() / 1000) + 3600 }
+  }), /requires an expired, unpaid/);
 });
