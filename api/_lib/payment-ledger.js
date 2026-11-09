@@ -190,14 +190,20 @@ export async function applyVerifiedStripePayment({
   const eventDocumentId = safeDocumentId(eventId);
   const eventRef = db.collection("paymentEvents").doc(eventDocumentId);
   const orderRef = db.collection("paymentOrders").doc(orderId);
-  const ledgerRef = db.collection("creditLedger").doc(eventDocumentId);
+  const grant = null;
   const eventFingerprint = createHash("sha256").update(JSON.stringify({
     eventType, orderId, checkoutSessionId, paymentIntentId, userId, amountMinor, currency: CURRENCY
   })).digest("hex");
   const now = Timestamp.now();
 
   return db.runTransaction(async tx => {
-    const [eventSnap, orderSnap] = await Promise.all([tx.get(eventRef), tx.get(orderRef)]);
+    const grantAmount = null;
+    const grantRef = db.collection("creditLedger").doc(safeDocumentId(JSON.stringify(["grant", orderId])));
+    const balanceRef = db.collection("creditBalances").doc(userId);
+    const [eventSnap, orderSnap, grantSnap, balanceSnap] = await Promise.all([
+      tx.get(eventRef), tx.get(orderRef), tx.get(grantRef), tx.get(balanceRef)
+    ]);
+
     if (eventSnap.exists) {
       if (eventSnap.get("eventFingerprint") !== eventFingerprint) {
         throw new Error("Stripe event ID was previously recorded with different payment details.");
@@ -208,52 +214,69 @@ export async function applyVerifiedStripePayment({
 
     const order = orderSnap.data();
     if (order.provider !== "stripe" || order.userId !== userId) throw new Error("Payment order ownership/provider mismatch.");
-    if (order.status === "paid") throw new Error("Order is already paid.");
-    if (order.status !== "pending") throw new Error("Order is not pending.");
     if (!order.providerCheckoutSessionId || order.providerCheckoutSessionId !== checkoutSessionId) {
-      throw new Error("Checkout Session does not match the pending order.");
+      throw new Error("Checkout Session does not match the order.");
     }
     if (order.expectedAmountMinor !== amountMinor || order.currency !== CURRENCY) {
       throw new Error("Verified amount or currency does not match the order.");
     }
+    const credits = positiveInteger(order.creditsGrant || 0, "creditsGrant", true);
 
-    const grant = positiveInteger(order.creditsGrant || 0, "creditsGrant", true);
+    if (order.status === "paid") {
+      if ((order.providerPaymentIntentId || null) !== paymentIntentId || (credits > 0 && !grantSnap.exists)) {
+        throw new Error("Already-paid order has conflicting payment or grant evidence.");
+      }
+      tx.create(eventRef, {
+        provider: "stripe", eventType, eventFingerprint, orderId, checkoutSessionId,
+        paymentIntentId, processingStatus: "duplicate_payment", receivedAt: now, processedAt: now
+      });
+      return { duplicate: true, applied: false, creditsGranted: 0 };
+    }
+    if (order.status !== "pending") throw new Error("Order is not pending.");
+
+    let currentBalance = 0;
+    if (credits > 0) {
+      if (grantSnap.exists) throw new Error("Grant ledger exists while order is not paid; reconciliation required.");
+      if (balanceSnap.exists) {
+        currentBalance = balanceSnap.get("balance");
+        if (!Number.isSafeInteger(currentBalance) || currentBalance < 0) {
+          throw new Error("Credit balance is malformed; reconciliation required.");
+        }
+      } else {
+        const priorLedger = await tx.get(
+          db.collection("creditLedger").where("userId", "==", userId).limit(1)
+        );
+        if (!priorLedger.empty) {
+          throw new Error("Credit balance is missing while ledger history exists; reconciliation required.");
+        }
+      }
+      const nextBalance = currentBalance + credits;
+      if (!Number.isSafeInteger(nextBalance)) throw new Error("Credit balance would exceed the safe integer range.");
+      tx.create(grantRef, {
+        userId, orderId, sourceEventId: eventId, entryType: "grant",
+        amount: credits, balanceAfter: nextBalance, createdAt: now
+      });
+      if (balanceSnap.exists) {
+        tx.update(balanceRef, { balance: nextBalance, updatedAt: now });
+      } else {
+        tx.create(balanceRef, { userId, balance: nextBalance, createdAt: now, updatedAt: now });
+      }
+    }
+
     tx.create(eventRef, {
-      provider: "stripe",
-      eventType,
-      eventFingerprint,
-      orderId,
-      checkoutSessionId,
-      paymentIntentId,
-      processingStatus: "processed",
-      receivedAt: now,
-      processedAt: now
+      provider: "stripe", eventType, eventFingerprint, orderId, checkoutSessionId,
+      paymentIntentId, processingStatus: "processed", receivedAt: now, processedAt: now
     });
     tx.update(orderRef, {
-      status: "paid",
-      providerCheckoutSessionId: checkoutSessionId,
-      providerPaymentIntentId: paymentIntentId,
-      paidAt: now,
-      updatedAt: now
+      status: "paid", providerCheckoutSessionId: checkoutSessionId,
+      providerPaymentIntentId: paymentIntentId, paidAt: now, updatedAt: now
     });
-    if (grant > 0) {
-      tx.create(ledgerRef, {
-        userId,
-        orderId,
-        sourceEventId: eventId,
-        entryType: "grant",
-        amount: grant,
-        createdAt: now
-      });
-    }
     return {
-      duplicate: false,
-      applied: true,
-      creditsGranted: grant,
+      duplicate: false, applied: true, creditsGranted: credits,
+      balanceAfter: credits > 0 ? currentBalance + credits : (balanceSnap.exists ? balanceSnap.get("balance") : null),
       entitlementActivated: false
     };
   });
-}
 
 
 /**
