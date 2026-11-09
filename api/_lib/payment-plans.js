@@ -3,25 +3,18 @@ import { getFirebaseAdmin } from "./firebase-admin.js";
 const ALLOWED_INTERVALS = new Set(["month", "year", "one_time"]);
 
 /**
- * Load a purchasable plan from Firestore. The browser may provide only planId;
- * amount, currency, billing interval and Credits always come from this record.
+ * Validate and normalize a trusted Firestore plan record.
+ * Exported separately so validation can be unit-tested without Firebase.
  */
-export async function getActivePaymentPlan(planId) {
+export function normalizeActivePaymentPlan(planId, plan) {
   if (typeof planId !== "string" || !/^[a-z0-9][a-z0-9_-]{1,63}$/i.test(planId)) {
     const error = new Error("Invalid membership plan.");
     error.statusCode = 400;
     throw error;
   }
-
-  const { db } = getFirebaseAdmin();
-  const snapshot = await db.collection("plans").doc(planId).get();
-  if (!snapshot.exists) {
-    const error = new Error("Membership plan was not found.");
-    error.statusCode = 404;
-    throw error;
+  if (!plan || typeof plan !== "object" || Array.isArray(plan)) {
+    throw new Error("The server-side plan record is invalid.");
   }
-
-  const plan = snapshot.data() || {};
   if (plan.active !== true) {
     const error = new Error("This membership plan is not available.");
     error.statusCode = 409;
@@ -41,14 +34,35 @@ export async function getActivePaymentPlan(planId) {
   }
 
   return {
-    id: snapshot.id,
-    name: typeof plan.name === "string" ? plan.name : snapshot.id,
+    id: planId,
+    name: typeof plan.name === "string" ? plan.name : planId,
     unitAmountMinor: plan.unitAmountMinor,
     currency: "myr",
     creditsGrant: plan.creditsGrant,
     billingInterval: plan.billingInterval,
     active: true
   };
+}
+
+/**
+ * Load a purchasable plan from Firestore. The browser may provide only planId;
+ * amount, currency, billing interval and Credits always come from this record.
+ */
+export async function getActivePaymentPlan(planId) {
+  if (typeof planId !== "string" || !/^[a-z0-9][a-z0-9_-]{1,63}$/i.test(planId)) {
+    const error = new Error("Invalid membership plan.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const { db } = getFirebaseAdmin();
+  const snapshot = await db.collection("plans").doc(planId).get();
+  if (!snapshot.exists) {
+    const error = new Error("Membership plan was not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+  return normalizeActivePaymentPlan(snapshot.id, snapshot.data());
 }
 
 /**
