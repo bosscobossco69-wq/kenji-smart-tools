@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID, createHash } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { getApps, deleteApp } from "firebase-admin/app";
 import { getFirebaseAdmin } from "../api/_lib/firebase-admin.js";
 import {
