@@ -277,7 +277,7 @@ export async function applyVerifiedStripePayment({
       entitlementActivated: false
     };
   });
-
+}
 
 /**
  * Spend Credits atomically. Call only after the API route has authenticated
