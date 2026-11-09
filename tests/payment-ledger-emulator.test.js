@@ -7,6 +7,7 @@ import {
   createPendingPaymentOrder,
   attachStripeCheckoutSession,
   applyVerifiedStripePayment,
+  spendCredits,
   recordVerifiedPaymentOrderOutcome
 } from "../api/_lib/payment-ledger.js";
 
@@ -262,6 +263,105 @@ integration("Firestore ledger: amount mismatch does not mark order paid", async 
   const { db } = getFirebaseAdmin();
   const order = await db.collection("paymentOrders").doc(created.orderId).get();
   assert.equal(order.get("status"), "pending");
+});
+
+
+integration("Firestore ledger: verified payment updates materialized balance exactly once", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  const payment = {
+    eventId: `evt_${randomUUID().replaceAll("-", "")}`, eventType: "checkout.session.completed",
+    orderId: created.orderId, checkoutSessionId: sessionId,
+    paymentIntentId: `pi_${randomUUID().replaceAll("-", "")}`, userId,
+    amountMinor: 2500, currency: "myr", paymentStatus: "paid"
+  };
+  await applyVerifiedStripePayment(payment);
+  await applyVerifiedStripePayment(payment);
+  const { db } = getFirebaseAdmin();
+  const balance = await db.collection("creditBalances").doc(userId).get();
+  assert.equal(balance.get("balance"), 25);
+  const grants = await db.collection("creditLedger").where("orderId", "==", created.orderId).get();
+  assert.equal(grants.size, 1);
+});
+
+integration("Firestore ledger: spend is atomic, immutable and idempotent", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 25, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  await applyVerifiedStripePayment({
+    eventId: `evt_${randomUUID().replaceAll("-", "")}`, eventType: "checkout.session.completed",
+    orderId: created.orderId, checkoutSessionId: sessionId, userId,
+    amountMinor: 2500, currency: "myr", paymentStatus: "paid"
+  });
+  const input = { userId, amount: 7, idempotencyKey: `spend_${randomUUID()}_key`, reference: "tool_run_1" };
+  const first = await spendCredits(input);
+  const retry = await spendCredits(input);
+  assert.equal(first.balanceAfter, 18);
+  assert.equal(first.duplicate, false);
+  assert.equal(retry.balanceAfter, 18);
+  assert.equal(retry.duplicate, true);
+  const { db } = getFirebaseAdmin();
+  const balance = await db.collection("creditBalances").doc(userId).get();
+  assert.equal(balance.get("balance"), 18);
+  const ledger = await db.collection("creditLedger").where("userId", "==", userId).get();
+  const spends = ledger.docs.filter(doc => doc.get("entryType") === "spend");
+  assert.equal(spends.length, 1);
+  assert.equal(spends[0].get("amount"), -7);
+});
+
+integration("Firestore ledger: spend rejects changed idempotency payload and insufficient balance", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 5, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  await applyVerifiedStripePayment({
+    eventId: `evt_${randomUUID().replaceAll("-", "")}`, eventType: "checkout.session.completed",
+    orderId: created.orderId, checkoutSessionId: sessionId, userId,
+    amountMinor: 2500, currency: "myr", paymentStatus: "paid"
+  });
+  const key = `spend_${randomUUID()}_key`;
+  await spendCredits({ userId, amount: 2, idempotencyKey: key, reference: "run_a" });
+  await assert.rejects(spendCredits({ userId, amount: 3, idempotencyKey: key, reference: "run_a" }), /different details/);
+  await assert.rejects(spendCredits({ userId, amount: 4, idempotencyKey: `spend_${randomUUID()}_key`, reference: "run_b" }), /Insufficient Credits/);
+  const { db } = getFirebaseAdmin();
+  const balance = await db.collection("creditBalances").doc(userId).get();
+  assert.equal(balance.get("balance"), 3);
+});
+
+integration("Firestore ledger: concurrent spends cannot overspend", async () => {
+  const userId = `test_${randomUUID()}`;
+  const created = await createPendingPaymentOrder({
+    userId, planId: "sandbox_plan", idempotencyKey: `idem_${randomUUID()}_key`,
+    amountMinor: 2500, currency: "myr", creditsGrant: 10, billingInterval: "one_time"
+  });
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
+  await attachStripeCheckoutSession({ orderId: created.orderId, userId, checkoutSessionId: sessionId });
+  await applyVerifiedStripePayment({
+    eventId: `evt_${randomUUID().replaceAll("-", "")}`, eventType: "checkout.session.completed",
+    orderId: created.orderId, checkoutSessionId: sessionId, userId,
+    amountMinor: 2500, currency: "myr", paymentStatus: "paid"
+  });
+  const attempts = await Promise.allSettled([
+    spendCredits({ userId, amount: 7, idempotencyKey: `spend_${randomUUID()}_key`, reference: "parallel_a" }),
+    spendCredits({ userId, amount: 7, idempotencyKey: `spend_${randomUUID()}_key`, reference: "parallel_b" })
+  ]);
+  assert.equal(attempts.filter(x => x.status === "fulfilled").length, 1);
+  assert.equal(attempts.filter(x => x.status === "rejected").length, 1);
+  const { db } = getFirebaseAdmin();
+  const balance = await db.collection("creditBalances").doc(userId).get();
+  assert.equal(balance.get("balance"), 3);
 });
 
 test("Firestore emulator integration suite is explicitly opt-in", { skip: emulatorEnabled }, () => {
