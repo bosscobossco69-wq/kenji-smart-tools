@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { getApps, deleteApp } from "firebase-admin/app";
 import { getFirebaseAdmin } from "../api/_lib/firebase-admin.js";
 import {
@@ -69,10 +69,10 @@ integration("Firestore ledger: duplicate Stripe event grants Credits exactly onc
   assert.equal(second.applied, false);
 
   const { db } = getFirebaseAdmin();
-  const ledger = await db.collection("creditLedger").doc(
-    (await import("node:crypto")).createHash ? "unused" : "unused"
-  ).get().catch(() => null);
-  assert.equal(ledger, null);
+  const ledger = await db.collection("creditLedger").where("orderId", "==", created.orderId).get();
+  assert.equal(ledger.size, 1);
+  assert.equal(ledger.docs[0].get("amount"), 25);
+  assert.equal(ledger.docs[0].get("entryType"), "grant");
 });
 
 integration("Firestore ledger: a second event cannot pay an already-paid order", async () => {
