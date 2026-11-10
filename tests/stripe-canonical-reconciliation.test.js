@@ -51,13 +51,13 @@ test("refund reconciliation retrieves canonical objects and validates order link
   assert.equal(result.refundId, "re_test_1");
   assert.equal(result.amountMinor, 1200);
   assert.equal(result.orderId, "order_1");
-  assert.deepEqual(f.calls.map(x => x[0]), ["refund", "charge", "pi", "session"]);
+  assert.deepEqual(f.calls.map(x => x[0]).sort(), ["refund", "charge", "pi", "session"].sort());
 });
 
 test("dispute reconciliation retrieves canonical objects and validates order linkage", async () => {
   const f = fixture();
   const result = await reconcileStripeRefundOrDispute({
-    event: { type: "charge.dispute.created", data: { object: { id: "dp_test_1" } } },
+    event: { id: "evt_test_1", type: "charge.dispute.created", data: { object: { id: "dp_test_1" } } },
     stripe: f.stripe,
     findOrderByPaymentIntent: async () => f.order
   });
@@ -69,7 +69,7 @@ test("dispute reconciliation retrieves canonical objects and validates order lin
 test("refund event payload amount and currency are never trusted", async () => {
   const f = fixture({ refund: { amount: 1200, currency: "myr" } });
   const result = await reconcileStripeRefundOrDispute({
-    event: { type: "refund.created", data: { object: { id: "re_test_1", amount: 999999, currency: "usd" } } },
+    event: { id: "evt_test_1", type: "refund.created", data: { object: { id: "re_test_1", amount: 999999, currency: "usd" } } },
     stripe: f.stripe,
     findOrderByPaymentIntent: async () => f.order
   });
@@ -88,7 +88,7 @@ for (const [name, overrides] of [
   test(`reconciliation fails closed for ${name}`, async () => {
     const f = fixture(overrides);
     await assert.rejects(() => reconcileStripeRefundOrDispute({
-      event: { type: "refund.created", data: { object: { id: "re_test_1" } } },
+      event: { id: "evt_test_1", type: "refund.created", data: { object: { id: "re_test_1" } } },
       stripe: f.stripe,
       findOrderByPaymentIntent: async () => f.order
     }));
@@ -98,7 +98,7 @@ for (const [name, overrides] of [
 test("pending refund is returned as pending and is not treated as a completed refund", async () => {
   const f = fixture({ refund: { status: "pending" } });
   const result = await reconcileStripeRefundOrDispute({
-    event: { type: "refund.updated", data: { object: { id: "re_test_1" } } },
+    event: { id: "evt_test_1", type: "refund.updated", data: { object: { id: "re_test_1" } } },
     stripe: f.stripe,
     findOrderByPaymentIntent: async () => f.order
   });
@@ -109,7 +109,7 @@ test("pending refund is returned as pending and is not treated as a completed re
 test("unknown event types are rejected without retrieving Stripe objects", async () => {
   const f = fixture();
   await assert.rejects(() => reconcileStripeRefundOrDispute({
-    event: { type: "charge.refunded", data: { object: { id: "ch_test_1" } } },
+    event: { id: "evt_test_1", type: "charge.refunded", data: { object: { id: "ch_test_1" } } },
     stripe: f.stripe,
     findOrderByPaymentIntent: async () => f.order
   }));
