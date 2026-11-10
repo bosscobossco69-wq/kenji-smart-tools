@@ -41,7 +41,7 @@ Last updated: 2026-11-10
 - Pending refunds are explicitly marked non-recordable; only canonical succeeded refunds are eligible for the ledger helper.
 - Added `tests/stripe-canonical-reconciliation.test.js` covering refund/dispute canonical retrieval, untrusted event payload fields, pending refund, unknown event type, and mismatched/Live evidence.
 - Implementation commits: `00db3bc` (tests), `c8465d1` (verifier), `37bb2b1` (fixture corrections), `83b74cc` (Charge field validation correction).
-- PR CI for head `83b74cca8ceb699ca3ccea6760a434c5165267a5` is running: workflow `42769410275`. Tests have not yet been confirmed green.
+- CI for earlier PR head `83b74cca8ceb699ca3ccea6760a434c5165267a5` failed in the new verifier tests: four fixture/assertion defects (missing event IDs in three fixtures and an order-dependent Promise.all call assertion); core existing suites passed. Fixed these test issues in commit `a6d456298296a774ffc6dedeeba0b84e677a6bb3`. The corrected head is now awaiting CI.
 - Do not wire refund/dispute webhook events until this CI passes and the verifier is reviewed.
 - Unknown, incomplete, conflicting, or out-of-order evidence must fail closed or route to review.
 
@@ -75,4 +75,4 @@ Last updated: 2026-11-10
 - Added six webhook safety regression tests at `bc6e067419f847198369cb7972eac682484898ce`; these ensure refund/dispute events remain ignored with no Stripe retrieval or ledger mutation until canonical reconciliation exists. CI pending.
 
 ## Next exact action
-Check workflow run `42769410275` for PR head `83b74cca8ceb699ca3ccea6760a434c5165267a5`. Fix any failing canonical verifier tests. If green, review verifier correctness and add canonical tests for failed/canceled refunds, dispute state edge cases, missing/ambiguous orders, and object retrieval failures. Only then plan webhook wiring. Do not modify UI or activate refund/dispute event handling prematurely.
+Check the latest PR workflow for head `a6d456298296a774ffc6dedeeba0b84e677a6bb3` (runs: 42769734463:queued). If green, review verifier correctness and add canonical tests for failed/canceled refunds, dispute state edge cases, missing/ambiguous orders, and object retrieval failures. If red, inspect logs and fix the exact failures. Only then plan webhook wiring. Do not modify UI or activate refund/dispute event handling prematurely.
