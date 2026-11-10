@@ -101,7 +101,9 @@ async function getGoogleAccessToken(serviceAccount, projectId) {
 
 async function reserveDailyRequest({ uid, projectId, serviceAccount, limit }) {
   const accessToken = await getGoogleAccessToken(serviceAccount, projectId);
-  const day = new Date().toISOString().slice(0, 10);
+  const nowDate = new Date();
+  const day = nowDate.toISOString().slice(0, 10);
+  const resetAt = new Date(Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth(), nowDate.getUTCDate() + 1)).toISOString();
   const documentId = `${uid}_${day}`;
   const documentUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents/aiUsage/${encodeURIComponent(documentId)}`;
   const commitUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents:commit`;
@@ -126,7 +128,7 @@ async function reserveDailyRequest({ uid, projectId, serviceAccount, limit }) {
     if (!Number.isSafeInteger(count) || count < 0) {
       throw new Error("Daily usage record is invalid.");
     }
-    if (count >= limit) return { allowed: false, used: count, remaining: 0, day };
+    if (count >= limit) return { allowed: false, used: count, remaining: 0, day, resetAt };
 
     const nextCount = count + 1;
     const commitResponse = await fetch(commitUrl, {
@@ -152,7 +154,7 @@ async function reserveDailyRequest({ uid, projectId, serviceAccount, limit }) {
     });
 
     if (commitResponse.ok) {
-      return { allowed: true, used: nextCount, remaining: Math.max(0, limit - nextCount), day };
+      return { allowed: true, used: nextCount, remaining: Math.max(0, limit - nextCount), day, resetAt };
     }
     if (commitResponse.status !== 409 && commitResponse.status !== 412) {
       throw new Error("Unable to update daily usage in Firestore.");
@@ -238,7 +240,7 @@ export default async function handler(req, res) {
       limit,
       used: usage.used,
       remaining: 0,
-      resetAt: `${usage.day}T24:00:00Z`
+      resetAt: usage.resetAt
     });
   }
 
@@ -276,7 +278,7 @@ export default async function handler(req, res) {
       .flatMap(item => item.content || []).filter(item => item.type === "output_text")
       .map(item => item.text).join("\n").trim();
     if (!reply) return res.status(502).json({ error: "No reply was generated. Please try again." });
-    return res.status(200).json({ reply, usage: { limit, used: usage.used, remaining: usage.remaining, resetAt: `${usage.day}T24:00:00Z` } });
+    return res.status(200).json({ reply, usage: { limit, used: usage.used, remaining: usage.remaining, resetAt: usage.resetAt } });
   } catch {
     return res.status(502).json({ error: "Unable to reach the AI service. Please try again." });
   }
