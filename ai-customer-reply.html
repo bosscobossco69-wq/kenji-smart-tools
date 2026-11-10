@@ -94,7 +94,7 @@ body.ai-reply-page{min-height:100vh;margin:0;background:#17120e;color:#f4efe6;fo
 </div>
 </section></main>
 <script type="module">
-import { auth, authReady, onAuthStateChanged } from "/workspace/firebase-auth.js";
+import { auth, authReady, onAuthStateChanged, reload } from "/workspace/firebase-auth.js";
 const initialAuthUser = new Promise((resolve, reject) => {
  let unsubscribe = () => {};
  authReady.then(() => {
@@ -111,7 +111,13 @@ async function generate(){
  const button=$("generate");button.disabled=true;button.textContent="Generating...";
  $("copy").disabled=true;setStatus("Generating reply...");
  try{
-  const idToken=await signedInUser.getIdToken();
+  await reload(signedInUser);
+  if(!signedInUser.emailVerified){
+   setStatus("Please verify your email address, then sign in again.",true);
+   location.href="/workspace/login.html";
+   return;
+  }
+  const idToken=await signedInUser.getIdToken(true);
   const response=await fetch("/api/generate-reply",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${idToken}`},body:JSON.stringify({message,scenario,tone})});
   const data=await response.json();
   if(!response.ok)throw new Error(data.error||"Unable to generate a reply.");
