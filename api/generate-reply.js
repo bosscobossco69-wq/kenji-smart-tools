@@ -24,12 +24,23 @@ export default async function handler(req, res) {
     }
   }
 
+  const contentType = String(req.headers["content-type"] || "").toLowerCase();
+  if (!/^application\\/json(?:\\s*;|$)/.test(contentType)) {
+    return res.status(415).json({ error: "Content-Type must be application/json." });
+  }
+
   const contentLength = Number(req.headers["content-length"] || 0);
   if (contentLength > 8192) return res.status(413).json({ error: "Request is too large." });
+
+  const body = req.body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return res.status(400).json({ error: "A valid JSON object is required." });
+  }
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return res.status(503).json({ error: "AI service is not configured yet." });
 
-  const { message, scenario, tone } = req.body || {};
+  const { message, scenario, tone } = body;
   const scenarios = new Set(["price", "discount", "delay", "service", "followup"]);
   const tones = new Set(["professional", "friendly", "direct"]);
   if (typeof message !== "string" || !message.trim() || message.length > 1200) {
