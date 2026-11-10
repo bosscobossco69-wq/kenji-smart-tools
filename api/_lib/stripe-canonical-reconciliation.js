@@ -44,7 +44,7 @@ async function retrieveCanonicalChain({ stripe, paymentIntentId, chargeId, findO
   assertSandbox(charge, "Charge");
   if (paymentIntent.id !== paymentIntentId || paymentIntent.status !== "succeeded" ||
       charge.id !== chargeId || charge.payment_intent !== paymentIntentId ||
-      charge.paid !== true || charge.status !== "succeeded") {
+      charge.paid !== true) {
     throw new Error("Canonical Charge and PaymentIntent linkage/status is invalid.");
   }
   assertCurrency(charge.currency, "Charge");
