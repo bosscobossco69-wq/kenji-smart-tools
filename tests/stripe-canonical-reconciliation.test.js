@@ -5,7 +5,7 @@ import { reconcileStripeRefundOrDispute } from "../api/_lib/stripe-canonical-rec
 function fixture(overrides = {}) {
   const calls = [];
   const paymentIntent = { id: "pi_test_1", livemode: false, status: "succeeded", latest_charge: "ch_test_1" };
-  const charge = { id: "ch_test_1", livemode: false, payment_intent: "pi_test_1" };
+  const charge = { id: "ch_test_1", livemode: false, payment_intent: "pi_test_1", paid: true, amount: 5000, currency: "myr" };
   const session = {
     id: "cs_test_1", livemode: false, payment_status: "paid", status: "complete",
     payment_intent: "pi_test_1", amount_total: 5000, currency: "myr",
@@ -43,7 +43,7 @@ function fixture(overrides = {}) {
 test("refund reconciliation retrieves canonical objects and validates order linkage", async () => {
   const f = fixture();
   const result = await reconcileStripeRefundOrDispute({
-    event: { type: "refund.updated", data: { object: { id: "re_test_1", amount: 1, currency: "usd" } } },
+    event: { id: "evt_test_1", type: "refund.updated", data: { object: { id: "re_test_1", amount: 1, currency: "usd" } } },
     stripe: f.stripe,
     findOrderByPaymentIntent: async id => { assert.equal(id, "pi_test_1"); return f.order; }
   });
