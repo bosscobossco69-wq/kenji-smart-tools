@@ -1,0 +1,586 @@
+import { createHash, randomUUID } from "node:crypto";
+import { getFirebaseAdmin } from "./firebase-admin.js";
+
+const CURRENCY = "myr";
+const SUPPORTED_PAID_EVENT_TYPES = new Set([
+  "checkout.session.completed",
+  "checkout.session.async_payment_succeeded"
+]);
+
+function requiredString(value, name, maxLength = 256) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new TypeError(`${name} is required.`);
+  }
+  const normalized = value.trim();
+  if (normalized.length > maxLength) {
+    throw new TypeError(`${name} exceeds the maximum length.`);
+  }
+  return normalized;
+}
+
+function safeDocumentId(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function positiveInteger(value, name, allowZero = false) {
+  if (!Number.isSafeInteger(value) || (allowZero ? value < 0 : value <= 0)) {
+    throw new TypeError(`${name} must be a ${allowZero ? "non-negative" : "positive"} safe integer.`);
+  }
+  return value;
+}
+
+function idempotencyDocumentId(userId, key) {
+  return createHash("sha256").update(JSON.stringify([userId, key])).digest("hex");
+}
+
+/**
+ * Create a pending order using only server-loaded plan data.
+ * Call only after requireVerifiedUser(req) and after loading an active plan
+ * from the server-side plans collection. Never pass browser-supplied prices.
+ */
+export async function createPendingPaymentOrder({
+  userId,
+  planId,
+  provider = "stripe",
+  idempotencyKey,
+  amountMinor,
+  currency = CURRENCY,
+  creditsGrant = 0,
+  billingInterval = "month"
+}) {
+  userId = requiredString(userId, "userId");
+  planId = requiredString(planId, "planId");
+  idempotencyKey = requiredString(idempotencyKey, "idempotencyKey", 200);
+  if (idempotencyKey.length < 16) throw new TypeError("idempotencyKey must contain at least 16 characters.");
+  amountMinor = positiveInteger(amountMinor, "amountMinor");
+  creditsGrant = positiveInteger(creditsGrant, "creditsGrant", true);
+  if (provider !== "stripe") throw new TypeError("Unsupported payment provider.");
+  if (String(currency).toLowerCase() !== CURRENCY) throw new TypeError("Only MYR plans are currently supported.");
+  if (!["month", "year", "one_time"].includes(billingInterval)) throw new TypeError("Unsupported billing interval.");
+  const requestFingerprint = createHash("sha256").update(JSON.stringify({ planId, provider, amountMinor, currency: CURRENCY, creditsGrant, billingInterval })).digest("hex");
+
+  const { db, Timestamp } = getFirebaseAdmin();
+  const now = Timestamp.now();
+  const orderId = randomUUID();
+  const orderRef = db.collection("paymentOrders").doc(orderId);
+  const idemRef = db.collection("paymentIdempotency").doc(idempotencyDocumentId(userId, idempotencyKey));
+
+  return db.runTransaction(async tx => {
+    const existing = await tx.get(idemRef);
+    if (existing.exists) {
+      const existingOrderId = existing.get("orderId");
+      const existingOrder = await tx.get(db.collection("paymentOrders").doc(existingOrderId));
+      if (!existingOrder.exists) throw new Error("Idempotency record points to a missing order.");
+      if (existing.get("requestFingerprint") !== requestFingerprint) {
+        throw new Error("Idempotency key was already used with different order details.");
+      }
+      return { orderId: existingOrderId, order: existingOrder.data(), reused: true };
+    }
+
+    const order = {
+      userId,
+      planId,
+      provider,
+      status: "pending",
+      expectedAmountMinor: amountMinor,
+      currency: CURRENCY,
+      creditsGrant,
+      billingInterval,
+      providerCheckoutSessionId: null,
+      providerPaymentIntentId: null,
+      createdAt: now,
+      updatedAt: now,
+      paidAt: null
+    };
+    tx.create(orderRef, order);
+    tx.create(idemRef, { userId, orderId, requestFingerprint, createdAt: now });
+    return { orderId, order, reused: false };
+  });
+}
+
+
+/**
+ * Bind a provider Checkout Session to its pending internal order before
+ * returning the redirect URL. Repeated identical binds are safe; a different
+ * session can never replace an existing one.
+ */
+export async function attachStripeCheckoutSession({
+  orderId,
+  userId,
+  checkoutSessionId,
+  stripeCustomerId = null
+}) {
+  orderId = requiredString(orderId, "orderId");
+  userId = requiredString(userId, "userId");
+  checkoutSessionId = requiredString(checkoutSessionId, "checkoutSessionId", 255);
+  if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(checkoutSessionId)) {
+    throw new TypeError("checkoutSessionId is not a valid Stripe Checkout Session identifier.");
+  }
+  if (stripeCustomerId !== null) {
+    stripeCustomerId = requiredString(stripeCustomerId, "stripeCustomerId", 255);
+    if (!/^cus_[A-Za-z0-9]+$/.test(stripeCustomerId)) {
+      throw new TypeError("stripeCustomerId is not a valid Stripe Customer identifier.");
+    }
+  }
+  const { db, Timestamp } = getFirebaseAdmin();
+  const orderRef = db.collection("paymentOrders").doc(orderId);
+  const now = Timestamp.now();
+
+  return db.runTransaction(async tx => {
+    const snap = await tx.get(orderRef);
+    if (!snap.exists) throw new Error("Payment order was not found.");
+    const order = snap.data();
+    if (order.provider !== "stripe" || order.userId !== userId) {
+      throw new Error("Payment order ownership/provider mismatch.");
+    }
+    if (order.status !== "pending") throw new Error("Payment order is not pending.");
+    if (order.providerCheckoutSessionId) {
+      if (order.providerCheckoutSessionId !== checkoutSessionId) {
+        throw new Error("A different Checkout Session is already attached.");
+      }
+      return { attached: true, reused: true };
+    }
+    tx.update(orderRef, {
+      providerCheckoutSessionId: checkoutSessionId,
+      ...(stripeCustomerId ? { providerCustomerId: requiredString(stripeCustomerId, "stripeCustomerId") } : {}),
+      updatedAt: now
+    });
+    return { attached: true, reused: false };
+  });
+}
+
+/**
+ * Apply a payment only after the caller has independently verified the Stripe
+ * webhook signature and retrieved/reconciled the Stripe payment object.
+ * This records payment and any one-off Credit grant only. It deliberately does
+ * not activate memberships: subscription lifecycle and entitlement expiry
+ * policies must be implemented and tested separately.
+ */
+export async function applyVerifiedStripePayment({
+  eventId,
+  eventType,
+  orderId,
+  checkoutSessionId,
+  paymentIntentId = null,
+  userId,
+  amountMinor,
+  currency,
+  paymentStatus
+}) {
+  eventId = requiredString(eventId, "eventId", 255);
+  if (!/^evt_[A-Za-z0-9]+$/.test(eventId)) throw new TypeError("eventId is not a valid Stripe event identifier.");
+  eventType = requiredString(eventType, "eventType", 128);
+  if (!SUPPORTED_PAID_EVENT_TYPES.has(eventType)) {
+    throw new TypeError("eventType is not a supported paid Checkout event.");
+  }
+  orderId = requiredString(orderId, "orderId");
+  checkoutSessionId = requiredString(checkoutSessionId, "checkoutSessionId", 255);
+  if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(checkoutSessionId)) throw new TypeError("checkoutSessionId is not a valid Stripe Checkout Session identifier.");
+  if (paymentIntentId !== null) {
+    paymentIntentId = requiredString(paymentIntentId, "paymentIntentId", 255);
+    if (!/^pi_[A-Za-z0-9]+$/.test(paymentIntentId)) throw new TypeError("paymentIntentId is not a valid Stripe PaymentIntent identifier.");
+  }
+  userId = requiredString(userId, "userId");
+  amountMinor = positiveInteger(amountMinor, "amountMinor");
+  if (String(currency).toLowerCase() !== CURRENCY || paymentStatus !== "paid") {
+    throw new Error("Payment is not a verified paid MYR transaction.");
+  }
+
+  const { db, Timestamp } = getFirebaseAdmin();
+  const eventDocumentId = safeDocumentId(eventId);
+  const eventRef = db.collection("paymentEvents").doc(eventDocumentId);
+  const orderRef = db.collection("paymentOrders").doc(orderId);
+  const eventFingerprint = createHash("sha256").update(JSON.stringify({
+    eventType, orderId, checkoutSessionId, paymentIntentId, userId, amountMinor, currency: CURRENCY
+  })).digest("hex");
+  const now = Timestamp.now();
+
+  return db.runTransaction(async tx => {
+    const grantRef = db.collection("creditLedger").doc(safeDocumentId(JSON.stringify(["grant", orderId])));
+    const balanceRef = db.collection("creditBalances").doc(userId);
+    const [eventSnap, orderSnap, grantSnap, balanceSnap] = await Promise.all([
+      tx.get(eventRef), tx.get(orderRef), tx.get(grantRef), tx.get(balanceRef)
+    ]);
+
+    if (eventSnap.exists) {
+      if (eventSnap.get("eventFingerprint") !== eventFingerprint) {
+        throw new Error("Stripe event ID was previously recorded with different payment details.");
+      }
+      return { duplicate: true, applied: false };
+    }
+    if (!orderSnap.exists) throw new Error("Payment order was not found.");
+
+    const order = orderSnap.data();
+    if (order.provider !== "stripe" || order.userId !== userId) throw new Error("Payment order ownership/provider mismatch.");
+    if (!order.providerCheckoutSessionId || order.providerCheckoutSessionId !== checkoutSessionId) {
+      throw new Error("Checkout Session does not match the order.");
+    }
+    if (order.expectedAmountMinor !== amountMinor || order.currency !== CURRENCY) {
+      throw new Error("Verified amount or currency does not match the order.");
+    }
+    const credits = positiveInteger(order.creditsGrant || 0, "creditsGrant", true);
+
+    if (order.status === "paid") {
+      if ((order.providerPaymentIntentId || null) !== paymentIntentId || (credits > 0 && !grantSnap.exists)) {
+        throw new Error("Already-paid order has conflicting payment or grant evidence.");
+      }
+      tx.create(eventRef, {
+        provider: "stripe", eventType, eventFingerprint, orderId, checkoutSessionId,
+        paymentIntentId, processingStatus: "duplicate_payment", receivedAt: now, processedAt: now
+      });
+      return { duplicate: true, applied: false, creditsGranted: 0 };
+    }
+    if (order.status !== "pending") throw new Error("Order is not pending.");
+
+    let currentBalance = 0;
+    if (credits > 0) {
+      if (grantSnap.exists) throw new Error("Grant ledger exists while order is not paid; reconciliation required.");
+      if (balanceSnap.exists) {
+        currentBalance = balanceSnap.get("balance");
+        if (!Number.isSafeInteger(currentBalance) || currentBalance < 0) {
+          throw new Error("Credit balance is malformed; reconciliation required.");
+        }
+      } else {
+        const priorLedger = await tx.get(
+          db.collection("creditLedger").where("userId", "==", userId).limit(1)
+        );
+        if (!priorLedger.empty) {
+          throw new Error("Credit balance is missing while ledger history exists; reconciliation required.");
+        }
+      }
+      const nextBalance = currentBalance + credits;
+      if (!Number.isSafeInteger(nextBalance)) throw new Error("Credit balance would exceed the safe integer range.");
+      tx.create(grantRef, {
+        userId, orderId, sourceEventId: eventId, entryType: "grant",
+        amount: credits, balanceAfter: nextBalance, createdAt: now
+      });
+      if (balanceSnap.exists) {
+        tx.update(balanceRef, { balance: nextBalance, updatedAt: now });
+      } else {
+        tx.create(balanceRef, { userId, balance: nextBalance, createdAt: now, updatedAt: now });
+      }
+    }
+
+    tx.create(eventRef, {
+      provider: "stripe", eventType, eventFingerprint, orderId, checkoutSessionId,
+      paymentIntentId, processingStatus: "processed", receivedAt: now, processedAt: now
+    });
+    tx.update(orderRef, {
+      status: "paid", providerCheckoutSessionId: checkoutSessionId,
+      providerPaymentIntentId: paymentIntentId, paidAt: now, updatedAt: now
+    });
+    return {
+      duplicate: false, applied: true, creditsGranted: credits,
+      balanceAfter: credits > 0 ? currentBalance + credits : (balanceSnap.exists ? balanceSnap.get("balance") : null),
+      entitlementActivated: false
+    };
+  });
+}
+
+/**
+ * Spend Credits atomically. Call only after the API route has authenticated
+ * the Firebase user and passed the verified UID as userId.
+ */
+export async function spendCredits({ userId, amount, idempotencyKey, reference }) {
+  userId = requiredString(userId, "userId");
+  amount = positiveInteger(amount, "amount");
+  idempotencyKey = requiredString(idempotencyKey, "idempotencyKey", 200);
+  if (idempotencyKey.length < 16) throw new TypeError("idempotencyKey must contain at least 16 characters.");
+  reference = requiredString(reference, "reference", 500);
+
+  const { db, Timestamp } = getFirebaseAdmin();
+  const requestId = idempotencyDocumentId(userId, idempotencyKey);
+  const requestRef = db.collection("creditSpendRequests").doc(requestId);
+  const balanceRef = db.collection("creditBalances").doc(userId);
+  const ledgerRef = db.collection("creditLedger").doc(safeDocumentId(JSON.stringify(["spend", userId, idempotencyKey])));
+  const fingerprint = createHash("sha256").update(JSON.stringify({ userId, amount, reference })).digest("hex");
+  const now = Timestamp.now();
+
+  return db.runTransaction(async tx => {
+    const [requestSnap, balanceSnap] = await Promise.all([tx.get(requestRef), tx.get(balanceRef)]);
+    if (requestSnap.exists) {
+      if (requestSnap.get("requestFingerprint") !== fingerprint) {
+        throw new Error("Credit spend idempotency key was reused with different details.");
+      }
+      return {
+        duplicate: true,
+        spent: requestSnap.get("amount"),
+        balanceAfter: requestSnap.get("balanceAfter")
+      };
+    }
+    if (!balanceSnap.exists) {
+      throw new Error("Credit balance is missing; reconciliation required before spending.");
+    }
+    const currentBalance = balanceSnap.get("balance");
+    if (!Number.isSafeInteger(currentBalance) || currentBalance < 0) {
+      throw new Error("Credit balance is malformed; reconciliation required before spending.");
+    }
+    if (currentBalance < amount) throw new Error("Insufficient Credits.");
+    const nextBalance = currentBalance - amount;
+
+    tx.create(ledgerRef, {
+      userId, entryType: "spend", amount: -amount, reference,
+      idempotencyKeyHash: requestId, balanceAfter: nextBalance, createdAt: now
+    });
+    tx.create(requestRef, {
+      userId, amount, reference, requestFingerprint: fingerprint,
+      ledgerId: ledgerRef.id, balanceAfter: nextBalance, createdAt: now
+    });
+    tx.update(balanceRef, { balance: nextBalance, updatedAt: now });
+    return { duplicate: false, spent: amount, balanceAfter: nextBalance };
+  });
+}
+
+
+/**
+ * Record a Stripe refund only after a trusted server caller has retrieved the
+ * canonical Refund and PaymentIntent from Stripe and verified their linkage.
+ * This helper never calls Stripe and must not be exposed to browser input.
+ */
+export async function applyVerifiedStripeRefund({
+  refundId, paymentIntentId, orderId, userId, amountMinor, currency,
+  refundStatus, evidenceFingerprint, reviewerId = null
+}) {
+  refundId = requiredString(refundId, "refundId", 255);
+  if (!/^re_[A-Za-z0-9]+$/.test(refundId)) throw new TypeError("refundId is invalid.");
+  paymentIntentId = requiredString(paymentIntentId, "paymentIntentId", 255);
+  if (!/^pi_[A-Za-z0-9]+$/.test(paymentIntentId)) throw new TypeError("paymentIntentId is invalid.");
+  orderId = requiredString(orderId, "orderId");
+  userId = requiredString(userId, "userId");
+  amountMinor = positiveInteger(amountMinor, "amountMinor");
+  if (String(currency).toLowerCase() !== CURRENCY || refundStatus !== "succeeded") {
+    throw new Error("Only canonically verified succeeded MYR refunds can be recorded.");
+  }
+  evidenceFingerprint = requiredString(evidenceFingerprint, "evidenceFingerprint", 128);
+  if (!/^[a-f0-9]{64}$/i.test(evidenceFingerprint)) throw new TypeError("evidenceFingerprint must be a SHA-256 hex digest.");
+  if (reviewerId !== null) reviewerId = requiredString(reviewerId, "reviewerId");
+
+  const { db, Timestamp } = getFirebaseAdmin();
+  const refundRef = db.collection("refundReceipts").doc(safeDocumentId(refundId));
+  const orderRef = db.collection("paymentOrders").doc(orderId);
+  const grantRef = db.collection("creditLedger").doc(safeDocumentId(JSON.stringify(["grant", orderId])));
+  const balanceRef = db.collection("creditBalances").doc(userId);
+  const now = Timestamp.now();
+
+  return db.runTransaction(async tx => {
+    const [refundSnap, orderSnap, grantSnap] = await Promise.all([
+      tx.get(refundRef), tx.get(orderRef), tx.get(grantRef)
+    ]);
+    if (refundSnap.exists) {
+      if (refundSnap.get("evidenceFingerprint") !== evidenceFingerprint) {
+        throw new Error("Refund ID was previously recorded with conflicting evidence.");
+      }
+      return { duplicate: true, creditReversal: refundSnap.get("creditReversal") || 0 };
+    }
+    if (!orderSnap.exists) throw new Error("Refund order was not found.");
+    const order = orderSnap.data();
+    if (order.provider !== "stripe" || order.status !== "paid" || order.userId !== userId ||
+        order.providerPaymentIntentId !== paymentIntentId || order.currency !== CURRENCY) {
+      throw new Error("Refund does not match a paid Stripe order.");
+    }
+    if (amountMinor > order.expectedAmountMinor) throw new Error("Refund amount exceeds the paid amount.");
+    const grantAmount = positiveInteger(order.creditsGrant || 0, "creditsGrant", true);
+    if (grantAmount > 0 && !grantSnap.exists) throw new Error("Original Credit grant is missing; reconciliation required.");
+
+    const priorRefunds = await tx.get(db.collection("refundReceipts").where("orderId", "==", orderId));
+    let cumulativeRefunded = amountMinor;
+    let previouslyReversed = 0;
+    for (const doc of priorRefunds.docs) {
+      cumulativeRefunded += doc.get("amountMinor");
+      previouslyReversed += doc.get("creditReversal") || 0;
+    }
+    if (!Number.isSafeInteger(cumulativeRefunded) || cumulativeRefunded > order.expectedAmountMinor) {
+      throw new Error("Cumulative refunds exceed the paid amount.");
+    }
+    const eligibleTotal = grantAmount === 0 ? 0 :
+      Math.floor((cumulativeRefunded * grantAmount + Math.floor(order.expectedAmountMinor / 2)) / order.expectedAmountMinor);
+    const reversal = eligibleTotal - previouslyReversed;
+    if (reversal < 0 || reversal > grantAmount - previouslyReversed) {
+      throw new Error("Calculated Credit reversal exceeds the original grant.");
+    }
+
+    let balanceSnap = null;
+    let balance = null;
+    let reviewRequired = false;
+    if (reversal > 0) {
+      balanceSnap = await tx.get(balanceRef);
+      if (!balanceSnap.exists) throw new Error("Credit balance is missing; reconciliation required.");
+      balance = balanceSnap.get("balance");
+      if (!Number.isSafeInteger(balance) || balance < 0) throw new Error("Credit balance is malformed; reconciliation required.");
+      if (balance < reversal) reviewRequired = true;
+    }
+
+    const status = reviewRequired ? "review_required" : "recorded";
+    tx.create(refundRef, {
+      provider: "stripe", refundId, paymentIntentId, orderId, userId,
+      amountMinor, currency: CURRENCY, refundStatus, evidenceFingerprint,
+      cumulativeRefundedMinor: cumulativeRefunded,
+      creditReversal: reviewRequired ? 0 : reversal,
+      requestedCreditReversal: reversal,
+      processingStatus: status, reviewerId, receivedAt: now
+    });
+    if (reversal > 0 && !reviewRequired) {
+      const reversalRef = db.collection("creditLedger").doc(safeDocumentId(JSON.stringify(["refund", refundId])));
+      tx.create(reversalRef, {
+        userId, orderId, entryType: "refund_reversal", amount: -reversal,
+        refundId, originalGrantId: grantRef.id, balanceAfter: balance - reversal, createdAt: now
+      });
+      tx.update(balanceRef, { balance: balance - reversal, updatedAt: now });
+    }
+    return { duplicate: false, recorded: true, reviewRequired, creditReversal: reviewRequired ? 0 : reversal, requestedCreditReversal: reversal };
+  });
+}
+
+/**
+ * Append a canonical, server-verified dispute observation. Dispute observations
+ * do not alter balances or entitlements; a final loss needs separate human review.
+ */
+export async function recordVerifiedStripeDispute({
+  disputeId, eventId, eventType, orderId, userId, paymentIntentId,
+  disputeStatus, evidenceFingerprint
+}) {
+  disputeId = requiredString(disputeId, "disputeId", 255);
+  if (!/^dp_[A-Za-z0-9]+$/.test(disputeId)) throw new TypeError("disputeId is invalid.");
+  eventId = requiredString(eventId, "eventId", 255);
+  if (!/^evt_[A-Za-z0-9]+$/.test(eventId)) throw new TypeError("eventId is invalid.");
+  if (!["charge.dispute.created", "charge.dispute.updated", "charge.dispute.closed"].includes(eventType)) {
+    throw new TypeError("Unsupported dispute event type.");
+  }
+  if (!["needs_response", "under_review", "won", "lost", "warning_needs_response", "warning_under_review", "warning_closed"].includes(disputeStatus)) {
+    throw new TypeError("Unsupported dispute status.");
+  }
+  orderId = requiredString(orderId, "orderId");
+  userId = requiredString(userId, "userId");
+  paymentIntentId = requiredString(paymentIntentId, "paymentIntentId", 255);
+  evidenceFingerprint = requiredString(evidenceFingerprint, "evidenceFingerprint", 128);
+  if (!/^[a-f0-9]{64}$/i.test(evidenceFingerprint)) throw new TypeError("evidenceFingerprint must be a SHA-256 hex digest.");
+
+  const { db, Timestamp } = getFirebaseAdmin();
+  const eventRef = db.collection("disputeEvents").doc(safeDocumentId(eventId));
+  const orderRef = db.collection("paymentOrders").doc(orderId);
+  const now = Timestamp.now();
+  const fingerprint = createHash("sha256").update(JSON.stringify({
+    disputeId, eventType, orderId, userId, paymentIntentId, disputeStatus, evidenceFingerprint
+  })).digest("hex");
+  return db.runTransaction(async tx => {
+    const [eventSnap, orderSnap] = await Promise.all([tx.get(eventRef), tx.get(orderRef)]);
+    if (eventSnap.exists) {
+      if (eventSnap.get("fingerprint") !== fingerprint) throw new Error("Dispute event ID conflicts with previously recorded evidence.");
+      return { duplicate: true };
+    }
+    if (!orderSnap.exists) throw new Error("Dispute order was not found.");
+    const order = orderSnap.data();
+    if (order.provider !== "stripe" || order.userId !== userId || order.providerPaymentIntentId !== paymentIntentId) {
+      throw new Error("Dispute does not match the internal Stripe order.");
+    }
+    tx.create(eventRef, {
+      provider: "stripe", disputeId, eventId, eventType, orderId, userId,
+      paymentIntentId, disputeStatus, evidenceFingerprint, fingerprint,
+      processingStatus: disputeStatus === "lost" ? "human_review_required" : "recorded",
+      receivedAt: now
+    });
+    return { duplicate: false, recorded: true, humanReviewRequired: disputeStatus === "lost" };
+  });
+}
+
+
+/**
+ * Persist a terminal/review outcome only after the caller has retrieved the
+ * canonical Stripe objects server-to-server and validated their relationship
+ * to this order. This helper does not call Stripe and cannot establish that
+ * the supplied evidence is genuine by itself.
+ */
+export async function recordVerifiedPaymentOrderOutcome({
+  outcome,
+  orderId,
+  userId,
+  checkoutSessionId,
+  evidence
+}) {
+  orderId = requiredString(orderId, "orderId");
+  userId = requiredString(userId, "userId");
+  checkoutSessionId = requiredString(checkoutSessionId, "checkoutSessionId", 255);
+  if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(checkoutSessionId)) {
+    throw new TypeError("checkoutSessionId is not a valid Stripe Checkout Session identifier.");
+  }
+  if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)) {
+    throw new TypeError("Canonical Stripe evidence is required.");
+  }
+
+  let evidenceId;
+  let evidenceFingerprint;
+  if (outcome === "failed") {
+    const paymentIntentId = requiredString(evidence.paymentIntentId, "evidence.paymentIntentId", 255);
+    if (!/^pi_[A-Za-z0-9]+$/.test(paymentIntentId) || evidence.paymentIntentStatus !== "canceled") {
+      throw new Error("Failed outcome requires a canonically retrieved canceled PaymentIntent.");
+    }
+    evidenceId = paymentIntentId;
+    evidenceFingerprint = { paymentIntentId, paymentIntentStatus: "canceled", checkoutSessionId };
+  } else if (outcome === "expired") {
+    const expiresAt = positiveInteger(evidence.expiresAt, "evidence.expiresAt");
+    if (evidence.sessionStatus !== "expired" || evidence.paymentStatus !== "unpaid" ||
+        expiresAt * 1000 > Date.now()) {
+      throw new Error("Expired outcome requires an expired, unpaid Checkout Session whose expires_at has passed.");
+    }
+    evidenceId = checkoutSessionId;
+    evidenceFingerprint = { checkoutSessionId, sessionStatus: "expired", paymentStatus: "unpaid", expiresAt };
+  } else if (outcome === "review_required") {
+    const reason = requiredString(evidence.reason, "evidence.reason", 500);
+    const reference = requiredString(evidence.reference, "evidence.reference", 255);
+    evidenceId = reference;
+    evidenceFingerprint = { reference, reason, checkoutSessionId };
+  } else {
+    throw new TypeError("Unsupported payment order outcome.");
+  }
+
+  const { db, Timestamp } = getFirebaseAdmin();
+  const orderRef = db.collection("paymentOrders").doc(orderId);
+  const auditId = safeDocumentId(JSON.stringify([orderId, outcome, evidenceId]));
+  const auditRef = db.collection("paymentOrderEvents").doc(auditId);
+  const fingerprint = createHash("sha256").update(JSON.stringify(evidenceFingerprint)).digest("hex");
+  const now = Timestamp.now();
+
+  return db.runTransaction(async tx => {
+    const [orderSnap, auditSnap] = await Promise.all([tx.get(orderRef), tx.get(auditRef)]);
+    if (!orderSnap.exists) throw new Error("Payment order was not found.");
+    const order = orderSnap.data();
+    if (order.provider !== "stripe" || order.userId !== userId ||
+        order.providerCheckoutSessionId !== checkoutSessionId) {
+      throw new Error("Payment order ownership/provider/session mismatch.");
+    }
+    if (auditSnap.exists) {
+      if (auditSnap.get("evidenceFingerprint") !== fingerprint) {
+        throw new Error("Outcome evidence reference was reused with conflicting details.");
+      }
+      return { recorded: true, duplicate: true, status: order.status };
+    }
+    if (order.status === "paid") {
+      throw new Error("Paid orders cannot be downgraded or moved to review by a later failure/expiry outcome.");
+    }
+    if (outcome === "failed" || outcome === "expired") {
+      if (order.status !== "pending") {
+        throw new Error("Only pending orders can transition to failed or expired.");
+      }
+    } else if (!["pending", "failed", "expired", "review_required"].includes(order.status)) {
+      throw new Error("Order cannot transition to review_required from its current status.");
+    }
+
+    tx.create(auditRef, {
+      provider: "stripe",
+      orderId,
+      checkoutSessionId,
+      outcome,
+      evidenceId,
+      evidenceFingerprint: fingerprint,
+      recordedAt: now
+    });
+    tx.update(orderRef, {
+      status: outcome,
+      updatedAt: now,
+      ...(outcome === "failed" ? { failedAt: now } : {}),
+      ...(outcome === "expired" ? { expiredAt: now } : {}),
+      ...(outcome === "review_required" ? { reviewRequiredAt: now } : {})
+    });
+    return { recorded: true, duplicate: false, status: outcome };
+  });
+}

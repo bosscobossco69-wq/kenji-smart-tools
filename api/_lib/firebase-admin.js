@@ -20,10 +20,17 @@ function getServiceAccount() {
 export function getFirebaseAdmin() {
   let app = getApps()[0];
   if (!app) {
-    app = initializeApp({
-      credential: cert(getServiceAccount()),
-      projectId: process.env.FIREBASE_PROJECT_ID || "kenji-ai-workspace"
-    });
+    const projectId = process.env.FIREBASE_PROJECT_ID || "kenji-ai-workspace";
+    // The emulator path is explicitly opt-in and never used in production.
+    // FIRESTORE_EMULATOR_HOST is supplied by the local/CI test harness.
+    if (process.env.FIRESTORE_EMULATOR_HOST) {
+      app = initializeApp({ projectId });
+    } else {
+      app = initializeApp({
+        credential: cert(getServiceAccount()),
+        projectId
+      });
+    }
   }
   return {
     auth: getAuth(app),
