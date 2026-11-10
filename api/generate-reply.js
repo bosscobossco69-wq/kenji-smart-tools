@@ -220,8 +220,12 @@ export default async function handler(req, res) {
   let uid;
   try {
     uid = await verifyFirebaseIdToken(tokenMatch[1], projectId);
-  } catch {
-    return res.status(401).json({ error: "Your session is invalid or expired. Please sign in again and verify your email." });
+  } catch (error) {
+    console.error("Firebase ID token verification failed:", error?.message || "Unknown verification error");
+    return res.status(401).json({
+      error: "Firebase sign-in verification failed.",
+      diagnostic: error?.message || "Unknown token verification error"
+    });
   }
 
   const { message, scenario, tone } = req.body || {};
