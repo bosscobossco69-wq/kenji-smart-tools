@@ -1,6 +1,6 @@
 # Stripe Sandbox implementation checkpoint
 
-Last updated: 2026-11-09
+Last updated: 2026-11-10
 
 ## Project boundary
 - Repository: `bosscobossco69-wq/kenji-smart-tools`
@@ -34,10 +34,15 @@ Last updated: 2026-11-09
 - New Emulator cases: cumulative refunds cannot exceed paid amount; refund ID reuse with conflicting evidence is rejected; lost dispute is recorded for human review and does not change Credits.
 - Still to add: webhook handler/canonical-object tests for full and partial refunds, duplicate delivery, currency/PaymentIntent/order mismatch, pending/failed refund statuses, dispute created/updated/closed and out-of-order events.
 
-### Phase B — Canonical Stripe object retrieval and reconciliation
-- Retrieve canonical Refund/Dispute/Charge/PaymentIntent server-to-server from Stripe Sandbox.
-- Verify `livemode === false`, object IDs and relationships, PaymentIntent, Charge, Checkout Session/order linkage, customer, user, amount, currency, and paid order state.
-- Do not trust webhook payload fields alone.
+### Phase B — Canonical Stripe object retrieval and reconciliation (implementation started; not wired into webhook)
+- Added `api/_lib/stripe-canonical-reconciliation.js` to retrieve canonical Refund/Dispute, Charge, PaymentIntent, and Checkout Session objects server-to-server.
+- The verifier uses only the signed event type and object ID from the webhook payload; monetary/status/customer/linkage evidence comes from Stripe retrieval and the internal paid order lookup.
+- Checks Sandbox mode, object IDs, Refund/Dispute ↔ Charge ↔ PaymentIntent ↔ Checkout Session ↔ internal order linkage, customer, user metadata, MYR currency, paid state, and original amount.
+- Pending refunds are explicitly marked non-recordable; only canonical succeeded refunds are eligible for the ledger helper.
+- Added `tests/stripe-canonical-reconciliation.test.js` covering refund/dispute canonical retrieval, untrusted event payload fields, pending refund, unknown event type, and mismatched/Live evidence.
+- Implementation commits: `00db3bc` (tests), `c8465d1` (verifier), `37bb2b1` (fixture corrections), `83b74cc` (Charge field validation correction).
+- PR CI for head `83b74cca8ceb699ca3ccea6760a434c5165267a5` is running: workflow `42769410275`. Tests have not yet been confirmed green.
+- Do not wire refund/dispute webhook events until this CI passes and the verifier is reviewed.
 - Unknown, incomplete, conflicting, or out-of-order evidence must fail closed or route to review.
 
 ### Phase C — Implement webhook ingestion
@@ -65,8 +70,9 @@ Last updated: 2026-11-09
 - No SQL, Firebase Console changes, production deployment, merge, or UI redesign without explicit authorization.
 
 ## Latest checkpoint
+- Canonical verifier implementation and mocked tests have been added but remain unverified pending CI run `42769410275`; refund/dispute webhook events remain ignored.
 - Refund/dispute ledger tests at `d96206b4f6f8382ffc9ed3901857e0eaa64010cc`: both CI runs passed; 93 tests, 91 passed, 0 failed, 2 expected opt-in guards skipped. All three new refund/dispute tests executed and passed.
 - Added six webhook safety regression tests at `bc6e067419f847198369cb7972eac682484898ce`; these ensure refund/dispute events remain ignored with no Stripe retrieval or ledger mutation until canonical reconciliation exists. CI pending.
 
 ## Next exact action
-Check CI for commit `bc6e067419f847198369cb7972eac682484898ce`. If green, design and implement a separate canonical refund/dispute verifier with mocked Stripe object retrieval tests before enabling any refund/dispute webhook event. Do not modify UI or activate event handling prematurely.
+Check workflow run `42769410275` for PR head `83b74cca8ceb699ca3ccea6760a434c5165267a5`. Fix any failing canonical verifier tests. If green, review verifier correctness and add canonical tests for failed/canceled refunds, dispute state edge cases, missing/ambiguous orders, and object retrieval failures. Only then plan webhook wiring. Do not modify UI or activate refund/dispute event handling prematurely.
