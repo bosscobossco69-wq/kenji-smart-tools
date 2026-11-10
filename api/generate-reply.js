@@ -105,7 +105,8 @@ async function reserveDailyRequest({ uid, projectId, serviceAccount, limit }) {
   const day = nowDate.toISOString().slice(0, 10);
   const resetAt = new Date(Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth(), nowDate.getUTCDate() + 1)).toISOString();
   const documentId = `${uid}_${day}`;
-  const documentUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents/aiUsage/${encodeURIComponent(documentId)}`;
+  const documentName = `projects/${projectId}/databases/(default)/documents/aiUsage/${documentId}`;
+  const documentUrl = `https://firestore.googleapis.com/v1/${documentName}`;
   const commitUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents:commit`;
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -140,7 +141,7 @@ async function reserveDailyRequest({ uid, projectId, serviceAccount, limit }) {
       body: JSON.stringify({
         writes: [{
           update: {
-            name: `${documentUrl}`,
+            name: documentName,
             fields: {
               uid: { stringValue: uid },
               day: { stringValue: day },
@@ -156,7 +157,12 @@ async function reserveDailyRequest({ uid, projectId, serviceAccount, limit }) {
     if (commitResponse.ok) {
       return { allowed: true, used: nextCount, remaining: Math.max(0, limit - nextCount), day, resetAt };
     }
-    if (commitResponse.status !== 409 && commitResponse.status !== 412) {
+    const commitError = await commitResponse.json().catch(() => ({}));
+    const retryableConflict = commitResponse.status === 409 ||
+      commitResponse.status === 412 ||
+      commitError.error?.status === "FAILED_PRECONDITION" ||
+      commitError.error?.status === "ABORTED";
+    if (!retryableConflict) {
       throw new Error("Unable to update daily usage in Firestore.");
     }
   }
