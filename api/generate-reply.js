@@ -32,20 +32,12 @@ async function verifyFirebaseIdToken(token, projectId) {
   }
 
   const now = Math.floor(Date.now() / 1000);
-  if (
-    claims.aud !== projectId ||
-    claims.iss !== `https://securetoken.google.com/${projectId}` ||
-    typeof claims.sub !== "string" ||
-    !claims.sub ||
-    claims.sub.length > 128 ||
-    !Number.isFinite(claims.exp) ||
-    claims.exp <= now ||
-    !Number.isFinite(claims.iat) ||
-    claims.iat > now + 300 ||
-    claims.email_verified !== true
-  ) {
-    throw new Error("Sign in with a verified account to use this tool.");
-  }
+  if (claims.aud !== projectId) throw new Error("Firebase project ID mismatch (token audience).");
+  if (claims.iss !== `https://securetoken.google.com/${projectId}`) throw new Error("Firebase project ID mismatch (token issuer).");
+  if (typeof claims.sub !== "string" || !claims.sub || claims.sub.length > 128) throw new Error("Firebase user ID is missing or invalid.");
+  if (!Number.isFinite(claims.exp) || claims.exp <= now) throw new Error("Firebase ID token has expired.");
+  if (!Number.isFinite(claims.iat) || claims.iat > now + 300) throw new Error("Firebase ID token issue time is invalid.");
+  if (claims.email_verified !== true) throw new Error("Firebase account email is not verified. Verify the email address, then sign out and sign in again.");
 
   const keys = await getFirebaseSigningKeys();
   const jwk = keys.find(key => key.kid === header.kid && key.alg === "RS256");
