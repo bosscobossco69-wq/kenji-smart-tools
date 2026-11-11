@@ -67,29 +67,6 @@ function getFirebaseUid(object) {
   return typeof candidate === "string" && candidate.length <= 128 ? candidate : null;
 }
 
-async function resolveUid(stripe, object) {
-  const direct = getFirebaseUid(object);
-  if (direct) {
-    try {
-      await getServicesAuth().verifyIdToken; // Keep the resolution path independent of client input.
-    } catch {}
-    return direct;
-  }
-  const customerId = typeof object?.customer === "string"
-    ? object.customer
-    : object?.customer?.id;
-  if (!customerId) return null;
-  try {
-    const customer = await stripe.customers.retrieve(customerId);
-    if (customer && !customer.deleted) return getFirebaseUid(customer);
-  } catch {}
-  return null;
-}
-
-let cachedAuth;
-function getServicesAuth() {
-  return cachedAuth;
-}
 
 function subscriptionData(subscription) {
   const item = subscription.items?.data?.[0];
@@ -119,7 +96,6 @@ export default async function handler(req, res) {
   let services;
   try {
     services = await getServices();
-    cachedAuth = services.auth;
   } catch {
     return res.status(503).json({ error: "Webhook service is not configured." });
   }
@@ -165,19 +141,35 @@ export default async function handler(req, res) {
   try {
     const object = event.data.object;
     let uid = getFirebaseUid(object);
+    let customer = null;
+    const customerId = typeof object?.customer === "string" ? object.customer : object?.customer?.id;
+    if (customerId) {
+      try {
+        customer = await services.stripe.customers.retrieve(customerId);
+        if (customer?.deleted) customer = null;
+      } catch {}
+    }
+    if (!uid) uid = getFirebaseUid(customer);
+
+    // Payment Links may not carry Firebase UID metadata. In that case, match only
+    // an exact, verified Firebase email from the Stripe customer/session.
     if (!uid) {
-      const customerId = typeof object?.customer === "string" ? object.customer : object?.customer?.id;
-      if (customerId) {
+      const email = object?.customer_details?.email || object?.customer_email || customer?.email;
+      if (typeof email === "string" && email.includes("@")) {
         try {
-          const customer = await services.stripe.customers.retrieve(customerId);
-          if (customer && !customer.deleted) uid = getFirebaseUid(customer);
+          const matchedUser = await services.auth.getUserByEmail(email);
+          if (matchedUser.emailVerified) uid = matchedUser.uid;
         } catch {}
       }
     }
 
     if (uid) {
       // Verify that the UID belongs to a real Firebase account before granting billing state.
-      await services.auth.getUser(uid);
+      const firebaseUser = await services.auth.getUser(uid);
+      if (!firebaseUser.emailVerified) uid = null;
+    }
+
+    if (uid) {
       const billingRef = services.db.collection("users").doc(uid).collection("billing").doc("current");
       const common = {
         stripeCustomerId: typeof object?.customer === "string" ? object.customer : object?.customer?.id || null,
