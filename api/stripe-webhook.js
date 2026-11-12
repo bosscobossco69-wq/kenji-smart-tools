@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { randomUUID } from "node:crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
@@ -61,10 +62,12 @@ function unixDate(seconds) {
 }
 
 function getFirebaseUid(object) {
-  const metadataUid = object?.metadata?.firebaseUID || object?.metadata?.firebase_uid;
-  const clientReference = object?.client_reference_id;
-  const candidate = metadataUid || clientReference;
-  return typeof candidate === "string" && candidate.length <= 128 ? candidate : null;
+  // Only accept server-controlled Stripe metadata. client_reference_id can be
+  // supplied in a Payment Link URL and must never be trusted as an account ID.
+  const candidate = object?.metadata?.firebaseUID || object?.metadata?.firebase_uid;
+  return typeof candidate === "string" && candidate.length > 0 && candidate.length <= 128
+    ? candidate
+    : null;
 }
 
 
@@ -118,24 +121,44 @@ export default async function handler(req, res) {
   }
 
   const eventRef = services.db.collection("stripeWebhookEvents").doc(event.id);
+  const processingToken = randomUUID();
+  let alreadyProcessed = false;
+  let claimed = false;
   try {
     await services.db.runTransaction(async transaction => {
       const existing = await transaction.get(eventRef);
-      if (existing.exists) return;
-      transaction.create(eventRef, {
+      const current = existing.exists ? existing.data() : {};
+      if (current.processed === true) {
+        alreadyProcessed = true;
+        return;
+      }
+      const leaseUntil = Number(current.processingLeaseUntilMs || 0);
+      if (current.processingStatus === "processing" && leaseUntil > Date.now()) {
+        return;
+      }
+      transaction.set(eventRef, {
         type: event.type,
         livemode: Boolean(event.livemode),
         processed: false,
-        receivedAt: FieldValue.serverTimestamp()
-      });
+        processingStatus: "processing",
+        processingToken,
+        processingLeaseUntilMs: Date.now() + 5 * 60 * 1000,
+        attempts: FieldValue.increment(1),
+        receivedAt: current.receivedAt || FieldValue.serverTimestamp()
+      }, { merge: true });
+      claimed = true;
     });
   } catch {
-    return res.status(500).json({ error: "Could not record Stripe event." });
+    return res.status(500).json({ error: "Could not claim Stripe event for processing." });
   }
 
-  const eventRecord = await eventRef.get();
-  if (eventRecord.data()?.processed === true) {
+  if (alreadyProcessed) {
     return res.status(200).json({ received: true, duplicate: true });
+  }
+  if (!claimed) {
+    // Another invocation owns the active lease. A non-2xx response asks Stripe
+    // to retry after the current processor finishes or its lease expires.
+    return res.status(500).json({ error: "Stripe event is already being processed." });
   }
 
   try {
@@ -208,11 +231,20 @@ export default async function handler(req, res) {
       }
     }
 
-    await eventRef.set({
-      processed: true,
-      firebaseUid: uid || null,
-      processedAt: FieldValue.serverTimestamp()
-    }, { merge: true });
+    await services.db.runTransaction(async transaction => {
+      const current = await transaction.get(eventRef);
+      if (current.data()?.processingToken !== processingToken) {
+        throw new Error("Stripe event processing lease was lost.");
+      }
+      transaction.set(eventRef, {
+        processed: true,
+        processingStatus: "processed",
+        processingToken: FieldValue.delete(),
+        processingLeaseUntilMs: FieldValue.delete(),
+        firebaseUid: uid || null,
+        processedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+    });
 
     return res.status(200).json({ received: true, linked: Boolean(uid) });
   } catch {
