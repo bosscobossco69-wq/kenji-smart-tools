@@ -1,6 +1,6 @@
 # Stripe Checkout — Preview setup
 
-This route creates authenticated Stripe subscription Checkout Sessions for the four USD Workspace plans. It deliberately does not create Credits or activate entitlements. Those actions must happen only after a verified Stripe webhook and a completed ledger implementation.
+This route creates authenticated Stripe subscription Checkout Sessions for the four USD Workspace plans. Credits are issued only after a verified Stripe invoice webhook and an idempotent Firestore ledger transaction. Plan entitlement activation remains a separate integration.
 
 ## Required server-only Vercel environment variables
 
@@ -36,7 +36,7 @@ The route verifies the Firebase ID token and verified email, reads the Price ID 
 ## Important safety boundary
 
 - This route does not issue Credits, grant plan access, or treat a browser success redirect as proof of payment.
-- Do not enable purchase buttons until the webhook reconciles Checkout and subscription events against the pending order and an idempotent Credits ledger is implemented and tested.
+- Purchase buttons are enabled only for signed-in users with verified email. Checkout still fails closed until the matching server-side Stripe Price IDs are configured.
 - Use Stripe Test Mode keys and Test Mode Price IDs for Preview. Never place secrets in browser code or commit them.
 - This initial route supports the four USD plans only. The three MYR products are intentionally not mapped.
 
@@ -45,7 +45,7 @@ The route verifies the Firebase ID token and verified email, reads the Price ID 
 - A paid monthly subscription invoice is eligible for a Credits grant only when the subscription metadata contains the Checkout-created `orderId`, `planId`, and Firebase UID, and the invoice line Price ID matches the subscription Price ID and pending order.
 - Monthly grants are 10,000 (Lite), 30,000 (Pro), 100,000 (Pro+), and 400,000 (Ultra).
 - Each paid invoice has a deterministic per-user ledger document ID based on its Stripe invoice ID. The Firestore transaction creates the ledger entry and increments `users/{uid}.creditsBalance` atomically, preventing duplicate invoice grants.
-- Annual subscriptions are deliberately excluded from automatic Credits grants in this first pass. Because the plans advertise monthly Credits allowances, annual billing requires a monthly scheduled grant process; do not grant a full year's Credits at once.
+- Annual subscriptions receive one monthly Credits allocation on each paid annual invoice and then monthly scheduled allocations. They never receive a full year's Credits at once.
 - A missing/mismatched Checkout order causes invoice processing to fail and Stripe to retry. Review the event and order records before enabling Live checkout.
 
 ## Preview test matrix
@@ -54,9 +54,9 @@ Use Stripe Test Mode and a dedicated test Firebase user. Verify: successful mont
 
 ## Annual subscription monthly Credits scheduler
 
-- `api/stripe-annual-credit-grant.js` runs daily at 03:00 UTC through the Vercel Cron entry in `vercel.json`.
+- `api/stripe-annual-credit-grant.js` runs daily at 03:00 UTC through the Vercel Cron entry in `vercel.json`. The job paginates through annual billing records in batches of 200, so it is not limited to the first 200 subscribers.
 - Set a strong server-only Vercel environment variable named `CRON_SECRET`. Vercel Cron must call the endpoint with `Authorization: Bearer <CRON_SECRET>`; manual calls without the matching secret are rejected.
 - When an annual subscription invoice is paid, the webhook grants one monthly allocation and initializes `nextCreditGrantAt` to one calendar month after the subscription period start.
-- The scheduled job checks the current Stripe subscription status, grants at most one overdue monthly allocation per subscription per run, writes a deterministic month ledger record, increments the balance atomically, and advances the next grant date.
+- The scheduled job checks the current Stripe subscription status, grants at most one overdue monthly allocation per subscription per run, writes a deterministic month ledger record, increments the balance atomically, and advances the next grant date using calendar-month clamping (for example, Jan 31 advances to the last valid day of February).
 - It stops granting at or beyond the subscription period end and skips inactive subscriptions. A new paid annual renewal invoice initializes the next annual cycle.
 - Configure the CRON_SECRET in Preview before testing. Confirm the Vercel project plan supports the configured daily Cron schedule and inspect Cron invocation logs. This code has not yet been runtime-tested against Stripe or Firestore.
