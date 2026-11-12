@@ -79,6 +79,8 @@ function subscriptionData(subscription) {
   return {
     stripeCustomerId: typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id || null,
     stripeSubscriptionId: subscription.id,
+    planId: subscription.metadata?.planId || null,
+    orderId: subscription.metadata?.orderId || null,
     status: subscription.status,
     priceId: item?.price?.id || null,
     currency: item?.price?.currency || null,
@@ -271,7 +273,7 @@ export default async function handler(req, res) {
           const invoicePriceIds = (object.lines?.data || []).map(line =>
             line.price?.id || line.pricing?.price_details?.price
           ).filter(Boolean);
-          if (orderId && credits && interval === "month" && uid && item?.price?.id && invoicePriceIds.includes(item.price.id)) {
+          if (orderId && credits && ["month", "year"].includes(interval) && uid && item?.price?.id && invoicePriceIds.includes(item.price.id)) {
             const orderRef = services.db.collection("billingOrders").doc(orderId);
             const ledgerRef = services.db.collection("users").doc(uid).collection("creditLedger").doc(`stripe_invoice_${object.id}`);
             const userRef = services.db.collection("users").doc(uid);
@@ -303,6 +305,17 @@ export default async function handler(req, res) {
                 creditsBalance: currentBalance + credits,
                 creditsUpdatedAt: FieldValue.serverTimestamp()
               }, { merge: true });
+              if (interval === "year") {
+                const periodStart = unixDate(invoiceSubscription.current_period_start);
+                if (!periodStart) throw new Error("Annual subscription period start is missing.");
+                const nextGrant = new Date(periodStart);
+                nextGrant.setUTCMonth(nextGrant.getUTCMonth() + 1);
+                transaction.set(billingRef, {
+                  nextCreditGrantAt: nextGrant,
+                  annualCreditGrantSubscriptionId: invoiceSubscription.id,
+                  annualCreditGrantPlanId: planId
+                }, { merge: true });
+              }
               transaction.set(orderRef, {
                 status: "paid",
                 lastPaidInvoiceId: object.id,
