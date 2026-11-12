@@ -39,3 +39,15 @@ The route verifies the Firebase ID token and verified email, reads the Price ID 
 - Do not enable purchase buttons until the webhook reconciles Checkout and subscription events against the pending order and an idempotent Credits ledger is implemented and tested.
 - Use Stripe Test Mode keys and Test Mode Price IDs for Preview. Never place secrets in browser code or commit them.
 - This initial route supports the four USD plans only. The three MYR products are intentionally not mapped.
+
+## Webhook and Credits behavior (Preview validation required)
+
+- A paid monthly subscription invoice is eligible for a Credits grant only when the subscription metadata contains the Checkout-created `orderId`, `planId`, and Firebase UID, and the invoice line Price ID matches the subscription Price ID and pending order.
+- Monthly grants are 10,000 (Lite), 30,000 (Pro), 100,000 (Pro+), and 400,000 (Ultra).
+- Each paid invoice has a deterministic per-user ledger document ID based on its Stripe invoice ID. The Firestore transaction creates the ledger entry and increments `users/{uid}.creditsBalance` atomically, preventing duplicate invoice grants.
+- Annual subscriptions are deliberately excluded from automatic Credits grants in this first pass. Because the plans advertise monthly Credits allowances, annual billing requires a monthly scheduled grant process; do not grant a full year's Credits at once.
+- A missing/mismatched Checkout order causes invoice processing to fail and Stripe to retry. Review the event and order records before enabling Live checkout.
+
+## Preview test matrix
+
+Use Stripe Test Mode and a dedicated test Firebase user. Verify: successful monthly checkout grants exactly one monthly allocation; replaying the same `invoice.paid` event does not add Credits again; a different renewal invoice grants one additional allocation; wrong Price ID / missing order does not grant Credits; failed invoice does not grant Credits; yearly invoice does not issue a yearly lump sum. Also verify subscription cancellation and payment-failure status separately.
