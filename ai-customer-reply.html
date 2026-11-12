@@ -121,8 +121,10 @@ async function generate(){
   const response=await fetch("/api/generate-reply",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${idToken}`},body:JSON.stringify({message,scenario,tone})});
   const data=await response.json();
   if(!response.ok){
-   const detail=data.diagnostic? ` ${data.diagnostic}` : "";
-   throw new Error((data.error||"Unable to generate a reply.")+detail);
+   const detail = data.diagnostic
+    ? (typeof data.diagnostic === "string" ? data.diagnostic : JSON.stringify(data.diagnostic))
+    : "";
+   throw new Error((data.error||"Unable to generate a reply.") + (detail ? ` ${detail}` : ""));
   }
   reply=data.reply;$("result").textContent=reply;$("result").classList.remove("empty");$("copy").disabled=false;setStatus(`Reply ready. ${data.usage?.remaining ?? "?"} requests remaining today (UTC).`);
  }catch(error){reply="";$("result").textContent="Your generated reply will appear here.";$("result").classList.add("empty");setStatus(error.message||"Something went wrong. Please try again.",true)}
