@@ -61,6 +61,24 @@ function unixDate(seconds) {
   return Number.isFinite(seconds) ? new Date(seconds * 1000) : null;
 }
 
+function addUtcMonth(date) {
+  const next = new Date(date);
+  const day = next.getUTCDate();
+  next.setUTCDate(1);
+  next.setUTCMonth(next.getUTCMonth() + 1);
+  const lastDay = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate();
+  next.setUTCDate(Math.min(day, lastDay));
+  return next;
+}
+
+function getInvoiceSubscriptionId(invoice) {
+  const legacy = invoice?.subscription;
+  const current = invoice?.parent?.subscription_details?.subscription;
+  const value = legacy || current;
+  if (typeof value === "string") return value;
+  return typeof value?.id === "string" ? value.id : null;
+}
+
 function getFirebaseUid(object) {
   // Only accept server-controlled Stripe metadata. client_reference_id can be
   // supplied in a Payment Link URL and must never be trusted as an account ID.
@@ -71,11 +89,16 @@ function getFirebaseUid(object) {
 }
 
 
+
+const PLAN_CREDITS = { lite: 10000, pro: 30000, pro_plus: 100000, ultra: 400000 };
+
 function subscriptionData(subscription) {
   const item = subscription.items?.data?.[0];
   return {
     stripeCustomerId: typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id || null,
     stripeSubscriptionId: subscription.id,
+    planId: subscription.metadata?.planId || null,
+    orderId: subscription.metadata?.orderId || null,
     status: subscription.status,
     priceId: item?.price?.id || null,
     currency: item?.price?.currency || null,
@@ -167,7 +190,12 @@ export default async function handler(req, res) {
 
   try {
     const object = event.data.object;
-    let uid = getFirebaseUid(object);
+    let invoiceSubscription = null;
+    if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
+      const subscriptionId = getInvoiceSubscriptionId(object);
+      if (subscriptionId) invoiceSubscription = await services.stripe.subscriptions.retrieve(subscriptionId);
+    }
+    let uid = getFirebaseUid(object) || getFirebaseUid(invoiceSubscription);
     let customer = null;
     const customerId = typeof object?.customer === "string" ? object.customer : object?.customer?.id;
     if (customerId) {
@@ -249,6 +277,71 @@ export default async function handler(req, res) {
             invoiceEventCreated: event.created
           }, { merge: true });
         });
+
+        // Issue monthly Credits only for a verified invoice tied to an order created
+        // by our authenticated Checkout endpoint. Annual plans need monthly scheduled
+        // grants and are intentionally not credited in one yearly lump sum.
+        if (event.type === "invoice.paid" && invoiceSubscription) {
+          const metadata = invoiceSubscription.metadata || {};
+          const orderId = metadata.orderId;
+          const planId = metadata.planId;
+          const credits = PLAN_CREDITS[planId];
+          const item = invoiceSubscription.items?.data?.[0];
+          const interval = item?.price?.recurring?.interval;
+          const invoicePriceIds = (object.lines?.data || []).map(line =>
+            line.price?.id || line.pricing?.price_details?.price
+          ).filter(Boolean);
+          if (orderId && credits && ["month", "year"].includes(interval) && uid && item?.price?.id && invoicePriceIds.includes(item.price.id)) {
+            const orderRef = services.db.collection("billingOrders").doc(orderId);
+            const ledgerRef = services.db.collection("users").doc(uid).collection("creditLedger").doc(`stripe_invoice_${object.id}`);
+            const userRef = services.db.collection("users").doc(uid);
+            await services.db.runTransaction(async transaction => {
+              const [orderSnap, ledgerSnap, userSnap] = await Promise.all([
+                transaction.get(orderRef), transaction.get(ledgerRef), transaction.get(userRef)
+              ]);
+              if (!orderSnap.exists) throw new Error("Checkout order was not found for paid invoice.");
+              const order = orderSnap.data();
+              if (order.uid !== uid || order.planId !== planId || order.interval !== (interval === "year" ? "yearly" : "monthly") || order.priceId !== item.price.id || order.currency !== "usd") {
+                throw new Error("Paid invoice does not match its pending Checkout order.");
+              }
+              if (ledgerSnap.exists) return;
+              const currentBalance = Number(userSnap.exists ? userSnap.data()?.creditsBalance || 0 : 0);
+              if (!Number.isSafeInteger(currentBalance) || currentBalance < 0) throw new Error("Invalid Credits balance.");
+              transaction.create(ledgerRef, {
+                type: "subscription_cycle_grant",
+                source: "stripe_invoice",
+                stripeInvoiceId: object.id,
+                stripeSubscriptionId: invoiceSubscription.id,
+                orderId,
+                planId,
+                credits,
+                currency: object.currency || null,
+                amountPaid: object.amount_paid ?? null,
+                createdAt: FieldValue.serverTimestamp()
+              });
+              transaction.set(userRef, {
+                creditsBalance: currentBalance + credits,
+                creditsUpdatedAt: FieldValue.serverTimestamp()
+              }, { merge: true });
+              if (interval === "year") {
+                const periodStart = unixDate(invoiceSubscription.current_period_start);
+                if (!periodStart) throw new Error("Annual subscription period start is missing.");
+                const nextGrant = addUtcMonth(periodStart);
+                transaction.set(billingRef, {
+                  nextCreditGrantAt: nextGrant,
+                  annualCreditGrantSubscriptionId: invoiceSubscription.id,
+                  annualCreditGrantPlanId: planId,
+                  annualCreditGrantAnchorDay: periodStart.getUTCDate()
+                }, { merge: true });
+              }
+              transaction.set(orderRef, {
+                status: "paid",
+                lastPaidInvoiceId: object.id,
+                updatedAt: FieldValue.serverTimestamp()
+              }, { merge: true });
+            });
+          }
+        }
       }
     }
 
