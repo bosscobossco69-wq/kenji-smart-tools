@@ -91,6 +91,55 @@ async function getGoogleAccessToken(serviceAccount, projectId) {
   return serviceTokenCache.token;
 }
 
+async function releaseDailyRequest({ uid, projectId, serviceAccount, day }) {
+  const accessToken = await getGoogleAccessToken(serviceAccount, projectId);
+  const documentId = `${uid}_${day}`;
+  const documentName = `projects/${projectId}/databases/(default)/documents/aiUsage/${documentId}`;
+  const documentUrl = `https://firestore.googleapis.com/v1/${documentName}`;
+  const commitUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents:commit`;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const currentResponse = await fetch(documentUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (currentResponse.status === 404) return;
+    if (!currentResponse.ok) throw new Error("Unable to read daily usage for refund.");
+    const current = await currentResponse.json();
+    const count = Number(current.fields?.count?.integerValue || 0);
+    if (!Number.isSafeInteger(count) || count < 1) return;
+
+    const commitResponse = await fetch(commitUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        writes: [{
+          update: {
+            name: documentName,
+            fields: {
+              uid: { stringValue: uid },
+              day: { stringValue: day },
+              count: { integerValue: String(count - 1) },
+              updatedAt: { timestampValue: new Date().toISOString() }
+            }
+          },
+          currentDocument: { updateTime: current.updateTime }
+        }]
+      })
+    });
+    if (commitResponse.ok) return;
+    const commitError = await commitResponse.json().catch(() => ({}));
+    const retryableConflict = commitResponse.status === 409 ||
+      commitResponse.status === 412 ||
+      commitError.error?.status === "FAILED_PRECONDITION" ||
+      commitError.error?.status === "ABORTED";
+    if (!retryableConflict) throw new Error("Unable to release daily usage reservation.");
+  }
+  throw new Error("Daily usage refund is busy. Please retry.");
+}
+
 async function reserveDailyRequest({ uid, projectId, serviceAccount, limit }) {
   const accessToken = await getGoogleAccessToken(serviceAccount, projectId);
   const nowDate = new Date();
@@ -282,6 +331,11 @@ export default async function handler(req, res) {
         ...safeDiagnostic,
         requestId: response.headers.get("x-request-id") || undefined
       });
+      try {
+        await releaseDailyRequest({ uid, projectId, serviceAccount, day: usage.day });
+      } catch (refundError) {
+        console.error("Unable to refund failed AI request:", refundError?.message || "Unknown refund error");
+      }
       return res.status(response.status === 429 ? 503 : 502).json({
         error: response.status === 429 ? "The AI service is busy. Please try again shortly." : "The AI service could not complete the request.",
         diagnostic: safeDiagnostic
@@ -290,9 +344,21 @@ export default async function handler(req, res) {
     const reply = (data.output || []).filter(item => item.type === "message")
       .flatMap(item => item.content || []).filter(item => item.type === "output_text")
       .map(item => item.text).join("\n").trim();
-    if (!reply) return res.status(502).json({ error: "No reply was generated. Please try again." });
+    if (!reply) {
+      try {
+        await releaseDailyRequest({ uid, projectId, serviceAccount, day: usage.day });
+      } catch (refundError) {
+        console.error("Unable to refund empty AI response:", refundError?.message || "Unknown refund error");
+      }
+      return res.status(502).json({ error: "No reply was generated. Please try again." });
+    }
     return res.status(200).json({ reply, usage: { limit, used: usage.used, remaining: usage.remaining, resetAt: usage.resetAt } });
   } catch {
+    try {
+      await releaseDailyRequest({ uid, projectId, serviceAccount, day: usage.day });
+    } catch (refundError) {
+      console.error("Unable to refund interrupted AI request:", refundError?.message || "Unknown refund error");
+    }
     return res.status(502).json({ error: "Unable to reach the AI service. Please try again." });
   }
 }
