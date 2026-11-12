@@ -1,4 +1,4 @@
-import { createPublicKey, verify as verifySignature, sign as signJwt } from "node:crypto";
+import { createPublicKey, verify as verifySignature, sign as signJwt, randomUUID } from "node:crypto";
 
 let serviceTokenCache = { token: "", expiresAt: 0 };
 let firebaseKeysCache = { keys: null, expiresAt: 0 };
@@ -91,53 +91,67 @@ async function getGoogleAccessToken(serviceAccount, projectId) {
   return serviceTokenCache.token;
 }
 
-async function releaseDailyRequest({ uid, projectId, serviceAccount, day }) {
+async function settleDailyRequest({ uid, projectId, serviceAccount, day, reservationId, outcome }) {
   const accessToken = await getGoogleAccessToken(serviceAccount, projectId);
-  const documentId = `${uid}_${day}`;
-  const documentName = `projects/${projectId}/databases/(default)/documents/aiUsage/${documentId}`;
-  const documentUrl = `https://firestore.googleapis.com/v1/${documentName}`;
+  const reservationName = `projects/${projectId}/databases/(default)/documents/aiUsageReservations/${uid}_${day}_${reservationId}`;
+  const reservationUrl = `https://firestore.googleapis.com/v1/${reservationName}`;
+  const usageName = `projects/${projectId}/databases/(default)/documents/aiUsage/${uid}_${day}`;
+  const usageUrl = `https://firestore.googleapis.com/v1/${usageName}`;
   const commitUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents:commit`;
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const currentResponse = await fetch(documentUrl, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (currentResponse.status === 404) return;
-    if (!currentResponse.ok) throw new Error("Unable to read daily usage for refund.");
-    const current = await currentResponse.json();
-    const count = Number(current.fields?.count?.integerValue || 0);
-    if (!Number.isSafeInteger(count) || count < 1) return;
+    const reservationResponse = await fetch(reservationUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (reservationResponse.status === 404) return;
+    if (!reservationResponse.ok) throw new Error("Unable to read AI request reservation.");
+    const reservation = await reservationResponse.json();
+    if (reservation.fields?.status?.stringValue !== "reserved") return;
+
+    const writes = [{
+      update: {
+        name: reservationName,
+        fields: {
+          uid: { stringValue: uid },
+          day: { stringValue: day },
+          status: { stringValue: outcome === "success" ? "consumed" : "released" },
+          settledAt: { timestampValue: new Date().toISOString() }
+        }
+      },
+      currentDocument: { updateTime: reservation.updateTime }
+    }];
+
+    if (outcome !== "success") {
+      const usageResponse = await fetch(usageUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (usageResponse.status === 404) return;
+      if (!usageResponse.ok) throw new Error("Unable to read daily usage for reservation release.");
+      const usage = await usageResponse.json();
+      const count = Number(usage.fields?.count?.integerValue || 0);
+      if (!Number.isSafeInteger(count) || count < 1) return;
+      writes.push({
+        update: {
+          name: usageName,
+          fields: {
+            uid: { stringValue: uid },
+            day: { stringValue: day },
+            count: { integerValue: String(count - 1) },
+            updatedAt: { timestampValue: new Date().toISOString() }
+          }
+        },
+        currentDocument: { updateTime: usage.updateTime }
+      });
+    }
 
     const commitResponse = await fetch(commitUrl, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        writes: [{
-          update: {
-            name: documentName,
-            fields: {
-              uid: { stringValue: uid },
-              day: { stringValue: day },
-              count: { integerValue: String(count - 1) },
-              updatedAt: { timestampValue: new Date().toISOString() }
-            }
-          },
-          currentDocument: { updateTime: current.updateTime }
-        }]
-      })
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ writes })
     });
     if (commitResponse.ok) return;
     const commitError = await commitResponse.json().catch(() => ({}));
-    const retryableConflict = commitResponse.status === 409 ||
-      commitResponse.status === 412 ||
-      commitError.error?.status === "FAILED_PRECONDITION" ||
-      commitError.error?.status === "ABORTED";
-    if (!retryableConflict) throw new Error("Unable to release daily usage reservation.");
+    const conflict = commitResponse.status === 409 || commitResponse.status === 412 ||
+      commitError.error?.status === "FAILED_PRECONDITION" || commitError.error?.status === "ABORTED";
+    if (!conflict) throw new Error("Unable to settle AI request reservation.");
   }
-  throw new Error("Daily usage refund is busy. Please retry.");
+  throw new Error("AI request reservation settlement is busy. Please retry.");
 }
 
 async function reserveDailyRequest({ uid, projectId, serviceAccount, limit }) {
@@ -145,18 +159,13 @@ async function reserveDailyRequest({ uid, projectId, serviceAccount, limit }) {
   const nowDate = new Date();
   const day = nowDate.toISOString().slice(0, 10);
   const resetAt = new Date(Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth(), nowDate.getUTCDate() + 1)).toISOString();
-  const documentId = `${uid}_${day}`;
-  const documentName = `projects/${projectId}/databases/(default)/documents/aiUsage/${documentId}`;
+  const documentName = `projects/${projectId}/databases/(default)/documents/aiUsage/${uid}_${day}`;
   const documentUrl = `https://firestore.googleapis.com/v1/${documentName}`;
   const commitUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents:commit`;
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const currentResponse = await fetch(documentUrl, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-
-    let count = 0;
-    let precondition;
+    const currentResponse = await fetch(documentUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+    let count = 0, precondition;
     if (currentResponse.status === 200) {
       const current = await currentResponse.json();
       count = Number(current.fields?.count?.integerValue || 0);
@@ -166,46 +175,42 @@ async function reserveDailyRequest({ uid, projectId, serviceAccount, limit }) {
     } else {
       throw new Error("Unable to read daily usage from Firestore.");
     }
-
-    if (!Number.isSafeInteger(count) || count < 0) {
-      throw new Error("Daily usage record is invalid.");
-    }
+    if (!Number.isSafeInteger(count) || count < 0) throw new Error("Daily usage record is invalid.");
     if (count >= limit) return { allowed: false, used: count, remaining: 0, day, resetAt };
 
     const nextCount = count + 1;
+    const reservationId = randomUUID();
+    const reservationName = `projects/${projectId}/databases/(default)/documents/aiUsageReservations/${uid}_${day}_${reservationId}`;
     const commitResponse = await fetch(commitUrl, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        writes: [{
-          update: {
-            name: documentName,
-            fields: {
-              uid: { stringValue: uid },
-              day: { stringValue: day },
-              count: { integerValue: String(nextCount) },
-              updatedAt: { timestampValue: new Date().toISOString() }
-            }
-          },
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ writes: [
+        {
+          update: { name: documentName, fields: {
+            uid: { stringValue: uid }, day: { stringValue: day },
+            count: { integerValue: String(nextCount) },
+            updatedAt: { timestampValue: new Date().toISOString() }
+          }},
           currentDocument: precondition
-        }]
-      })
+        },
+        {
+          update: { name: reservationName, fields: {
+            uid: { stringValue: uid }, day: { stringValue: day },
+            status: { stringValue: "reserved" },
+            createdAt: { timestampValue: new Date().toISOString() }
+          }},
+          currentDocument: { exists: false }
+        }
+      ]})
     });
-
-    if (commitResponse.ok) {
-      return { allowed: true, used: nextCount, remaining: Math.max(0, limit - nextCount), day, resetAt };
-    }
+    if (commitResponse.ok) return {
+      allowed: true, used: nextCount, remaining: Math.max(0, limit - nextCount),
+      day, resetAt, reservationId
+    };
     const commitError = await commitResponse.json().catch(() => ({}));
-    const retryableConflict = commitResponse.status === 409 ||
-      commitResponse.status === 412 ||
-      commitError.error?.status === "FAILED_PRECONDITION" ||
-      commitError.error?.status === "ABORTED";
-    if (!retryableConflict) {
-      throw new Error("Unable to update daily usage in Firestore.");
-    }
+    const conflict = commitResponse.status === 409 || commitResponse.status === 412 ||
+      commitError.error?.status === "FAILED_PRECONDITION" || commitError.error?.status === "ABORTED";
+    if (!conflict) throw new Error("Unable to update daily usage in Firestore.");
   }
   throw new Error("Daily usage is busy. Please retry.");
 }
@@ -332,7 +337,7 @@ export default async function handler(req, res) {
         requestId: response.headers.get("x-request-id") || undefined
       });
       try {
-        await releaseDailyRequest({ uid, projectId, serviceAccount, day: usage.day });
+        await settleDailyRequest({ uid, projectId, serviceAccount, day: usage.day, reservationId: usage.reservationId, outcome: "failure" });
       } catch (refundError) {
         console.error("Unable to refund failed AI request:", refundError?.message || "Unknown refund error");
       }
@@ -346,16 +351,17 @@ export default async function handler(req, res) {
       .map(item => item.text).join("\n").trim();
     if (!reply) {
       try {
-        await releaseDailyRequest({ uid, projectId, serviceAccount, day: usage.day });
+        await settleDailyRequest({ uid, projectId, serviceAccount, day: usage.day, reservationId: usage.reservationId, outcome: "failure" });
       } catch (refundError) {
         console.error("Unable to refund empty AI response:", refundError?.message || "Unknown refund error");
       }
       return res.status(502).json({ error: "No reply was generated. Please try again." });
     }
+    await settleDailyRequest({ uid, projectId, serviceAccount, day: usage.day, reservationId: usage.reservationId, outcome: "success" });
     return res.status(200).json({ reply, usage: { limit, used: usage.used, remaining: usage.remaining, resetAt: usage.resetAt } });
   } catch {
     try {
-      await releaseDailyRequest({ uid, projectId, serviceAccount, day: usage.day });
+      await settleDailyRequest({ uid, projectId, serviceAccount, day: usage.day, reservationId: usage.reservationId, outcome: "failure" });
     } catch (refundError) {
       console.error("Unable to refund interrupted AI request:", refundError?.message || "Unknown refund error");
     }
