@@ -270,10 +270,21 @@ export default async function handler(req, res) {
         max_output_tokens: 220
       })
     });
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
+      const upstreamError = data?.error || {};
+      const safeDiagnostic = {
+        upstreamStatus: response.status,
+        upstreamType: typeof upstreamError.type === "string" ? upstreamError.type.slice(0, 80) : undefined,
+        upstreamCode: typeof upstreamError.code === "string" ? upstreamError.code.slice(0, 80) : undefined
+      };
+      console.error("OpenAI Responses API request failed:", {
+        ...safeDiagnostic,
+        requestId: response.headers.get("x-request-id") || undefined
+      });
       return res.status(response.status === 429 ? 503 : 502).json({
-        error: response.status === 429 ? "The AI service is busy. Please try again shortly." : "The AI service could not complete the request."
+        error: response.status === 429 ? "The AI service is busy. Please try again shortly." : "The AI service could not complete the request.",
+        diagnostic: safeDiagnostic
       });
     }
     const reply = (data.output || []).filter(item => item.type === "message")
