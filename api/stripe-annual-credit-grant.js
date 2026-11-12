@@ -28,13 +28,12 @@ function asDate(value) {
   return null;
 }
 
-function addUtcMonth(date) {
+function addUtcMonth(date, anchorDay) {
   const next = new Date(date);
-  const day = next.getUTCDate();
   next.setUTCDate(1);
   next.setUTCMonth(next.getUTCMonth() + 1);
   const lastDay = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate();
-  next.setUTCDate(Math.min(day, lastDay));
+  next.setUTCDate(Math.min(anchorDay, lastDay));
   return next;
 }
 
@@ -134,7 +133,7 @@ export default async function handler(req, res) {
             creditsUpdatedAt: FieldValue.serverTimestamp()
           }, { merge: true });
           transaction.set(doc.ref, {
-            nextCreditGrantAt: addUtcMonth(currentDue),
+            nextCreditGrantAt: addUtcMonth(currentDue, Number(current.annualCreditGrantAnchorDay) || currentDue.getUTCDate()),
             lastAnnualCreditGrantAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp()
           }, { merge: true });
