@@ -126,6 +126,10 @@ export default async function handler(req, res) {
   let claimed = false;
   try {
     await services.db.runTransaction(async transaction => {
+      // Firestore may rerun this callback after a transaction conflict.
+      // Reset closure flags on every attempt so stale values cannot leak.
+      alreadyProcessed = false;
+      claimed = false;
       const existing = await transaction.get(eventRef);
       const current = existing.exists ? existing.data() : {};
       if (current.processed === true) {
