@@ -206,32 +206,49 @@ export default async function handler(req, res) {
       };
 
       if (event.type === "checkout.session.completed") {
-        await billingRef.set({
-          ...common,
-          checkoutSessionId: object.id,
-          checkoutPaymentStatus: object.payment_status || null,
-          checkoutMode: object.mode || null
-        }, { merge: true });
+        await services.db.runTransaction(async transaction => {
+          const current = await transaction.get(billingRef);
+          const data = current.exists ? current.data() : {};
+          const lastCreated = Number(data.checkoutEventCreated || 0);
+          if (event.created < lastCreated) return;
+          transaction.set(billingRef, {
+            ...common,
+            checkoutSessionId: object.id,
+            checkoutPaymentStatus: object.payment_status || null,
+            checkoutMode: object.mode || null,
+            checkoutEventCreated: event.created
+          }, { merge: true });
+        });
       } else if (event.type.startsWith("customer.subscription.")) {
         const subscription = object;
-        await billingRef.set({
-          ...common,
-          ...subscriptionData(subscription),
-          active: ["active", "trialing"].includes(subscription.status)
-        }, { merge: true });
+        await services.db.runTransaction(async transaction => {
+          const current = await transaction.get(billingRef);
+          const data = current.exists ? current.data() : {};
+          const lastCreated = Number(data.subscriptionEventCreated || 0);
+          if (event.created < lastCreated) return;
+          transaction.set(billingRef, {
+            ...common,
+            ...subscriptionData(subscription),
+            active: ["active", "trialing"].includes(subscription.status),
+            subscriptionEventCreated: event.created
+          }, { merge: true });
+        });
       } else if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
-        await billingRef.set({
-          ...common,
-          latestInvoiceId: object.id,
-          latestInvoiceStatus: event.type === "invoice.paid" ? "paid" : "payment_failed",
-          latestInvoiceAmountPaid: object.amount_paid ?? null,
-          latestInvoiceCurrency: object.currency || null
-        }, { merge: true });
-        if (event.type === "invoice.payment_failed") {
-          await billingRef.set({ paymentIssue: true }, { merge: true });
-        } else {
-          await billingRef.set({ paymentIssue: false }, { merge: true });
-        }
+        await services.db.runTransaction(async transaction => {
+          const current = await transaction.get(billingRef);
+          const data = current.exists ? current.data() : {};
+          const lastCreated = Number(data.invoiceEventCreated || 0);
+          if (event.created < lastCreated) return;
+          transaction.set(billingRef, {
+            ...common,
+            latestInvoiceId: object.id,
+            latestInvoiceStatus: event.type === "invoice.paid" ? "paid" : "payment_failed",
+            latestInvoiceAmountPaid: object.amount_paid ?? null,
+            latestInvoiceCurrency: object.currency || null,
+            paymentIssue: event.type === "invoice.payment_failed",
+            invoiceEventCreated: event.created
+          }, { merge: true });
+        });
       }
     }
 
