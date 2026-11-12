@@ -100,10 +100,12 @@ monthly.addEventListener("click",()=>setPeriod(false));annual.addEventListener("
 import {auth,authReady,onAuthStateChanged,signOut} from "./firebase-auth.js";
 const nav=document.getElementById("billingNav");
 const notice=document.getElementById("billingNotice");
+const monthlyButton=document.getElementById("monthly");
+const annualButton=document.getElementById("annual");
 let currentUser=null;
 let selectedPeriod="monthly";
-monthly.addEventListener("click",()=>{selectedPeriod="monthly";});
-annual.addEventListener("click",()=>{selectedPeriod="yearly";});
+monthlyButton?.addEventListener("click",()=>{selectedPeriod="monthly";});
+annualButton?.addEventListener("click",()=>{selectedPeriod="yearly";});
 function setNotice(message,isError=false){if(!notice)return;notice.textContent=message;notice.style.borderColor=isError?"rgba(255,120,120,.55)":"var(--line)";}
 function refreshCheckoutButtons(){document.querySelectorAll(".checkout-btn").forEach(button=>{button.disabled=!currentUser || !currentUser.emailVerified || button.dataset.loading==="true";button.style.cursor=button.disabled?"not-allowed":"pointer";button.style.opacity=button.disabled?".65":"1";});}
 document.querySelectorAll(".checkout-btn").forEach(button=>button.addEventListener("click",async()=>{
