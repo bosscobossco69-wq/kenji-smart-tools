@@ -59,12 +59,23 @@ export default async function handler(req, res) {
   try {
     const { stripe, db } = await getServices();
     const now = new Date();
-    const snapshot = await db.collectionGroup("billing").where("interval", "==", "year").limit(200).get();
+    const query = db.collectionGroup("billing").where("interval", "==", "year");
+    const pageSize = 200;
+    let lastDoc = null;
+    let scanned = 0;
     let granted = 0;
     let skipped = 0;
     let failed = 0;
 
-    for (const doc of snapshot.docs) {
+    while (true) {
+      let pageQuery = query.limit(pageSize);
+      if (lastDoc) pageQuery = pageQuery.startAfter(lastDoc);
+      const snapshot = await pageQuery.get();
+      if (snapshot.empty) break;
+      scanned += snapshot.size;
+      lastDoc = snapshot.docs[snapshot.docs.length - 1];
+
+      for (const doc of snapshot.docs) {
       const data = doc.data();
       const dueAt = asDate(data.nextCreditGrantAt);
       const periodEnd = asDate(data.currentPeriodEnd);
@@ -135,9 +146,10 @@ export default async function handler(req, res) {
       } catch {
         failed++;
       }
+      }
     }
 
-    return res.status(200).json({ ok: true, scanned: snapshot.size, granted, skipped, failed });
+    return res.status(200).json({ ok: true, scanned, granted, skipped, failed });
   } catch {
     return res.status(500).json({ error: "Annual Credits grant job failed." });
   }
