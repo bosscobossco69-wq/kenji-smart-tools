@@ -71,6 +71,14 @@ function addUtcMonth(date) {
   return next;
 }
 
+function getInvoiceSubscriptionId(invoice) {
+  const legacy = invoice?.subscription;
+  const current = invoice?.parent?.subscription_details?.subscription;
+  const value = legacy || current;
+  if (typeof value === "string") return value;
+  return typeof value?.id === "string" ? value.id : null;
+}
+
 function getFirebaseUid(object) {
   // Only accept server-controlled Stripe metadata. client_reference_id can be
   // supplied in a Payment Link URL and must never be trusted as an account ID.
@@ -183,8 +191,8 @@ export default async function handler(req, res) {
   try {
     const object = event.data.object;
     let invoiceSubscription = null;
-    if ((event.type === "invoice.paid" || event.type === "invoice.payment_failed") && object.subscription) {
-      const subscriptionId = typeof object.subscription === "string" ? object.subscription : object.subscription.id;
+    if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
+      const subscriptionId = getInvoiceSubscriptionId(object);
       if (subscriptionId) invoiceSubscription = await services.stripe.subscriptions.retrieve(subscriptionId);
     }
     let uid = getFirebaseUid(object) || getFirebaseUid(invoiceSubscription);
