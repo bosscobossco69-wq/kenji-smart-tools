@@ -61,6 +61,16 @@ function unixDate(seconds) {
   return Number.isFinite(seconds) ? new Date(seconds * 1000) : null;
 }
 
+function addUtcMonth(date) {
+  const next = new Date(date);
+  const day = next.getUTCDate();
+  next.setUTCDate(1);
+  next.setUTCMonth(next.getUTCMonth() + 1);
+  const lastDay = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate();
+  next.setUTCDate(Math.min(day, lastDay));
+  return next;
+}
+
 function getFirebaseUid(object) {
   // Only accept server-controlled Stripe metadata. client_reference_id can be
   // supplied in a Payment Link URL and must never be trusted as an account ID.
@@ -308,8 +318,7 @@ export default async function handler(req, res) {
               if (interval === "year") {
                 const periodStart = unixDate(invoiceSubscription.current_period_start);
                 if (!periodStart) throw new Error("Annual subscription period start is missing.");
-                const nextGrant = new Date(periodStart);
-                nextGrant.setUTCMonth(nextGrant.getUTCMonth() + 1);
+                const nextGrant = addUtcMonth(periodStart);
                 transaction.set(billingRef, {
                   nextCreditGrantAt: nextGrant,
                   annualCreditGrantSubscriptionId: invoiceSubscription.id,
