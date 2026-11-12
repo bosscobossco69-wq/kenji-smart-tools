@@ -322,7 +322,8 @@ export default async function handler(req, res) {
                 transaction.set(billingRef, {
                   nextCreditGrantAt: nextGrant,
                   annualCreditGrantSubscriptionId: invoiceSubscription.id,
-                  annualCreditGrantPlanId: planId
+                  annualCreditGrantPlanId: planId,
+                  annualCreditGrantAnchorDay: periodStart.getUTCDate()
                 }, { merge: true });
               }
               transaction.set(orderRef, {
