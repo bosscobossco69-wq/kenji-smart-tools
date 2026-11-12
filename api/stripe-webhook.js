@@ -283,7 +283,7 @@ export default async function handler(req, res) {
               ]);
               if (!orderSnap.exists) throw new Error("Checkout order was not found for paid invoice.");
               const order = orderSnap.data();
-              if (order.uid !== uid || order.planId !== planId || order.priceId !== item.price.id || order.currency !== "usd") {
+              if (order.uid !== uid || order.planId !== planId || order.interval !== (interval === "year" ? "yearly" : "monthly") || order.priceId !== item.price.id || order.currency !== "usd") {
                 throw new Error("Paid invoice does not match its pending Checkout order.");
               }
               if (ledgerSnap.exists) return;
