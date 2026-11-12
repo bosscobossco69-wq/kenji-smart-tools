@@ -51,3 +51,12 @@ The route verifies the Firebase ID token and verified email, reads the Price ID 
 ## Preview test matrix
 
 Use Stripe Test Mode and a dedicated test Firebase user. Verify: successful monthly checkout grants exactly one monthly allocation; replaying the same `invoice.paid` event does not add Credits again; a different renewal invoice grants one additional allocation; wrong Price ID / missing order does not grant Credits; failed invoice does not grant Credits; yearly invoice does not issue a yearly lump sum. Also verify subscription cancellation and payment-failure status separately.
+
+## Annual subscription monthly Credits scheduler
+
+- `api/stripe-annual-credit-grant.js` runs daily at 03:00 UTC through the Vercel Cron entry in `vercel.json`.
+- Set a strong server-only Vercel environment variable named `CRON_SECRET`. Vercel Cron must call the endpoint with `Authorization: Bearer <CRON_SECRET>`; manual calls without the matching secret are rejected.
+- When an annual subscription invoice is paid, the webhook grants one monthly allocation and initializes `nextCreditGrantAt` to one calendar month after the subscription period start.
+- The scheduled job checks the current Stripe subscription status, grants at most one overdue monthly allocation per subscription per run, writes a deterministic month ledger record, increments the balance atomically, and advances the next grant date.
+- It stops granting at or beyond the subscription period end and skips inactive subscriptions. A new paid annual renewal invoice initializes the next annual cycle.
+- Configure the CRON_SECRET in Preview before testing. Confirm the Vercel project plan supports the configured daily Cron schedule and inspect Cron invocation logs. This code has not yet been runtime-tested against Stripe or Firestore.
