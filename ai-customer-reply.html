@@ -93,19 +93,40 @@ body.ai-reply-page{min-height:100vh;margin:0;background:#17120e;color:#f4efe6;fo
 <div id="status" class="status" role="status" aria-live="polite"></div>
 </div>
 </section></main>
-<script>
+<script type="module">
+import { auth, authReady, onAuthStateChanged, reload } from "/workspace/firebase-auth.js";
+const initialAuthUser = new Promise((resolve, reject) => {
+ let unsubscribe = () => {};
+ authReady.then(() => {
+  unsubscribe = onAuthStateChanged(auth, user => { unsubscribe(); resolve(user); }, reject);
+ }).catch(reject);
+});
 let tone="professional",reply="";const $=id=>document.getElementById(id);
 const setStatus=(message,isError=false)=>{$("status").textContent=message;$("status").style.color=isError?"#ff9b9b":"#d6b88c"};
 async function generate(){
  const message=$("message").value.trim(),scenario=$("scenario").value;
  if(!message){setStatus("Enter the customer's message first.",true);$("message").focus();return}
+ const signedInUser = await initialAuthUser;
+ if(!signedInUser){setStatus("Please sign in with your verified workspace account first.",true);location.href="/workspace/login.html";return}
  const button=$("generate");button.disabled=true;button.textContent="Generating...";
  $("copy").disabled=true;setStatus("Generating reply...");
  try{
-  const response=await fetch("/api/generate-reply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message,scenario,tone})});
+  await reload(signedInUser);
+  if(!signedInUser.emailVerified){
+   setStatus("Please verify your email address, then sign in again.",true);
+   location.href="/workspace/login.html";
+   return;
+  }
+  const idToken=await signedInUser.getIdToken(true);
+  const response=await fetch("/api/generate-reply",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${idToken}`},body:JSON.stringify({message,scenario,tone})});
   const data=await response.json();
-  if(!response.ok)throw new Error(data.error||"Unable to generate a reply.");
-  reply=data.reply;$("result").textContent=reply;$("result").classList.remove("empty");$("copy").disabled=false;setStatus("Reply ready.");
+  if(!response.ok){
+   const detail = data.diagnostic
+    ? (typeof data.diagnostic === "string" ? data.diagnostic : JSON.stringify(data.diagnostic))
+    : "";
+   throw new Error((data.error||"Unable to generate a reply.") + (detail ? ` ${detail}` : ""));
+  }
+  reply=data.reply;$("result").textContent=reply;$("result").classList.remove("empty");$("copy").disabled=false;setStatus(`Reply ready. ${data.usage?.remaining ?? "?"} requests remaining today (UTC).`);
  }catch(error){reply="";$("result").textContent="Your generated reply will appear here.";$("result").classList.add("empty");setStatus(error.message||"Something went wrong. Please try again.",true)}
  finally{button.disabled=false;button.textContent="Generate reply"}
 }
