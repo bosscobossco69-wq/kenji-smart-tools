@@ -19,6 +19,13 @@ function getServices() {
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const rawAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
       if (!stripeKey || !projectId || !rawAccount) throw new Error("Billing service is not configured.");
+      if (process.env.VERCEL_ENV === "production") {
+        if (!stripeKey.startsWith("sk_live_") || process.env.STRIPE_LIVE_CHECKOUT_ENABLED !== "true") {
+          throw new Error("Live Stripe checkout is disabled.");
+        }
+      } else if (!stripeKey.startsWith("sk_test_")) {
+        throw new Error("Preview checkout requires a Stripe Test Mode key.");
+      }
       let account;
       try { account = JSON.parse(rawAccount); } catch { throw new Error("Firebase service account is invalid."); }
       if (account.project_id !== projectId) throw new Error("Firebase project mismatch.");
