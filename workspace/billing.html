@@ -107,6 +107,12 @@ let selectedPeriod="monthly";
 monthlyButton?.addEventListener("click",()=>{selectedPeriod="monthly";});
 annualButton?.addEventListener("click",()=>{selectedPeriod="yearly";});
 function setNotice(message,isError=false){if(!notice)return;notice.textContent=message;notice.style.borderColor=isError?"rgba(255,120,120,.55)":"var(--line)";}
+const checkoutResult=new URLSearchParams(location.search).get("checkout");
+if(checkoutResult==="success" || checkoutResult==="credits-success"){
+ setNotice("You returned from Stripe Checkout. Payment confirmation and Credits are processed securely by the Stripe webhook; check your account for the confirmed balance.");
+}else if(checkoutResult==="cancelled"){
+ setNotice("Checkout was cancelled. No Credits were added.");
+}
 function refreshCheckoutButtons(){document.querySelectorAll(".checkout-btn,.credit-pack-btn").forEach(button=>{button.disabled=!currentUser || !currentUser.emailVerified || button.dataset.loading==="true";button.style.cursor=button.disabled?"not-allowed":"pointer";button.style.opacity=button.disabled?".65":"1";});}
 document.querySelectorAll(".checkout-btn").forEach(button=>button.addEventListener("click",async()=>{
  if(!currentUser || !currentUser.emailVerified){setNotice("Please sign in and verify your email before checkout.",true);return;}
