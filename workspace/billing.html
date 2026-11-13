@@ -71,15 +71,15 @@ a{color:var(--cyan);text-decoration:none}.shell{width:min(1160px,calc(100% - 32p
 <section class="section" aria-labelledby="credits-title">
 <h2 id="credits-title">Buy extra Credits</h2><p class="muted">One-time purchase. No subscription or automatic renewal.</p>
 <div class="packs">
-<article class="card pack"><div class="plan-name">Mini Pack</div><div class="price">$5</div><div class="credits">10,000 Credits</div><button class="btn" disabled>Purchase coming soon</button></article>
-<article class="card pack"><div class="plan-name">Basic Pack</div><div class="price">$20</div><div class="credits">50,000 Credits</div><button class="btn" disabled>Purchase coming soon</button></article>
-<article class="card pack"><div class="plan-name">Pro Pack</div><div class="price">$35</div><div class="credits">100,000 Credits</div><button class="btn" disabled>Purchase coming soon</button></article>
-<article class="card pack"><div class="plan-name">Business Pack</div><div class="price">$150</div><div class="credits">500,000 Credits</div><button class="btn" disabled>Purchase coming soon</button></article>
+<article class="card pack"><div class="plan-name">Mini Pack</div><div class="price">$5</div><div class="credits">10,000 Credits</div><button class="btn credit-pack-btn" type="button" data-pack="mini">Buy Credits securely</button></article>
+<article class="card pack"><div class="plan-name">Basic Pack</div><div class="price">$20</div><div class="credits">50,000 Credits</div><button class="btn credit-pack-btn" type="button" data-pack="basic">Buy Credits securely</button></article>
+<article class="card pack"><div class="plan-name">Pro Pack</div><div class="price">$35</div><div class="credits">100,000 Credits</div><button class="btn credit-pack-btn" type="button" data-pack="pro">Buy Credits securely</button></article>
+<article class="card pack"><div class="plan-name">Business Pack</div><div class="price">$150</div><div class="credits">500,000 Credits</div><button class="btn credit-pack-btn" type="button" data-pack="business">Buy Credits securely</button></article>
 </div>
 </section>
 <section class="section" aria-labelledby="payment-methods-title">
 <h2 id="payment-methods-title">Payment methods</h2>
-<p class="muted">We're preparing secure payment options. Checkout is not available yet; no payment or Credits will be processed on this page.</p>
+<p class="muted">Stripe Checkout is used for secure card payments. Other local payment methods are being prepared separately.</p>
 <div class="packs">
 <article class="card"><div class="plan-name">Touch 'n Go eWallet</div><p class="muted">Merchant payment · manual verification planned</p><button class="btn" type="button" disabled>Coming Soon</button></article>
 <article class="card"><div class="plan-name">Maybank Transfer</div><p class="muted">Bank transfer · manual verification planned</p><button class="btn" type="button" disabled>Coming Soon</button></article>
@@ -87,7 +87,7 @@ a{color:var(--cyan);text-decoration:none}.shell{width:min(1160px,calc(100% - 32p
 <article class="card"><div class="plan-name">Apple Pay &amp; Google Pay</div><p class="muted">Payment provider integration planned</p><button class="btn" type="button" disabled>Coming Soon</button></article>
 </div>
 </section>
-<div class="note" id="billingNotice" role="status" aria-live="polite"><strong style="color:#e8f3ff">Secure billing preview.</strong><br>Subscription checkout is available only for signed-in, email-verified accounts after the matching Stripe Price IDs are configured for this Preview deployment. Credits are issued only after verified Stripe invoice events.</div>
+<div class="note" id="billingNotice" role="status" aria-live="polite"><strong style="color:#e8f3ff">Secure billing preview.</strong><br>Checkout requires a signed-in, email-verified account. Subscription plans require matching server-side Stripe Price IDs. One-time Credits packs use fixed server-side prices. Credits are added only after verified Stripe payment events.</div>
 </main>
 <footer class="foot">KENJI AI Workspace · Billing Center · Draft interface</footer>
 </div>
@@ -107,7 +107,7 @@ let selectedPeriod="monthly";
 monthlyButton?.addEventListener("click",()=>{selectedPeriod="monthly";});
 annualButton?.addEventListener("click",()=>{selectedPeriod="yearly";});
 function setNotice(message,isError=false){if(!notice)return;notice.textContent=message;notice.style.borderColor=isError?"rgba(255,120,120,.55)":"var(--line)";}
-function refreshCheckoutButtons(){document.querySelectorAll(".checkout-btn").forEach(button=>{button.disabled=!currentUser || !currentUser.emailVerified || button.dataset.loading==="true";button.style.cursor=button.disabled?"not-allowed":"pointer";button.style.opacity=button.disabled?".65":"1";});}
+function refreshCheckoutButtons(){document.querySelectorAll(".checkout-btn,.credit-pack-btn").forEach(button=>{button.disabled=!currentUser || !currentUser.emailVerified || button.dataset.loading==="true";button.style.cursor=button.disabled?"not-allowed":"pointer";button.style.opacity=button.disabled?".65":"1";});}
 document.querySelectorAll(".checkout-btn").forEach(button=>button.addEventListener("click",async()=>{
  if(!currentUser || !currentUser.emailVerified){setNotice("Please sign in and verify your email before checkout.",true);return;}
  button.dataset.loading="true";button.textContent="Creating secure checkout…";refreshCheckoutButtons();
@@ -119,6 +119,18 @@ document.querySelectorAll(".checkout-btn").forEach(button=>button.addEventListen
   if(!result.url.startsWith("https://checkout.stripe.com/"))throw new Error("Stripe returned an unexpected checkout address.");
   window.location.assign(result.url);
  }catch(error){setNotice(error.message||"Unable to start checkout. Please try again.",true);button.dataset.loading="false";button.textContent="Continue to secure checkout";refreshCheckoutButtons();}
+}));
+document.querySelectorAll(".credit-pack-btn").forEach(button=>button.addEventListener("click",async()=>{
+ if(!currentUser || !currentUser.emailVerified){setNotice("Please sign in and verify your email before purchasing Credits.",true);return;}
+ button.dataset.loading="true";button.textContent="Creating secure checkout…";refreshCheckoutButtons();
+ try{
+  const idToken=await currentUser.getIdToken(true);
+  const response=await fetch("/api/stripe-credit-checkout",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${idToken}`},body:JSON.stringify({packId:button.dataset.pack})});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok || typeof result.url!=="string")throw new Error(result.error||"Credits checkout is not configured yet.");
+  if(!result.url.startsWith("https://checkout.stripe.com/"))throw new Error("Stripe returned an unexpected checkout address.");
+  window.location.assign(result.url);
+ }catch(error){setNotice(error.message||"Unable to start Credits checkout. Please try again.",true);button.dataset.loading="false";button.textContent="Buy Credits securely";refreshCheckoutButtons();}
 }));
 await authReady;
 onAuthStateChanged(auth,user=>{
