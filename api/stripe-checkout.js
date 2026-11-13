@@ -141,7 +141,11 @@ export default async function handler(req, res) {
       throw error;
     }
   } catch (error) {
-    const status = error?.message === "This plan's Stripe price is not configured yet." ? 503 : 500;
-    return res.status(status).json({ error: status === 503 ? error.message : "Could not create a secure checkout session." });
+    const message = error?.message || "";
+    const configurationError = /not configured|disabled|requires a Stripe Test Mode|not allowlisted|secure site origin/i.test(message);
+    const status = configurationError ? 503 : 500;
+    return res.status(status).json({
+      error: status === 503 ? message : "Could not create a secure checkout session."
+    });
   }
 }
