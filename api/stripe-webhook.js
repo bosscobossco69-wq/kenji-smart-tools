@@ -233,7 +233,7 @@ export default async function handler(req, res) {
         updatedAt: FieldValue.serverTimestamp()
       };
 
-      if (event.type === "checkout.session.completed") {
+      if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
         await services.db.runTransaction(async transaction => {
           const current = await transaction.get(billingRef);
           const data = current.exists ? current.data() : {};
@@ -247,6 +247,59 @@ export default async function handler(req, res) {
             checkoutEventCreated: event.created
           }, { merge: true });
         });
+
+        // One-time Credits packs are granted only after Stripe confirms payment.
+        if (object.mode === "payment" && object.metadata?.purchaseType === "credit_pack" &&
+            object.payment_status === "paid") {
+          const metadata = object.metadata || {};
+          const orderId = metadata.orderId;
+          const packId = metadata.packId;
+          const credits = Number(metadata.credits);
+          const orderRef = services.db.collection("billingOrders").doc(orderId || "__invalid__");
+          const ledgerRef = services.db.collection("users").doc(uid).collection("creditLedger")
+            .doc(`stripe_checkout_${object.id}`);
+          const userRef = services.db.collection("users").doc(uid);
+          if (!orderId || !packId || !Number.isSafeInteger(credits) || credits <= 0 ||
+              !Number.isSafeInteger(object.amount_total) || object.currency !== "usd") {
+            throw new Error("Paid Credits Checkout metadata is invalid.");
+          }
+          await services.db.runTransaction(async transaction => {
+            const [orderSnap, ledgerSnap, userSnap] = await Promise.all([
+              transaction.get(orderRef), transaction.get(ledgerRef), transaction.get(userRef)
+            ]);
+            if (!orderSnap.exists) throw new Error("Credits Checkout order was not found.");
+            const order = orderSnap.data();
+            if (order.uid !== uid || order.type !== "credit_pack" || order.packId !== packId ||
+                order.credits !== credits || order.amount !== object.amount_total ||
+                order.currency !== object.currency || order.stripeCheckoutSessionId !== object.id) {
+              throw new Error("Paid Credits Checkout does not match its pending order.");
+            }
+            if (ledgerSnap.exists) return;
+            const balance = Number(userSnap.exists ? userSnap.data()?.creditsBalance || 0 : 0);
+            if (!Number.isSafeInteger(balance) || balance < 0) throw new Error("Invalid Credits balance.");
+            transaction.create(ledgerRef, {
+              type: "credit_pack_purchase",
+              source: "stripe_checkout",
+              stripeCheckoutSessionId: object.id,
+              stripePaymentIntentId: typeof object.payment_intent === "string" ? object.payment_intent : object.payment_intent?.id || null,
+              orderId,
+              packId,
+              credits,
+              currency: object.currency,
+              amountPaid: object.amount_total,
+              createdAt: FieldValue.serverTimestamp()
+            });
+            transaction.set(userRef, {
+              creditsBalance: balance + credits,
+              creditsUpdatedAt: FieldValue.serverTimestamp()
+            }, { merge: true });
+            transaction.set(orderRef, {
+              status: "paid",
+              paidAt: FieldValue.serverTimestamp(),
+              updatedAt: FieldValue.serverTimestamp()
+            }, { merge: true });
+          });
+        }
       } else if (event.type.startsWith("customer.subscription.")) {
         const subscription = object;
         await services.db.runTransaction(async transaction => {
