@@ -44,8 +44,10 @@ function monthKey(date) {
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
+  // Vercel Cron invokes API routes with GET. POST is also accepted for an
+  // authenticated manual Preview run.
+  if (req.method !== "GET" && req.method !== "POST") {
+    res.setHeader("Allow", "GET, POST");
     return res.status(405).json({ error: "Method not allowed." });
   }
 
