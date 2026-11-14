@@ -3,7 +3,9 @@ import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 
-const CREDIT_COST = Math.max(1, Math.floor(Number(process.env.AI_REPLY_CREDIT_COST || 1)));
+const configuredCreditCost = Number(process.env.AI_REPLY_CREDIT_COST || 1);
+const CREDIT_COST = Number.isFinite(configuredCreditCost) && configuredCreditCost >= 1
+  ? Math.floor(configuredCreditCost) : 1;
 const MAX_MESSAGE_LENGTH = 1200;
 const scenarios = new Set(["price", "discount", "delay", "service", "followup"]);
 const tones = new Set(["professional", "friendly", "direct"]);
