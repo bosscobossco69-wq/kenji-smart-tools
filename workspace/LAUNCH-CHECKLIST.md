@@ -22,6 +22,14 @@ Provider endpoint: `https://api.groq.com/openai/v1/responses`. The free tier has
 
 After adding or changing environment variables, redeploy the relevant Preview deployment.
 
+## AI Customer Reply — Credits and reply retention
+
+- Permanent financial records live in `users/{uid}/creditLedger/{requestId}` and retain the Credit delta, request hash, status, timestamps and reservation lease metadata only.
+- Generated replies are stored separately in `users/{uid}/aiReplyCache/{requestId}` for idempotent retries, with an `expiresAt` timestamp one hour after creation. The reply text is not written into the permanent financial ledger.
+- **Required one-time Firestore setting:** create a Time-to-live policy for collection group `aiReplyCache` using the `expiresAt` field. Without this policy, the application stops serving expired cache entries, but Firestore does not automatically delete the documents.
+- AI Credit reservations use a five-minute lease. A retry with the same request ID can reclaim an expired lease; a lease token prevents a late earlier execution from completing or refunding a newer reservation.
+- Verify in Preview that duplicate requests do not double-charge, stale reservations can be retried, and expired reply-cache documents are removed by Firestore TTL.
+
 ## Pre-launch verification
 
 - [ ] Open the deployed Workspace landing page and verify every navigation link.
