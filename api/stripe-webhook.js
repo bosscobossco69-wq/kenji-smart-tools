@@ -117,6 +117,14 @@ async function getOrderCreatedAtKey(db, orderId) {
   return timestampOrderKey(orderSnap.data()?.createdAt);
 }
 
+async function getOrderCheckoutSessionId(db, orderId) {
+  if (typeof orderId !== "string" || !orderId) return null;
+  const orderSnap = await db.collection("billingOrders").doc(orderId).get();
+  if (!orderSnap.exists) return null;
+  const sessionId = orderSnap.data()?.stripeCheckoutSessionId;
+  return typeof sessionId === "string" && sessionId ? sessionId : null;
+}
+
 function subscriptionData(subscription) {
   const item = subscription.items?.data?.[0];
   return {
@@ -285,19 +293,9 @@ export default async function handler(req, res) {
     }
     if (!uid) uid = getFirebaseUid(customer);
 
-    // Payment Links may not carry Firebase UID metadata. In that case, match only
-    // an exact, verified Firebase email from the Stripe customer/session.
-    if (!uid) {
-      const email = object?.customer_details?.email || object?.customer_email || customer?.email;
-      if (typeof email === "string" && email.includes("@")) {
-        try {
-          const matchedUser = await services.auth.getUserByEmail(email);
-          if (matchedUser.emailVerified) uid = matchedUser.uid;
-        } catch (error) {
-          if (error?.code !== "auth/user-not-found") throw error;
-        }
-      }
-    }
+    // Never infer Firebase account ownership from Checkout/customer email.
+    // Only server-written Stripe metadata may link billing to a Firebase UID.
+    // Public Payment Links without that metadata remain unlinked for explicit reconciliation.
 
     if (uid) {
       // Verify that the UID belongs to a real Firebase account before granting billing state.
@@ -328,6 +326,7 @@ export default async function handler(req, res) {
         const orderId = object.metadata?.orderId || null;
         const orderCreatedAtMs = await getOrderCreatedAtMs(services.db, orderId);
         const orderCreatedAtKey = await getOrderCreatedAtKey(services.db, orderId);
+        const orderCheckoutSessionId = await getOrderCheckoutSessionId(services.db, orderId);
         const paymentStatusRank = status => ({
           unpaid: 0,
           failed: 1,
@@ -352,13 +351,27 @@ export default async function handler(req, res) {
                 }
                 if (incomingSessionCreated < currentSessionCreated) return;
                 if (incomingSessionCreated === currentSessionCreated) {
-                  throw new Error("Cannot safely order distinct Checkout sessions for the same order within one second.");
+                  const pending = data.pendingSubscriptionCheckout;
+                  const authoritativeSessionId =
+                    pending?.orderId === orderId && typeof pending.sessionId === "string"
+                      ? pending.sessionId
+                      : orderCheckoutSessionId;
+                  // Use the session selected by the server-side checkout reservation/order.
+                  // If no authoritative pointer exists, keep the existing billing pointer
+                  // rather than retrying an immutable same-second ambiguity forever.
+                  if (authoritativeSessionId) {
+                    if (object.id !== authoritativeSessionId) return;
+                  } else {
+                    return;
+                  }
                 }
               }
             } else if (incomingSessionCreated < currentSessionCreated) {
               return;
             } else if (incomingSessionCreated === currentSessionCreated) {
-              throw new Error("Cannot safely order Checkout sessions created in the same second without order timestamps.");
+              // No reliable order key exists. Keep the current pointer rather than
+              // retrying a same-second ambiguity indefinitely.
+              return;
             }
           }
           if (sameSession && event.created < Number(data.checkoutEventCreated || 0)) return;
@@ -441,17 +454,29 @@ export default async function handler(req, res) {
               !transactionCurrentOrderKey;
             if (!missingLegacyPointerWithoutWatermark) {
               if (!transactionCurrentCreated) {
-                throw new Error("Cannot safely order subscription replacement without a current creation timestamp.");
-              }
-              if (incomingCreated < transactionCurrentCreated) return;
-              if (incomingCreated === transactionCurrentCreated) {
+                // Some older billing records have an order watermark but predate
+                // stripeSubscriptionCreated. Compare the surviving order key.
                 if (!incomingOrderKey || !transactionCurrentOrderKey) {
-                  throw new Error("Cannot safely order subscriptions created in the same second.");
+                  throw new Error("Cannot safely order subscription replacement without a creation or order watermark.");
                 }
                 if (incomingOrderKey < transactionCurrentOrderKey) return;
-                if (incomingOrderKey === transactionCurrentOrderKey &&
-                    incomingOrderId !== transactionCurrentOrderId) {
+                if (incomingOrderKey === transactionCurrentOrderKey) {
+                  if (incomingOrderId === transactionCurrentOrderId) return;
                   throw new Error("Subscription replacement order timestamps are ambiguous.");
+                }
+              } else {
+                if (incomingCreated < transactionCurrentCreated) return;
+                if (incomingCreated === transactionCurrentCreated) {
+                  if (!incomingOrderKey || !transactionCurrentOrderKey) {
+                    throw new Error("Cannot safely order subscriptions created in the same second.");
+                  }
+                  if (incomingOrderKey < transactionCurrentOrderKey) return;
+                  if (incomingOrderKey === transactionCurrentOrderKey) {
+                    // Distinct subscriptions cannot be ordered by identical Stripe
+                    // second and identical billing order; retain the current pointer.
+                    if (incomingOrderId === transactionCurrentOrderId) return;
+                    throw new Error("Subscription replacement order timestamps are ambiguous.");
+                  }
                 }
               }
             }
