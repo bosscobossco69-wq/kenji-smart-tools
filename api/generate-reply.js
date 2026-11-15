@@ -82,6 +82,23 @@ async function reserveCredits(db, uid, requestId, hash) {
         if (typeof cached.reply === "string" && cached.requestHash === hash && expiresAtMs > nowMs) {
           return { cachedReply: cached.reply };
         }
+
+        // One-time migration for older ledger entries that stored the reply
+        // beside the permanent financial record. Move it into the TTL cache.
+        if (typeof existing.reply === "string" && existing.reply.trim()) {
+          tx.set(cacheRef, {
+            requestHash: hash,
+            reply: existing.reply,
+            createdAt: FieldValue.serverTimestamp(),
+            expiresAt: new Date(nowMs + AI_REPLY_CACHE_TTL_MS)
+          });
+          tx.set(ledgerRef, {
+            reply: FieldValue.delete(),
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+          return { cachedReply: existing.reply };
+        }
+
         if (cacheSnap.exists) tx.delete(cacheRef);
         return {
           error: "This reply was already completed. Clear the form to start a new request.",
