@@ -475,9 +475,6 @@ export default async function handler(req, res) {
         if (latestInvoiceSnapshot) {
           const invoiceStatus = latestInvoiceSnapshot.status || "open";
           const invoiceSubscriptionOrderId = relatedSubscription?.metadata?.orderId || null;
-          const invoiceSubscriptionOrderAt = Number(
-            await getOrderCreatedAtMs(services.db, invoiceSubscriptionOrderId) || 0
-          );
           const invoiceSubscriptionOrderKey =
             await getOrderCreatedAtKey(services.db, invoiceSubscriptionOrderId);
           await services.db.runTransaction(async transaction => {
@@ -537,12 +534,16 @@ export default async function handler(req, res) {
       }
     }
 
-    if (!uid && (
-      event.type.startsWith("checkout.session.") ||
+    const requiresVerifiedAccount = [
+      "checkout.session.completed",
+      "checkout.session.async_payment_succeeded",
+      "checkout.session.async_payment_failed"
+    ].includes(event.type) ||
       event.type.startsWith("customer.subscription.") ||
       event.type === "invoice.paid" ||
-      event.type === "invoice.payment_failed"
-    )) {
+      event.type === "invoice.payment_failed";
+
+    if (!uid && requiresVerifiedAccount) {
       throw new Error("Stripe billing event is not linked to a verified Firebase account yet.");
     }
 
