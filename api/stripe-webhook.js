@@ -176,19 +176,9 @@ export default async function handler(req, res) {
     }
     if (!uid) uid = getFirebaseUid(customer);
 
-    // Payment Links may not carry Firebase UID metadata. In that case, match only
-    // an exact, verified Firebase email from the Stripe customer/session.
-    if (!uid) {
-      const email = object?.customer_details?.email || object?.customer_email || customer?.email;
-      if (typeof email === "string" && email.includes("@")) {
-        try {
-          const matchedUser = await services.auth.getUserByEmail(email);
-          if (matchedUser.emailVerified) uid = matchedUser.uid;
-        } catch (error) {
-          if (error?.code !== "auth/user-not-found") throw error;
-        }
-      }
-    }
+    // Never infer Firebase account ownership from Checkout/customer email.
+    // Only server-written Stripe metadata may link billing to a Firebase UID.
+    // Public Payment Links without that metadata remain unlinked for explicit reconciliation.
 
     if (uid) {
       // Verify that the UID belongs to a real Firebase account before granting billing state.
