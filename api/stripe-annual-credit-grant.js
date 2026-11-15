@@ -77,12 +77,16 @@ export default async function handler(req, res) {
         const data = doc.data();
         const dueAt = asDate(data.nextCreditGrantAt);
         const periodEnd = asDate(data.currentPeriodEnd);
+        const currentPeriodStart = asDate(data.currentPeriodStart);
+        const grantPeriodStart = asDate(data.annualCreditGrantPeriodStart);
         const subscriptionId = data.stripeSubscriptionId;
         const uid = doc.ref.parent.parent?.id;
         const planId = data.annualCreditGrantPlanId || data.planId;
         const credits = PLAN_CREDITS[planId];
 
         if (!data.active || !dueAt || dueAt > now || !periodEnd || dueAt >= periodEnd ||
+            !currentPeriodStart || !grantPeriodStart ||
+            currentPeriodStart.getTime() !== grantPeriodStart.getTime() ||
             !subscriptionId || !uid || !credits ||
             data.annualCreditGrantSubscriptionId !== subscriptionId) {
           skipped++;
@@ -109,9 +113,13 @@ export default async function handler(req, res) {
             const current = billingSnap.data();
             const currentDue = asDate(current.nextCreditGrantAt);
             const currentEnd = asDate(current.currentPeriodEnd);
+            const currentPeriodStart = asDate(current.currentPeriodStart);
+            const grantPeriodStart = asDate(current.annualCreditGrantPeriodStart);
             if (current.stripeSubscriptionId !== subscriptionId ||
                 current.annualCreditGrantSubscriptionId !== subscriptionId ||
                 !current.active || !currentDue || currentDue.getTime() !== dueAt.getTime() ||
+                !currentPeriodStart || !grantPeriodStart ||
+                currentPeriodStart.getTime() !== grantPeriodStart.getTime() ||
                 currentDue > new Date() || !currentEnd || currentDue >= currentEnd) return;
 
             const balance = Number(current.creditBalance ?? 0);
