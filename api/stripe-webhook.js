@@ -66,10 +66,12 @@ function isMissingStripeResource(error) {
 }
 
 function getFirebaseUid(object) {
-  const metadataUid = object?.metadata?.firebaseUID || object?.metadata?.firebase_uid;
-  const clientReference = object?.client_reference_id;
-  const candidate = metadataUid || clientReference;
-  return typeof candidate === "string" && candidate.length <= 128 ? candidate : null;
+  // Only accept server-controlled Stripe metadata as an account identifier.
+  // client_reference_id can be supplied through Payment Link URL parameters.
+  const candidate = object?.metadata?.firebaseUID || object?.metadata?.firebase_uid;
+  return typeof candidate === "string" && candidate.length > 0 && candidate.length <= 128
+    ? candidate
+    : null;
 }
 
 
