@@ -259,9 +259,6 @@ export default async function handler(req, res) {
       } else if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
         // Only the subscription's current latest invoice may update the
         // displayed payment state; an older invoice event cannot replace it.
-        if (latestInvoiceSnapshot && latestInvoiceSnapshot.id === (typeof object.subscription === "string" ? object.subscription : object.subscription?.id || object.parent?.subscription_details?.subscription) ) {
-          // No-op: subscription ID and invoice ID are different object types.
-        }
         if (latestInvoiceSnapshot) {
           const invoiceStatus = latestInvoiceSnapshot.status || "open";
           await services.db.runTransaction(async transaction => {
