@@ -434,9 +434,12 @@ export default async function handler(req, res) {
 
           if (currentSubscriptionId && currentSubscriptionId !== subscription.id) {
             if (!incomingCreated) throw new Error("Incoming subscription creation timestamp is missing.");
-            if (existingSubscriptionMissing && currentSubscriptionId === existingSubscriptionId) {
-              // Stripe confirmed that the previously stored pointer no longer exists.
-            } else {
+            const missingLegacyPointerWithoutWatermark =
+              existingSubscriptionMissing &&
+              currentSubscriptionId === existingSubscriptionId &&
+              !transactionCurrentCreated &&
+              !transactionCurrentOrderKey;
+            if (!missingLegacyPointerWithoutWatermark) {
               if (!transactionCurrentCreated) {
                 throw new Error("Cannot safely order subscription replacement without a current creation timestamp.");
               }
