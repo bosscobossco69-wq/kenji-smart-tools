@@ -318,23 +318,44 @@ export default async function handler(req, res) {
       };
 
       if (event.type === "checkout.session.completed" && !isPackCheckout) {
-        await billingRef.set({
-          ...common,
-          checkoutSessionId: object.id,
-          checkoutPaymentStatus: object.payment_status || null,
-          checkoutMode: object.mode || null
-        }, { merge: true });
+        await db.runTransaction(async tx => {
+          const snap = await tx.get(billingRef);
+          const current = snap.exists ? snap.data() : {};
+          if (event.created < Number(current.checkoutEventCreated || 0)) return;
+          tx.set(billingRef, {
+            ...common,
+            checkoutSessionId: object.id,
+            checkoutPaymentStatus: object.payment_status || null,
+            checkoutMode: object.mode || null,
+            checkoutEventCreated: event.created
+          }, { merge: true });
+        });
       } else if (event.type.startsWith("customer.subscription.")) {
-        await billingRef.set({ ...common, ...subscriptionData(object) }, { merge: true });
+        await db.runTransaction(async tx => {
+          const snap = await tx.get(billingRef);
+          const current = snap.exists ? snap.data() : {};
+          if (event.created < Number(current.subscriptionEventCreated || 0)) return;
+          tx.set(billingRef, {
+            ...common,
+            ...subscriptionData(object),
+            subscriptionEventCreated: event.created
+          }, { merge: true });
+        });
       } else if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
-        await billingRef.set({
-          ...common,
-          latestInvoiceId: object.id,
-          latestInvoiceStatus: event.type === "invoice.paid" ? "paid" : "payment_failed",
-          latestInvoiceAmountPaid: object.amount_paid ?? null,
-          latestInvoiceCurrency: object.currency || null,
-          paymentIssue: event.type === "invoice.payment_failed"
-        }, { merge: true });
+        await db.runTransaction(async tx => {
+          const snap = await tx.get(billingRef);
+          const current = snap.exists ? snap.data() : {};
+          if (event.created < Number(current.invoiceEventCreated || 0)) return;
+          tx.set(billingRef, {
+            ...common,
+            latestInvoiceId: object.id,
+            latestInvoiceStatus: event.type === "invoice.paid" ? "paid" : "payment_failed",
+            latestInvoiceAmountPaid: object.amount_paid ?? null,
+            latestInvoiceCurrency: object.currency || null,
+            paymentIssue: event.type === "invoice.payment_failed",
+            invoiceEventCreated: event.created
+          }, { merge: true });
+        });
       }
     }
 
