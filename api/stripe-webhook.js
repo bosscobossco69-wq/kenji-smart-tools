@@ -75,6 +75,19 @@ function getFirebaseUid(object) {
 }
 
 
+async function getOrderCreatedAtMs(db, orderId) {
+  if (typeof orderId !== "string" || !orderId) return null;
+  const orderSnap = await db.collection("billingOrders").doc(orderId).get();
+  if (!orderSnap.exists) return null;
+  const value = orderSnap.data()?.createdAt;
+  const milliseconds = typeof value?.toMillis === "function"
+    ? value.toMillis()
+    : value instanceof Date
+      ? value.getTime()
+      : Number(value);
+  return Number.isFinite(milliseconds) && milliseconds > 0 ? milliseconds : null;
+}
+
 function subscriptionData(subscription) {
   const item = subscription.items?.data?.[0];
   return {
@@ -148,7 +161,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const object = event.data.object;
+    let object = event.data.object;
     let uid = getFirebaseUid(object);
     let customer = null;
     const customerId = typeof object?.customer === "string" ? object.customer : object?.customer?.id;
@@ -197,23 +210,75 @@ export default async function handler(req, res) {
         "checkout.session.async_payment_succeeded",
         "checkout.session.async_payment_failed"
       ].includes(event.type)) {
-        const paymentStatus = event.type === "checkout.session.async_payment_succeeded"
+        // Always reconcile against Stripe's current Checkout Session. Event
+        // snapshots may be delivered out of order, including async success
+        // before checkout.session.completed.
+        object = await services.stripe.checkout.sessions.retrieve(object.id);
+        const incomingPaymentStatus = event.type === "checkout.session.async_payment_succeeded"
           ? "paid"
           : event.type === "checkout.session.async_payment_failed"
             ? "failed"
             : object.payment_status || "unpaid";
-        await billingRef.set({
-          ...common,
-          checkoutSessionId: object.id,
-          checkoutPaymentStatus: paymentStatus,
-          checkoutMode: object.mode || null,
-          checkoutPaymentUpdatedAt: FieldValue.serverTimestamp()
-        }, { merge: true });
+        const orderId = object.metadata?.orderId || null;
+        const orderCreatedAtMs = await getOrderCreatedAtMs(services.db, orderId);
+        const paymentStatusRank = status => ({
+          unpaid: 0,
+          failed: 1,
+          paid: 2,
+          no_payment_required: 2
+        }[status] ?? -1);
+        await services.db.runTransaction(async transaction => {
+          const current = await transaction.get(billingRef);
+          const data = current.exists ? current.data() : {};
+          const sameSession = data.checkoutSessionId === object.id;
+          const currentSessionCreated = Number(data.checkoutSessionCreated || 0);
+          const incomingSessionCreated = Number(object.created || 0);
+          if (!sameSession && data.checkoutSessionId) {
+            const currentOrderCreatedAtMs = Number(data.checkoutOrderCreatedAtMs || 0);
+            if (orderCreatedAtMs && currentOrderCreatedAtMs) {
+              if (orderCreatedAtMs < currentOrderCreatedAtMs) return;
+              if (orderCreatedAtMs === currentOrderCreatedAtMs &&
+                  data.checkoutOrderId !== orderId) {
+                throw new Error("Cannot safely order distinct Checkout orders with identical creation time.");
+              }
+            } else if (incomingSessionCreated < currentSessionCreated) {
+              return;
+            } else if (incomingSessionCreated === currentSessionCreated) {
+              throw new Error("Cannot safely order Checkout sessions created in the same second without order timestamps.");
+            }
+          }
+          if (sameSession && event.created < Number(data.checkoutEventCreated || 0)) return;
+          const previousPaymentStatus = sameSession ? data.checkoutPaymentStatus : null;
+          const checkoutPaymentStatus =
+            paymentStatusRank(previousPaymentStatus) > paymentStatusRank(incomingPaymentStatus)
+              ? previousPaymentStatus
+              : incomingPaymentStatus;
+          transaction.set(billingRef, {
+            ...common,
+            checkoutSessionId: object.id,
+            checkoutPaymentStatus,
+            checkoutMode: object.mode || null,
+            checkoutSessionCreated: incomingSessionCreated,
+            checkoutOrderId: orderId,
+            ...(orderCreatedAtMs ? { checkoutOrderCreatedAtMs: orderCreatedAtMs } : {}),
+            checkoutEventCreated: sameSession
+              ? Math.max(Number(data.checkoutEventCreated || 0), Number(event.created || 0))
+              : Number(event.created || 0),
+            checkoutPaymentUpdatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+        });
       } else if (event.type.startsWith("customer.subscription.")) {
+        // Allocate a per-subscription sequence before retrieving the latest
+        // Stripe state so a slower earlier request cannot overwrite a later one.
+        const sequenceRef = services.db.collection("stripeSnapshotSequences").doc(object.id);
+        const snapshotSequence = await services.db.runTransaction(async transaction => {
+          const current = await transaction.get(sequenceRef);
+          const next = Number(current.data()?.value || 0) + 1;
+          transaction.set(sequenceRef, { value: next, updatedAt: FieldValue.serverTimestamp() });
+          return next;
+        });
         let subscription;
         try {
-          // Event snapshots can arrive out of order. Always write the current
-          // Stripe object state, not an older event payload.
           subscription = await services.stripe.subscriptions.retrieve(object.id);
         } catch (error) {
           if (!(event.type === "customer.subscription.deleted" && isMissingStripeResource(error))) {
@@ -221,25 +286,82 @@ export default async function handler(req, res) {
           }
           subscription = { ...object, status: "canceled" };
         }
-        await billingRef.set({
-          ...common,
-          ...subscriptionData(subscription),
-          active: ["active", "trialing"].includes(subscription.status)
-        }, { merge: true });
+        await services.db.runTransaction(async transaction => {
+          const current = await transaction.get(billingRef);
+          const data = current.exists ? current.data() : {};
+          const sequences = data.subscriptionSnapshotSequences || {};
+          const previousSequence = Number(sequences[subscription.id] || 0);
+          if (snapshotSequence < previousSequence) return;
+          const incomingCreated = Number(subscription.created || 0);
+          const currentCreated = Number(data.stripeSubscriptionCreated || 0);
+          const currentId = data.stripeSubscriptionId || null;
+          if (currentId && currentId !== subscription.id) {
+            if (!incomingCreated || !currentCreated) {
+              throw new Error("Cannot safely order subscription replacement.");
+            }
+            if (incomingCreated < currentCreated) return;
+            if (incomingCreated === currentCreated) {
+              const incomingOrderAt = await getOrderCreatedAtMs(services.db, subscription.metadata?.orderId);
+              const existingOrderAt = Number(data.stripeSubscriptionOrderCreatedAtMs || 0);
+              if (!incomingOrderAt || !existingOrderAt) {
+                throw new Error("Cannot safely order subscriptions created in the same second.");
+              }
+              if (incomingOrderAt < existingOrderAt) return;
+              if (incomingOrderAt === existingOrderAt &&
+                  subscription.metadata?.orderId !== data.stripeSubscriptionOrderId) {
+                throw new Error("Subscription replacement order timestamps are ambiguous.");
+              }
+            }
+          }
+          const incomingOrderId = subscription.metadata?.orderId || null;
+          const incomingOrderAt = await getOrderCreatedAtMs(services.db, incomingOrderId);
+          transaction.set(billingRef, {
+            ...common,
+            ...subscriptionData(subscription),
+            active: ["active", "trialing"].includes(subscription.status),
+            stripeSubscriptionId: subscription.id,
+            stripeSubscriptionCreated: incomingCreated,
+            stripeSubscriptionOrderId: incomingOrderId,
+            ...(incomingOrderAt ? { stripeSubscriptionOrderCreatedAtMs: incomingOrderAt } : {}),
+            subscriptionSnapshotSequences: {
+              ...sequences,
+              [subscription.id]: snapshotSequence
+            }
+          }, { merge: true });
+        });
       } else if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
+        // Invoice events are only markers. Reconcile the subscription's actual
+        // latest invoice, so an old paid invoice cannot clear a newer failure.
+        const subscriptionId = typeof object.subscription === "string"
+          ? object.subscription
+          : object.subscription?.id || object.parent?.subscription_details?.subscription || null;
+        if (!subscriptionId) throw new Error("Invoice event is missing a subscription reference.");
+        const subscription = await services.stripe.subscriptions.retrieve(subscriptionId);
+        const latestInvoiceId = typeof subscription.latest_invoice === "string"
+          ? subscription.latest_invoice
+          : subscription.latest_invoice?.id || null;
+        if (!latestInvoiceId) throw new Error("Subscription has no latest invoice to reconcile.");
+        const latestInvoice = await services.stripe.invoices.retrieve(latestInvoiceId);
         await billingRef.set({
           ...common,
-          latestInvoiceId: object.id,
-          latestInvoiceStatus: event.type === "invoice.paid" ? "paid" : "payment_failed",
-          latestInvoiceAmountPaid: object.amount_paid ?? null,
-          latestInvoiceCurrency: object.currency || null
+          latestInvoiceId: latestInvoice.id,
+          latestInvoiceStatus: latestInvoice.status || "open",
+          latestInvoiceAmountPaid: latestInvoice.amount_paid ?? null,
+          latestInvoiceCurrency: latestInvoice.currency || null,
+          paymentIssue: latestInvoice.status === "uncollectible" ||
+            (latestInvoice.status === "open" && Boolean(latestInvoice.attempted) &&
+              Number(latestInvoice.attempt_count || 0) > 0)
         }, { merge: true });
-        if (event.type === "invoice.payment_failed") {
-          await billingRef.set({ paymentIssue: true }, { merge: true });
-        } else {
-          await billingRef.set({ paymentIssue: false }, { merge: true });
-        }
       }
+    }
+
+    if (!uid && (
+      event.type.startsWith("checkout.session.") ||
+      event.type.startsWith("customer.subscription.") ||
+      event.type === "invoice.paid" ||
+      event.type === "invoice.payment_failed"
+    )) {
+      throw new Error("Stripe billing event is not linked to a verified Firebase account yet.");
     }
 
     await eventRef.set({
