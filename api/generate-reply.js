@@ -314,6 +314,8 @@ export default async function handler(req, res) {
   };
 
   try {
+    const groqModel = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
+    const usesGptOss = groqModel === "openai/gpt-oss-20b" || groqModel === "openai/gpt-oss-120b";
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -321,7 +323,7 @@ export default async function handler(req, res) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
+        model: groqModel,
         messages: [
           {
             role: "system",
@@ -332,7 +334,8 @@ export default async function handler(req, res) {
             content: `Scenario: ${scenarioLabels[scenario]}\nTone: ${toneLabels[tone]}\nCustomer message:\n<customer_message>\n${message.trim()}\n</customer_message>\nWrite one ready-to-send reply.`
           }
         ],
-        max_completion_tokens: 220,
+        max_completion_tokens: 1024,
+        ...(usesGptOss ? { reasoning_effort: "low", include_reasoning: false } : {}),
         temperature: 0.4
       })
     });
@@ -355,7 +358,16 @@ export default async function handler(req, res) {
         diagnostic: safeDiagnostic
       });
     }
-    const reply = data?.choices?.[0]?.message?.content;
+    const choice = data?.choices?.[0];
+    if (choice?.finish_reason === "length") {
+      try {
+        await settleDailyRequest({ uid, projectId, serviceAccount, day: usage.day, reservationId: usage.reservationId, outcome: "failure" });
+      } catch (refundError) {
+        console.error("Unable to refund truncated AI response:", refundError?.message || "Unknown refund error");
+      }
+      return res.status(502).json({ error: "Groq's reply reached the output limit. Please try again." });
+    }
+    const reply = choice?.message?.content;
     if (typeof reply !== "string" || !reply.trim()) {
       try {
         await settleDailyRequest({ uid, projectId, serviceAccount, day: usage.day, reservationId: usage.reservationId, outcome: "failure" });
