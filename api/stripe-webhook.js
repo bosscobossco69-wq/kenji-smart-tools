@@ -60,6 +60,11 @@ function unixDate(seconds) {
   return Number.isFinite(seconds) ? new Date(seconds * 1000) : null;
 }
 
+function isMissingStripeResource(error) {
+  return error?.statusCode === 404 || error?.raw?.statusCode === 404 ||
+    error?.code === "resource_missing";
+}
+
 function getFirebaseUid(object) {
   const metadataUid = object?.metadata?.firebaseUID || object?.metadata?.firebase_uid;
   const clientReference = object?.client_reference_id;
@@ -77,8 +82,10 @@ function subscriptionData(subscription) {
     priceId: item?.price?.id || null,
     currency: item?.price?.currency || null,
     interval: item?.price?.recurring?.interval || null,
-    currentPeriodStart: unixDate(subscription.current_period_start),
-    currentPeriodEnd: unixDate(subscription.current_period_end),
+    currentPeriodStart: unixDate(Number.isFinite(item?.current_period_start)
+      ? item.current_period_start : subscription.current_period_start),
+    currentPeriodEnd: unixDate(Number.isFinite(item?.current_period_end)
+      ? item.current_period_end : subscription.current_period_end),
     cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
     cancelAt: unixDate(subscription.cancel_at),
     updatedAt: FieldValue.serverTimestamp()
@@ -147,7 +154,10 @@ export default async function handler(req, res) {
       try {
         customer = await services.stripe.customers.retrieve(customerId);
         if (customer?.deleted) customer = null;
-      } catch {}
+      } catch (error) {
+        if (!isMissingStripeResource(error)) throw error;
+        customer = null;
+      }
     }
     if (!uid) uid = getFirebaseUid(customer);
 
@@ -159,7 +169,9 @@ export default async function handler(req, res) {
         try {
           const matchedUser = await services.auth.getUserByEmail(email);
           if (matchedUser.emailVerified) uid = matchedUser.uid;
-        } catch {}
+        } catch (error) {
+          if (error?.code !== "auth/user-not-found") throw error;
+        }
       }
     }
 
@@ -178,15 +190,35 @@ export default async function handler(req, res) {
         updatedAt: FieldValue.serverTimestamp()
       };
 
-      if (event.type === "checkout.session.completed") {
+      if ([
+        "checkout.session.completed",
+        "checkout.session.async_payment_succeeded",
+        "checkout.session.async_payment_failed"
+      ].includes(event.type)) {
+        const paymentStatus = event.type === "checkout.session.async_payment_succeeded"
+          ? "paid"
+          : event.type === "checkout.session.async_payment_failed"
+            ? "failed"
+            : object.payment_status || "unpaid";
         await billingRef.set({
           ...common,
           checkoutSessionId: object.id,
-          checkoutPaymentStatus: object.payment_status || null,
-          checkoutMode: object.mode || null
+          checkoutPaymentStatus: paymentStatus,
+          checkoutMode: object.mode || null,
+          checkoutPaymentUpdatedAt: FieldValue.serverTimestamp()
         }, { merge: true });
       } else if (event.type.startsWith("customer.subscription.")) {
-        const subscription = object;
+        let subscription;
+        try {
+          // Event snapshots can arrive out of order. Always write the current
+          // Stripe object state, not an older event payload.
+          subscription = await services.stripe.subscriptions.retrieve(object.id);
+        } catch (error) {
+          if (!(event.type === "customer.subscription.deleted" && isMissingStripeResource(error))) {
+            throw error;
+          }
+          subscription = { ...object, status: "canceled" };
+        }
         await billingRef.set({
           ...common,
           ...subscriptionData(subscription),
