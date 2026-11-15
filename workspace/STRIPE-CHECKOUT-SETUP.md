@@ -60,3 +60,18 @@ Use Stripe Test Mode and a dedicated test Firebase user. Verify: successful mont
 - The scheduled job checks the current Stripe subscription status, grants at most one overdue monthly allocation per subscription per run, writes a deterministic month ledger record, increments the balance atomically, and advances the next grant date using the original subscription anniversary day (for example, a Jan 31 anniversary falls on the last day of February, then returns to Mar 31).
 - It stops granting at or beyond the subscription period end and skips inactive subscriptions. A new paid annual renewal invoice initializes the next annual cycle.
 - Configure the CRON_SECRET in Preview before testing. Confirm the Vercel project plan supports the configured daily Cron schedule and inspect Cron invocation logs. This code has not yet been runtime-tested against Stripe or Firestore.
+
+
+## One-time Credits packs
+
+- `POST /api/stripe-credit-checkout` accepts a Firebase ID token and a server-validated `packId` only.
+- Fixed USD amounts and Credits are defined on the server: Mini $5 / 10,000; Basic $20 / 50,000; Pro $35 / 100,000; Business $150 / 500,000.
+- The route writes a pending `billingOrders` record before creating a one-time Stripe Checkout Session. The browser cannot choose the amount or Credits quantity.
+- The signed webhook grants Credits only when `payment_status=paid`, the session currency/amount/metadata match the pending order, and the idempotent ledger transaction succeeds.
+- Required webhook events: `checkout.session.completed`, `checkout.session.async_payment_succeeded` (if asynchronous payment methods are enabled), subscription lifecycle events, `invoice.paid` and `invoice.payment_failed`.
+
+## Stripe key safety
+
+- Preview deployments must use an `sk_test_` key.
+- Production checkout remains blocked unless `STRIPE_LIVE_CHECKOUT_ENABLED=true` and an `sk_live_` key are both configured.
+- Never put Stripe secret keys, webhook secrets, Firebase service-account JSON, or the Cron secret in browser code or Git.
