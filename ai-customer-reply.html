@@ -43,6 +43,17 @@ body.ai-reply-page{min-height:100vh;margin:0;background:#17120e;color:#f4efe6;fo
 .ai-reply-page .tag{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:#d6b88c}
 .ai-reply-page .notice,.ai-reply-page .status{font-size:.82rem;line-height:1.55;margin-top:12px;color:#b8aea0}
 .ai-reply-page .status{min-height:22px;color:#d6b88c}
+.ai-reply-page .seo-content{max-width:900px;margin:0 auto 64px;padding:28px;border:1px solid #40382e;border-radius:18px;background:#201d18;color:#eee9e0}
+.ai-reply-page .seo-content h2{margin:30px 0 10px;color:#f4efe6;font-size:1.45rem;line-height:1.3}
+.ai-reply-page .seo-content h2:first-child{margin-top:0}
+.ai-reply-page .seo-content h3{margin:18px 0 6px;color:#e6d1ae;font-size:1.05rem}
+.ai-reply-page .seo-content p,.ai-reply-page .seo-content li{color:#c9c0b3;line-height:1.8}
+.ai-reply-page .seo-content ul{padding-left:22px;margin:10px 0}
+.ai-reply-page .seo-content a{color:#e1c18f;text-underline-offset:3px}
+.ai-reply-page .seo-content .example{margin:12px 0;padding:14px 16px;border-left:3px solid #c6a477;border-radius:8px;background:#171512}
+.ai-reply-page .seo-content .example strong{color:#f0dfc4}
+@media(max-width:720px){.ai-reply-page .seo-content{padding:20px;margin-bottom:40px}}
+
 @media(max-width:720px){.ai-reply-page .tool-grid{grid-template-columns:1fr}.ai-reply-page .hero{padding-top:38px}.ai-reply-page .tool-card{padding:19px}.ai-reply-page header.nav{flex-wrap:wrap}.ai-reply-page header.nav .back-link{margin-left:auto}}
 
 </style>
@@ -92,6 +103,43 @@ body.ai-reply-page{min-height:100vh;margin:0;background:#17120e;color:#f4efe6;fo
 <div class="actions" style="margin-top:14px"><button class="primary" id="copy" type="button" disabled>Copy reply</button><button class="secondary" id="again" type="button">Regenerate</button></div>
 <div id="status" class="status" role="status" aria-live="polite"></div>
 </div>
+</section>
+<section class="seo-content" aria-labelledby="guide-title">
+<h2 id="guide-title">How to write better customer service replies</h2>
+<p>A clear customer service reply should acknowledge the customer's concern, answer the main question, and explain the next step. This AI customer reply generator helps you draft a response from a customer message, a selected scenario, and the tone you want to use.</p>
+<h3>1. Choose the customer scenario</h3>
+<p>Select the closest situation: a customer thinks the price is too high, asks for a discount, reports a delayed order, asks about a service, or has not replied to a previous message. Choosing the closest scenario helps shape a more relevant draft.</p>
+<h3>2. Add the message and choose a tone</h3>
+<p>Paste the customer's message without including passwords, payment card details, account credentials, or other sensitive personal information. Choose Professional for a formal response, Friendly for a warmer conversation, or Short &amp; Direct when the customer needs a concise answer.</p>
+<h3>3. Review before sending</h3>
+<p>Read the generated reply carefully. Check names, dates, prices, delivery details, policies, and any promises. The tool creates a draft; you remain responsible for confirming that the information is accurate and appropriate before sending it.</p>
+<h2>Customer reply examples</h2>
+<h3>When a customer says the price is too expensive</h3>
+<div class="example"><p><strong>Example reply:</strong> Thank you for sharing your thoughts. I understand that staying within budget is important. I would be happy to explain what is included so you can decide whether it is the right fit for your needs.</p></div>
+<h3>When an order is delayed</h3>
+<div class="example"><p><strong>Example reply:</strong> I’m sorry your order has not arrived as expected. I understand how frustrating that can be. We are checking the latest status and will share an update as soon as we have confirmed information.</p></div>
+<h3>When a customer asks for a discount</h3>
+<div class="example"><p><strong>Example reply:</strong> Thank you for asking. I can check whether any current offers apply to your order. I do not want to promise a discount before confirming the available options.</p></div>
+<h2>Tips for professional customer communication</h2>
+<ul>
+<li>Respond to the customer's actual question instead of using a generic script.</li>
+<li>Use calm, respectful language, especially when the customer is upset.</li>
+<li>Be specific about the next step and avoid promises you cannot verify.</li>
+<li>Keep the reply concise, readable, and easy to act on.</li>
+<li>Review the final draft to make sure it matches your business policies.</li>
+</ul>
+<h2>Frequently asked questions</h2>
+<h3>Is the generated reply ready to send automatically?</h3>
+<p>No. It is a draft for you to review. Confirm that all facts, policies, and proposed actions are correct before sending it to a customer.</p>
+<h3>Which reply tones are available?</h3>
+<p>You can choose Professional, Friendly, or Short &amp; Direct. Select the tone that best fits the customer and the situation.</p>
+<h3>What customer information should I enter?</h3>
+<p>Only include the message details needed to prepare a reply. Do not enter passwords, payment details, account credentials, or sensitive personal information.</p>
+<h3>Can I use the tool for delayed orders or discount requests?</h3>
+<p>Yes. Choose the matching scenario from the list, enter the customer's message, select a tone, and generate a draft that you can review and edit.</p>
+<h3>Does the tool replace a human customer service agent?</h3>
+<p>No. It helps prepare a response, but a person should verify the details and decide what to send, especially for refunds, complaints, delivery issues, and account matters.</p>
+<p>Explore more productivity tools on the <a href="/">KENJI Smart Tools homepage</a> or return to the <a href="/workspace/">AI Workspace</a>.</p>
 </section></main>
 <script>
 let tone="professional",reply="";const $=id=>document.getElementById(id);
