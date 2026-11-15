@@ -87,8 +87,12 @@ function subscriptionData(subscription) {
     priceId: item?.price?.id || null,
     currency: item?.price?.currency || null,
     interval: item?.price?.recurring?.interval || null,
-    currentPeriodStart: unixDate(subscription.current_period_start),
-    currentPeriodEnd: unixDate(subscription.current_period_end),
+    currentPeriodStart: unixDate(
+      Number.isFinite(item?.current_period_start) ? item.current_period_start : subscription.current_period_start
+    ),
+    currentPeriodEnd: unixDate(
+      Number.isFinite(item?.current_period_end) ? item.current_period_end : subscription.current_period_end
+    ),
     cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
     cancelAt: unixDate(subscription.cancel_at),
     active: ["active", "trialing"].includes(subscription.status),
