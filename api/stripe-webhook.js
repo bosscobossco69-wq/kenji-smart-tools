@@ -265,18 +265,40 @@ export default async function handler(req, res) {
         updatedAt: FieldValue.serverTimestamp()
       };
 
-      if (event.type === "checkout.session.completed") {
+      if ([
+        "checkout.session.completed",
+        "checkout.session.async_payment_succeeded",
+        "checkout.session.async_payment_failed"
+      ].includes(event.type)) {
+        const incomingPaymentStatus = event.type === "checkout.session.async_payment_succeeded"
+          ? "paid"
+          : event.type === "checkout.session.async_payment_failed"
+            ? "failed"
+            : object.payment_status || "unpaid";
+        const paymentStatusRank = status => ({
+          unpaid: 0,
+          failed: 1,
+          paid: 2,
+          no_payment_required: 2
+        }[status] ?? -1);
         await services.db.runTransaction(async transaction => {
           const current = await transaction.get(billingRef);
           const data = current.exists ? current.data() : {};
           const lastCreated = Number(data.checkoutEventCreated || 0);
           if (event.created < lastCreated) return;
+          const previousPaymentStatus = data.checkoutPaymentStatus || null;
+          // A delayed/older completion event must never downgrade a terminal
+          // payment outcome already recorded for this Checkout Session.
+          const checkoutPaymentStatus = paymentStatusRank(previousPaymentStatus) >
+            paymentStatusRank(incomingPaymentStatus)
+            ? previousPaymentStatus
+            : incomingPaymentStatus;
           transaction.set(billingRef, {
             ...common,
             checkoutSessionId: object.id,
-            checkoutPaymentStatus: object.payment_status || null,
+            checkoutPaymentStatus,
             checkoutMode: object.mode || null,
-            checkoutEventCreated: event.created
+            checkoutEventCreated: Math.max(lastCreated, Number(event.created || 0))
           }, { merge: true });
         });
       } else if (event.type.startsWith("customer.subscription.")) {
