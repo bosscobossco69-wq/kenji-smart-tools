@@ -167,13 +167,29 @@ export default async function handler(req, res) {
 
   try {
     let object = event.data.object;
-    // Stripe does not guarantee event delivery order. For mutable subscription
-    // and invoice state, retrieve the latest object instead of trusting an
-    // older event snapshot (multiple events can share the same created second).
+    let subscriptionSnapshotFetchedAtMs = null;
+    let latestInvoiceSnapshot = null;
+    // Stripe does not guarantee event delivery order. Retrieve current Stripe
+    // objects, then use a fetch-time guard inside Firestore transactions so a
+    // slower, older handler cannot overwrite a newer retrieved snapshot.
     if (event.type.startsWith("customer.subscription.")) {
       object = await services.stripe.subscriptions.retrieve(object.id);
+      subscriptionSnapshotFetchedAtMs = Date.now();
     } else if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
       object = await services.stripe.invoices.retrieve(object.id);
+      const subscriptionId = typeof object.subscription === "string"
+        ? object.subscription
+        : object.subscription?.id || object.parent?.subscription_details?.subscription || null;
+      if (subscriptionId) {
+        const subscription = await services.stripe.subscriptions.retrieve(subscriptionId);
+        const latestInvoiceId = typeof subscription.latest_invoice === "string"
+          ? subscription.latest_invoice
+          : subscription.latest_invoice?.id || null;
+        if (latestInvoiceId) {
+          latestInvoiceSnapshot = await services.stripe.invoices.retrieve(latestInvoiceId);
+        }
+      }
+      subscriptionSnapshotFetchedAtMs = Date.now();
     }
     let uid = getFirebaseUid(object);
     let customer = null;
@@ -229,21 +245,40 @@ export default async function handler(req, res) {
         });
       } else if (event.type.startsWith("customer.subscription.")) {
         const subscription = object;
-        await billingRef.set({
-          ...common,
-          ...subscriptionData(subscription),
-          active: ["active", "trialing"].includes(subscription.status)
-        }, { merge: true });
+        await services.db.runTransaction(async transaction => {
+          const current = await transaction.get(billingRef);
+          const data = current.exists ? current.data() : {};
+          if (subscriptionSnapshotFetchedAtMs < Number(data.subscriptionSnapshotFetchedAtMs || 0)) return;
+          transaction.set(billingRef, {
+            ...common,
+            ...subscriptionData(subscription),
+            active: ["active", "trialing"].includes(subscription.status),
+            subscriptionSnapshotFetchedAtMs
+          }, { merge: true });
+        });
       } else if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
-        const invoiceStatus = object.status || (event.type === "invoice.paid" ? "paid" : "open");
-        await billingRef.set({
-          ...common,
-          latestInvoiceId: object.id,
-          latestInvoiceStatus: invoiceStatus,
-          latestInvoiceAmountPaid: object.amount_paid ?? null,
-          latestInvoiceCurrency: object.currency || null,
-          paymentIssue: invoiceStatus !== "paid"
-        }, { merge: true });
+        // Only the subscription's current latest invoice may update the
+        // displayed payment state; an older invoice event cannot replace it.
+        if (latestInvoiceSnapshot && latestInvoiceSnapshot.id === (typeof object.subscription === "string" ? object.subscription : object.subscription?.id || object.parent?.subscription_details?.subscription) ) {
+          // No-op: subscription ID and invoice ID are different object types.
+        }
+        if (latestInvoiceSnapshot) {
+          const invoiceStatus = latestInvoiceSnapshot.status || "open";
+          await services.db.runTransaction(async transaction => {
+            const current = await transaction.get(billingRef);
+            const data = current.exists ? current.data() : {};
+            if (subscriptionSnapshotFetchedAtMs < Number(data.invoiceSnapshotFetchedAtMs || 0)) return;
+            transaction.set(billingRef, {
+              ...common,
+              latestInvoiceId: latestInvoiceSnapshot.id,
+              latestInvoiceStatus: invoiceStatus,
+              latestInvoiceAmountPaid: latestInvoiceSnapshot.amount_paid ?? null,
+              latestInvoiceCurrency: latestInvoiceSnapshot.currency || null,
+              paymentIssue: invoiceStatus !== "paid",
+              invoiceSnapshotFetchedAtMs: subscriptionSnapshotFetchedAtMs
+            }, { merge: true });
+          });
+        }
       }
     }
 
