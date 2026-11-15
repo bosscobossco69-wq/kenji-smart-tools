@@ -268,6 +268,7 @@ export default async function handler(req, res) {
           }, { merge: true });
         });
       } else if (event.type.startsWith("customer.subscription.")) {
+        const subscription = object;
         const incomingCreated = Number(subscription.created || 0);
         const incomingOrderId = subscription.metadata?.orderId || null;
         const incomingOrderAt = await getOrderCreatedAtMs(services.db, incomingOrderId);
@@ -321,6 +322,10 @@ export default async function handler(req, res) {
           const incomingCreated = Number(subscriptionSnapshot.created || 0);
           const transactionCurrentCreated = Number(data.stripeSubscriptionCreated || 0) ||
             (currentId === existingSubscriptionId ? existingSubscriptionCreated : 0);
+          const transactionCurrentOrderId = data.stripeSubscriptionOrderId ||
+            (currentId === existingSubscriptionId ? existingOrderId : null);
+          const transactionCurrentOrderAt = Number(data.stripeSubscriptionOrderCreatedAtMs || 0) ||
+            (currentId === existingSubscriptionId ? existingOrderAt : 0);
           if (currentId && currentId !== subscriptionSnapshot.id) {
             if (!incomingCreated) throw new Error("Incoming subscription creation timestamp is missing.");
             if (existingSubscriptionMissing && currentId === existingSubscriptionId) {
@@ -329,11 +334,11 @@ export default async function handler(req, res) {
               if (!transactionCurrentCreated) throw new Error("Cannot safely order subscription replacement.");
               if (incomingCreated < transactionCurrentCreated) return;
               if (incomingCreated === transactionCurrentCreated) {
-                if (!incomingOrderAt || !existingOrderAt) {
+                if (!incomingOrderAt || !transactionCurrentOrderAt) {
                   throw new Error("Cannot safely order subscriptions created in the same second.");
                 }
-                if (incomingOrderAt < existingOrderAt) return;
-                if (incomingOrderAt === existingOrderAt && incomingOrderId !== existingOrderId) {
+                if (incomingOrderAt < transactionCurrentOrderAt) return;
+                if (incomingOrderAt === transactionCurrentOrderAt && incomingOrderId !== transactionCurrentOrderId) {
                   throw new Error("Subscription replacement order timestamps are ambiguous.");
                 }
               }
