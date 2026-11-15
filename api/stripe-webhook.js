@@ -173,9 +173,13 @@ export default async function handler(req, res) {
     // objects, then use a fetch-time guard inside Firestore transactions so a
     // slower, older handler cannot overwrite a newer retrieved snapshot.
     if (event.type.startsWith("customer.subscription.")) {
-      object = await services.stripe.subscriptions.retrieve(object.id);
+      // Capture before the network request: response completion order is not
+      // reliable when separate webhook handlers run concurrently.
       subscriptionSnapshotFetchedAtMs = Date.now();
+      object = await services.stripe.subscriptions.retrieve(object.id);
     } else if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
+      // Use the start of the complete refresh sequence as its ordering marker.
+      subscriptionSnapshotFetchedAtMs = Date.now();
       object = await services.stripe.invoices.retrieve(object.id);
       const subscriptionId = typeof object.subscription === "string"
         ? object.subscription
@@ -189,7 +193,6 @@ export default async function handler(req, res) {
           latestInvoiceSnapshot = await services.stripe.invoices.retrieve(latestInvoiceId);
         }
       }
-      subscriptionSnapshotFetchedAtMs = Date.now();
     }
     let uid = getFirebaseUid(object);
     let customer = null;
