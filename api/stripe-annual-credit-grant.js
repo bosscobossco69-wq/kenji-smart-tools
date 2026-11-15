@@ -28,6 +28,14 @@ function asDate(value) {
   return null;
 }
 
+function stripePeriodStart(subscription) {
+  const item = subscription.items?.data?.[0];
+  const seconds = Number.isFinite(item?.current_period_start)
+    ? item.current_period_start
+    : subscription.current_period_start;
+  return Number.isFinite(seconds) ? new Date(seconds * 1000) : null;
+}
+
 function addUtcMonth(date, anchorDay) {
   const next = new Date(date);
   next.setUTCDate(1);
@@ -95,8 +103,13 @@ export default async function handler(req, res) {
 
         try {
           const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const livePeriodStart = stripePeriodStart(subscription);
           if (!["active", "trialing"].includes(subscription.status) ||
+              !livePeriodStart || livePeriodStart.getTime() !== grantPeriodStart.getTime() ||
               (subscription.cancel_at_period_end && now >= periodEnd)) {
+            // The grant schedule must belong to the currently paid annual
+            // Stripe period, not merely match possibly stale Firestore dates.
+            // This closes the gap when Stripe has renewed but invoice.paid is delayed.
             skipped++;
             continue;
           }
@@ -120,6 +133,7 @@ export default async function handler(req, res) {
                 !current.active || !currentDue || currentDue.getTime() !== dueAt.getTime() ||
                 !currentPeriodStart || !grantPeriodStart ||
                 currentPeriodStart.getTime() !== grantPeriodStart.getTime() ||
+                livePeriodStart.getTime() !== grantPeriodStart.getTime() ||
                 currentDue > new Date() || !currentEnd || currentDue >= currentEnd) return;
 
             const balance = Number(current.creditBalance ?? 0);
