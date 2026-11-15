@@ -391,8 +391,10 @@ export default async function handler(req, res) {
       if (!firebaseUser.emailVerified) uid = null;
     }
 
-    const isPackCheckout = event.type === "checkout.session.completed" &&
-      object?.metadata?.purchaseType === "credit_pack";
+    const isPackCheckout = [
+      "checkout.session.completed",
+      "checkout.session.async_payment_succeeded"
+    ].includes(event.type) && object?.metadata?.purchaseType === "credit_pack";
     if (isPackCheckout) {
       await fulfillCreditPack({ db: services.db, session: object, uid, event });
     } else if (event.type === "invoice.paid" && invoiceSubscription) {
@@ -408,7 +410,8 @@ export default async function handler(req, res) {
         updatedAt: FieldValue.serverTimestamp()
       };
 
-      if (event.type === "checkout.session.completed") {
+      if (event.type === "checkout.session.completed" ||
+          event.type === "checkout.session.async_payment_succeeded") {
         await services.db.runTransaction(async transaction => {
           const current = await transaction.get(billingRef);
           const data = current.exists ? current.data() : {};
