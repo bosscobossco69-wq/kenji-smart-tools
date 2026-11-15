@@ -162,6 +162,7 @@ async function reserveCredits(db, uid, requestId, hash) {
 async function refundCredits(db, uid, requestId, reason, leaseToken) {
   const billingRef = db.collection("users").doc(uid).collection("billing").doc("current");
   const ledgerRef = db.collection("users").doc(uid).collection("creditLedger").doc(requestId);
+  let refunded = false;
   await db.runTransaction(async tx => {
     const ledgerSnap = await tx.get(ledgerRef);
     const ledger = ledgerSnap.exists ? ledgerSnap.data() : null;
@@ -179,7 +180,9 @@ async function refundCredits(db, uid, requestId, reason, leaseToken) {
       leaseExpiresAtMs: FieldValue.delete(),
       reply: FieldValue.delete()
     }, { merge: true });
+    refunded = true;
   });
+  return refunded;
 }
 
 async function completeCredits(db, uid, requestId, hash, reply, leaseToken) {
@@ -261,13 +264,22 @@ export default async function handler(req, res) {
         })
       });
     } catch {
-      await refundCredits(services.db, uid, requestId, "ai_provider_unreachable", reservationToken); reserved = false;
-      return res.status(502).json({ error: "Unable to reach the AI service. Your Credits have been returned." });
+      const refunded = await refundCredits(services.db, uid, requestId, "ai_provider_unreachable", reservationToken);
+      reserved = false;
+      return res.status(refunded ? 502 : 409).json({
+        error: refunded
+          ? "Unable to reach the AI service. Your Credits have been returned."
+          : "A newer attempt is already processing this request. Please wait for it to finish."
+      });
     }
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      await refundCredits(services.db, uid, requestId, response.status === 429 ? "ai_provider_busy" : "ai_provider_error", reservationToken); reserved = false;
+      const refunded = await refundCredits(services.db, uid, requestId, response.status === 429 ? "ai_provider_busy" : "ai_provider_error", reservationToken);
+      reserved = false;
+      if (!refunded) {
+        return res.status(409).json({ error: "A newer attempt is already processing this request. Please wait for it to finish." });
+      }
       return res.status(response.status === 429 ? 503 : 502).json({
         error: response.status === 429 ? "The AI service is busy. Your Credits have been returned; please try again shortly." : "The AI service could not complete the request. Your Credits have been returned."
       });
@@ -277,8 +289,13 @@ export default async function handler(req, res) {
       .flatMap(item => item.content || []).filter(item => item.type === "output_text")
       .map(item => item.text).join("\n").trim();
     if (!reply) {
-      await refundCredits(services.db, uid, requestId, "empty_ai_response", reservationToken); reserved = false;
-      return res.status(502).json({ error: "No reply was generated. Your Credits have been returned." });
+      const refunded = await refundCredits(services.db, uid, requestId, "empty_ai_response", reservationToken);
+      reserved = false;
+      return res.status(refunded ? 502 : 409).json({
+        error: refunded
+          ? "No reply was generated. Your Credits have been returned."
+          : "A newer attempt is already processing this request. Please wait for it to finish."
+      });
     }
 
     await completeCredits(services.db, uid, requestId, hash, reply, reservationToken);
