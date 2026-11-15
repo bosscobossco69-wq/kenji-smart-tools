@@ -8,7 +8,7 @@ This document is an internal release checklist. It does not enable authenticatio
 - Do not merge into or modify `main` without explicit approval.
 - Keep the existing Cardora and Pokémon Treasure Supabase projects unchanged.
 - Supabase Free currently has no available active-project slot for a separate Workspace project. Do not reuse either existing project.
-- Do not enable checkout or issue Credits until a verified payment ledger and server-side payment verification are implemented.
+- Keep Production checkout disabled until the full Stripe Test Mode validation matrix has passed and the release has explicit approval. Preview must use Stripe Test Mode.
 
 ## AI Customer Reply — configuration
 
@@ -35,8 +35,8 @@ After adding or changing environment variables, redeploy the relevant Preview de
 - [ ] Open the deployed Workspace landing page and verify every navigation link.
 - [ ] Verify sign-in, sign-up, account and billing pages remain clearly marked as previews.
 - [ ] Confirm preview forms remain disabled and do not transmit personal data.
-- [ ] Without `OPENAI_API_KEY`, confirm the reply endpoint returns a safe configuration error and does not expose secrets.
-- [ ] With a valid key configured privately in Vercel, test each supported scenario and tone using non-sensitive sample text.
+- [ ] Without `GROQ_API_KEY`, confirm the reply endpoint returns a safe configuration error and does not expose secrets.
+- [ ] With a valid `GROQ_API_KEY` configured privately in Vercel, test each supported scenario and tone using non-sensitive sample text.
 - [ ] Verify invalid methods, invalid JSON content type, oversized bodies, invalid scenarios and invalid tones are rejected.
 - [ ] Confirm the endpoint accepts same-origin HTTPS Preview and production requests and rejects cross-origin requests.
 - [ ] Configure provider-side spending alerts/limits where available; do not assume a hard spend cap exists.\n- [ ] Add a durable abuse-control strategy (rate limiting and bot protection) before public launch; same-origin checks alone do not prevent scripted abuse.\n- [ ] Review API usage and spending limits in the provider dashboard before inviting public users.
