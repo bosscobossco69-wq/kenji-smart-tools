@@ -167,25 +167,45 @@ export default async function handler(req, res) {
 
   try {
     let object = event.data.object;
-    let subscriptionSnapshotFetchedAtMs = null;
+    let snapshotSequence = null;
     let latestInvoiceSnapshot = null;
-    // Stripe does not guarantee event delivery order. Retrieve current Stripe
-    // objects, then use a fetch-time guard inside Firestore transactions so a
-    // slower, older handler cannot overwrite a newer retrieved snapshot.
-    if (event.type.startsWith("customer.subscription.")) {
-      // Capture before the network request: response completion order is not
-      // reliable when separate webhook handlers run concurrently.
-      subscriptionSnapshotFetchedAtMs = Date.now();
-      object = await services.stripe.subscriptions.retrieve(object.id);
-    } else if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
-      // Use the start of the complete refresh sequence as its ordering marker.
-      subscriptionSnapshotFetchedAtMs = Date.now();
-      object = await services.stripe.invoices.retrieve(object.id);
-      const subscriptionId = typeof object.subscription === "string"
+    const isInvoiceEvent = event.type === "invoice.paid" || event.type === "invoice.payment_failed";
+    let snapshotSubscriptionId = event.type.startsWith("customer.subscription.")
+      ? object.id
+      : (typeof object.subscription === "string"
         ? object.subscription
-        : object.subscription?.id || object.parent?.subscription_details?.subscription || null;
-      if (subscriptionId) {
-        const subscription = await services.stripe.subscriptions.retrieve(subscriptionId);
+        : object.subscription?.id || object.parent?.subscription_details?.subscription || null);
+
+    // Use a Firestore-issued monotonic sequence instead of Date.now(): two
+    // concurrent handlers can start in the same millisecond. The sequence is
+    // allocated before Stripe retrieval, so slower earlier responses cannot win.
+    const allocateSnapshotSequence = async subscriptionId => {
+      if (!subscriptionId) return null;
+      const sequenceRef = services.db.collection("stripeSnapshotSequences").doc(subscriptionId);
+      return services.db.runTransaction(async transaction => {
+        const current = await transaction.get(sequenceRef);
+        const next = Number(current.data()?.value || 0) + 1;
+        transaction.set(sequenceRef, { value: next, updatedAt: FieldValue.serverTimestamp() });
+        return next;
+      });
+    };
+
+    if (snapshotSubscriptionId) {
+      snapshotSequence = await allocateSnapshotSequence(snapshotSubscriptionId);
+    }
+
+    if (event.type.startsWith("customer.subscription.")) {
+      object = await services.stripe.subscriptions.retrieve(object.id);
+    } else if (isInvoiceEvent) {
+      object = await services.stripe.invoices.retrieve(object.id);
+      snapshotSubscriptionId = typeof object.subscription === "string"
+        ? object.subscription
+        : object.subscription?.id || object.parent?.subscription_details?.subscription || snapshotSubscriptionId;
+      if (snapshotSubscriptionId && snapshotSequence === null) {
+        snapshotSequence = await allocateSnapshotSequence(snapshotSubscriptionId);
+      }
+      if (snapshotSubscriptionId) {
+        const subscription = await services.stripe.subscriptions.retrieve(snapshotSubscriptionId);
         const latestInvoiceId = typeof subscription.latest_invoice === "string"
           ? subscription.latest_invoice
           : subscription.latest_invoice?.id || null;
@@ -251,12 +271,12 @@ export default async function handler(req, res) {
         await services.db.runTransaction(async transaction => {
           const current = await transaction.get(billingRef);
           const data = current.exists ? current.data() : {};
-          if (subscriptionSnapshotFetchedAtMs < Number(data.subscriptionSnapshotFetchedAtMs || 0)) return;
+          if (snapshotSequence === null || snapshotSequence < Number(data.subscriptionSnapshotSequence || 0)) return;
           transaction.set(billingRef, {
             ...common,
             ...subscriptionData(subscription),
             active: ["active", "trialing"].includes(subscription.status),
-            subscriptionSnapshotFetchedAtMs
+            subscriptionSnapshotSequence: snapshotSequence
           }, { merge: true });
         });
       } else if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
@@ -267,15 +287,17 @@ export default async function handler(req, res) {
           await services.db.runTransaction(async transaction => {
             const current = await transaction.get(billingRef);
             const data = current.exists ? current.data() : {};
-            if (subscriptionSnapshotFetchedAtMs < Number(data.invoiceSnapshotFetchedAtMs || 0)) return;
+            if (snapshotSequence === null || snapshotSequence < Number(data.invoiceSnapshotSequence || 0)) return;
             transaction.set(billingRef, {
               ...common,
               latestInvoiceId: latestInvoiceSnapshot.id,
               latestInvoiceStatus: invoiceStatus,
               latestInvoiceAmountPaid: latestInvoiceSnapshot.amount_paid ?? null,
               latestInvoiceCurrency: latestInvoiceSnapshot.currency || null,
-              paymentIssue: invoiceStatus !== "paid",
-              invoiceSnapshotFetchedAtMs: subscriptionSnapshotFetchedAtMs
+              paymentIssue: invoiceStatus === "uncollectible" ||
+                (invoiceStatus === "open" && Boolean(latestInvoiceSnapshot.attempted) &&
+                  Number(latestInvoiceSnapshot.attempt_count || 0) > 0),
+              invoiceSnapshotSequence: snapshotSequence
             }, { merge: true });
           });
         }
