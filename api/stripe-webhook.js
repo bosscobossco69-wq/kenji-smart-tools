@@ -223,6 +223,7 @@ async function grantSubscriptionInvoice({ db, invoice, subscription, uid }) {
         nextCreditGrantAt: addUtcMonth(periodStart),
         annualCreditGrantSubscriptionId: subscription.id,
         annualCreditGrantPlanId: planId,
+        annualCreditGrantPeriodStart: periodStart,
         annualCreditGrantAnchorDay: periodStart.getUTCDate()
       }, { merge: true });
     }
@@ -414,13 +415,19 @@ export default async function handler(req, res) {
           const data = current.exists ? current.data() : {};
           const lastCreated = Number(data.checkoutEventCreated || 0);
           if (event.created < lastCreated) return;
-          transaction.set(billingRef, {
+          const pendingCheckout = data.pendingSubscriptionCheckout;
+          const checkoutUpdate = {
             ...common,
             checkoutSessionId: object.id,
             checkoutPaymentStatus: object.payment_status || null,
             checkoutMode: object.mode || null,
             checkoutEventCreated: event.created
-          }, { merge: true });
+          };
+          if (pendingCheckout?.orderId === object.metadata?.orderId ||
+              pendingCheckout?.sessionId === object.id) {
+            checkoutUpdate.pendingSubscriptionCheckout = FieldValue.delete();
+          }
+          transaction.set(billingRef, checkoutUpdate, { merge: true });
         });
       } else if (event.type.startsWith("customer.subscription.")) {
         const subscription = object;
