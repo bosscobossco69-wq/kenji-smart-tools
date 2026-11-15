@@ -13,10 +13,12 @@ This document is an internal release checklist. It does not enable authenticatio
 ## AI Customer Reply — configuration
 
 Required Vercel environment variable:
-- `OPENAI_API_KEY`: secret API key, configured only in Vercel Project Settings → Environment Variables. Never commit it, put it in browser code, or send it in chat.
+- `GROQ_API_KEY`: secret GroqCloud API key, configured only in Vercel Project Settings → Environment Variables. Never commit it, put it in browser code, or send it in chat.
 
 Optional:
-- `OPENAI_MODEL`: model identifier supported by the connected API account. If omitted, the API route currently defaults to `gpt-5.4-mini`; verify the selected model is available to the account before launch.
+- `GROQ_MODEL`: model identifier supported by GroqCloud. If omitted, the API route defaults to `openai/gpt-oss-20b`.
+
+Provider endpoint: `https://api.groq.com/openai/v1/responses`. The free tier has model-specific rate limits and may retain request data temporarily for reliability or abuse monitoring. Do not submit passwords, payment data, or other sensitive personal information.
 
 After adding or changing environment variables, redeploy the relevant Preview deployment.
 
