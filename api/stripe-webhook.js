@@ -275,14 +275,29 @@ export default async function handler(req, res) {
         const existingBillingData = existingBilling.exists ? existingBilling.data() : {};
         const existingSubscriptionId = existingBillingData.stripeSubscriptionId || null;
         let existingSubscriptionCreated = Number(existingBillingData.stripeSubscriptionCreated || 0);
+        let existingSubscriptionMissing = false;
         if (existingSubscriptionId && !existingSubscriptionCreated) {
-          const existingSubscription = await services.stripe.subscriptions.retrieve(existingSubscriptionId);
-          existingSubscriptionCreated = Number(existingSubscription.created || 0);
-          if (!existingSubscriptionCreated) {
-            // Do not consume this webhook event when the current subscription
-            // watermark cannot be established. Throwing returns 500 so Stripe
-            // retries after the processing lease expires.
-            throw new Error("Could not establish existing subscription creation timestamp.");
+          try {
+            const existingSubscription = await services.stripe.subscriptions.retrieve(existingSubscriptionId);
+            existingSubscriptionCreated = Number(existingSubscription.created || 0);
+            if (!existingSubscriptionCreated) {
+              throw new Error("Existing subscription response has no creation timestamp.");
+            }
+          } catch (error) {
+            const isNotFound = error?.statusCode === 404 ||
+              error?.raw?.statusCode === 404 ||
+              error?.code === "resource_missing";
+            if (isNotFound) {
+              // Terminal recovery: Stripe confirms the stored subscription no
+              // longer exists. The incoming, signature-verified subscription
+              // event may replace this stale pointer if the billing record has
+              // not changed since the preflight read.
+              existingSubscriptionMissing = true;
+            } else {
+              // Rate limits, network errors, authentication/configuration
+              // failures and unknown errors remain retryable/non-acknowledged.
+              throw error;
+            }
           }
         }
         await services.db.runTransaction(async transaction => {
@@ -306,9 +321,14 @@ export default async function handler(req, res) {
             currentCreated = existingSubscriptionCreated;
           }
           if (currentSubscriptionId && currentSubscriptionId !== subscriptionId) {
-            if (!incomingCreated || !currentCreated) return;
-            if (incomingCreated < currentCreated) return;
-            if (incomingCreated === currentCreated && subscriptionId < currentSubscriptionId) return;
+            if (currentSubscriptionId !== existingSubscriptionId) return;
+            if (existingSubscriptionMissing) {
+              if (!incomingCreated) return;
+            } else {
+              if (!incomingCreated || !currentCreated) return;
+              if (incomingCreated < currentCreated) return;
+              if (incomingCreated === currentCreated && subscriptionId < currentSubscriptionId) return;
+            }
           }
 
           transaction.set(billingRef, {
