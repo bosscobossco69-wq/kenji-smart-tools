@@ -67,6 +67,16 @@ function unixDate(seconds) {
   return Number.isFinite(seconds) ? new Date(seconds * 1000) : null;
 }
 
+function addUtcMonth(date) {
+  const next = new Date(date);
+  const anchorDay = next.getUTCDate();
+  next.setUTCDate(1);
+  next.setUTCMonth(next.getUTCMonth() + 1);
+  const lastDay = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate();
+  next.setUTCDate(Math.min(anchorDay, lastDay));
+  return next;
+}
+
 function getFirebaseUid(object) {
   // Only accept server-controlled Stripe metadata. client_reference_id can be
   // supplied in a Payment Link URL and must never be trusted as an account ID.
