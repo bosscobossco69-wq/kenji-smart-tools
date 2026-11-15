@@ -329,7 +329,7 @@ export default async function handler(req, res) {
           },
           {
             role: "user",
-            content: `Scenario: ${scenarioLabels[scenario]}\\nTone: ${toneLabels[tone]}\\nCustomer message:\\n<customer_message>\\n${message.trim()}\\n</customer_message>\\nWrite one ready-to-send reply.`
+            content: `Scenario: ${scenarioLabels[scenario]}\nTone: ${toneLabels[tone]}\nCustomer message:\n<customer_message>\n${message.trim()}\n</customer_message>\nWrite one ready-to-send reply.`
           }
         ],
         max_completion_tokens: 220,
