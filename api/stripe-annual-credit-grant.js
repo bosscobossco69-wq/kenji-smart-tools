@@ -38,20 +38,19 @@ function addUtcMonth(date, anchorDay) {
 }
 
 function monthKey(date) {
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+  return date.getUTCFullYear() + "-" + String(date.getUTCMonth() + 1).padStart(2, "0");
 }
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
+  if (req.method !== "GET" && req.method !== "POST") {
+    res.setHeader("Allow", "GET, POST");
     return res.status(405).json({ error: "Method not allowed." });
   }
 
   const secret = process.env.CRON_SECRET;
-  const authorization = req.headers.authorization;
-  if (!secret || authorization !== `Bearer ${secret}`) {
+  if (!secret || req.headers.authorization !== "Bearer " + secret) {
     return res.status(401).json({ error: "Unauthorized." });
   }
 
@@ -75,76 +74,72 @@ export default async function handler(req, res) {
       lastDoc = snapshot.docs[snapshot.docs.length - 1];
 
       for (const doc of snapshot.docs) {
-      const data = doc.data();
-      const dueAt = asDate(data.nextCreditGrantAt);
-      const periodEnd = asDate(data.currentPeriodEnd);
-      const subscriptionId = data.stripeSubscriptionId;
-      const uid = doc.ref.parent.parent?.id;
-      const planId = data.annualCreditGrantPlanId || data.planId;
-      const credits = PLAN_CREDITS[planId];
+        const data = doc.data();
+        const dueAt = asDate(data.nextCreditGrantAt);
+        const periodEnd = asDate(data.currentPeriodEnd);
+        const subscriptionId = data.stripeSubscriptionId;
+        const uid = doc.ref.parent.parent?.id;
+        const planId = data.annualCreditGrantPlanId || data.planId;
+        const credits = PLAN_CREDITS[planId];
 
-      if (!data.active || !dueAt || dueAt > now || !periodEnd || dueAt >= periodEnd ||
-          !subscriptionId || !uid || !credits || data.annualCreditGrantSubscriptionId !== subscriptionId) {
-        skipped++;
-        continue;
-      }
-
-      try {
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        if (!["active", "trialing"].includes(subscription.status) ||
-            subscription.cancel_at_period_end && now >= periodEnd) {
+        if (!data.active || !dueAt || dueAt > now || !periodEnd || dueAt >= periodEnd ||
+            !subscriptionId || !uid || !credits ||
+            data.annualCreditGrantSubscriptionId !== subscriptionId) {
           skipped++;
           continue;
         }
 
-        const ledgerRef = db.collection("users").doc(uid).collection("creditLedger")
-          .doc(`annual_${subscriptionId}_${monthKey(dueAt)}`);
-        const userRef = db.collection("users").doc(uid);
-        let didGrant = false;
+        try {
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          if (!["active", "trialing"].includes(subscription.status) ||
+              (subscription.cancel_at_period_end && now >= periodEnd)) {
+            skipped++;
+            continue;
+          }
 
-        await db.runTransaction(async transaction => {
-          didGrant = false;
-          const [billingSnap, ledgerSnap, userSnap] = await Promise.all([
-            transaction.get(doc.ref), transaction.get(ledgerRef), transaction.get(userRef)
-          ]);
-          if (!billingSnap.exists || ledgerSnap.exists) return;
-          const current = billingSnap.data();
-          const currentDue = asDate(current.nextCreditGrantAt);
-          const currentEnd = asDate(current.currentPeriodEnd);
-          if (current.stripeSubscriptionId !== subscriptionId ||
-              current.annualCreditGrantSubscriptionId !== subscriptionId ||
-              !current.active || !currentDue || currentDue.getTime() !== dueAt.getTime() ||
-              currentDue > new Date() || !currentEnd || currentDue >= currentEnd) return;
+          const billingRef = doc.ref;
+          const ledgerRef = db.collection("users").doc(uid).collection("creditLedger")
+            .doc("annual_" + subscriptionId + "_" + monthKey(dueAt));
+          let didGrant = false;
 
-          const balance = Number(userSnap.exists ? userSnap.data()?.creditsBalance || 0 : 0);
-          if (!Number.isSafeInteger(balance) || balance < 0) throw new Error("Invalid Credits balance.");
+          await db.runTransaction(async tx => {
+            didGrant = false;
+            const [billingSnap, ledgerSnap] = await Promise.all([tx.get(billingRef), tx.get(ledgerRef)]);
+            if (!billingSnap.exists || ledgerSnap.exists) return;
+            const current = billingSnap.data();
+            const currentDue = asDate(current.nextCreditGrantAt);
+            const currentEnd = asDate(current.currentPeriodEnd);
+            if (current.stripeSubscriptionId !== subscriptionId ||
+                current.annualCreditGrantSubscriptionId !== subscriptionId ||
+                !current.active || !currentDue || currentDue.getTime() !== dueAt.getTime() ||
+                currentDue > new Date() || !currentEnd || currentDue >= currentEnd) return;
 
-          transaction.create(ledgerRef, {
-            type: "annual_subscription_monthly_grant",
-            source: "scheduled_subscription_credit",
-            stripeSubscriptionId: subscriptionId,
-            planId,
-            credits,
-            grantMonth: monthKey(dueAt),
-            createdAt: FieldValue.serverTimestamp()
+            const balance = Number(current.creditBalance ?? 0);
+            if (!Number.isSafeInteger(balance) || balance < 0) throw new Error("Invalid Credits balance.");
+
+            tx.create(ledgerRef, {
+              type: "annual_subscription_monthly_grant",
+              source: "scheduled_subscription_credit",
+              stripeSubscriptionId: subscriptionId,
+              planId,
+              credits,
+              grantMonth: monthKey(dueAt),
+              createdAt: FieldValue.serverTimestamp()
+            });
+            tx.set(billingRef, {
+              creditBalance: balance + credits,
+              nextCreditGrantAt: addUtcMonth(currentDue, Number(current.annualCreditGrantAnchorDay) || currentDue.getUTCDate()),
+              lastAnnualCreditGrantAt: FieldValue.serverTimestamp(),
+              updatedAt: FieldValue.serverTimestamp()
+            }, { merge: true });
+            didGrant = true;
           });
-          transaction.set(userRef, {
-            creditsBalance: balance + credits,
-            creditsUpdatedAt: FieldValue.serverTimestamp()
-          }, { merge: true });
-          transaction.set(doc.ref, {
-            nextCreditGrantAt: addUtcMonth(currentDue, Number(current.annualCreditGrantAnchorDay) || currentDue.getUTCDate()),
-            lastAnnualCreditGrantAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp()
-          }, { merge: true });
-          didGrant = true;
-        });
 
-        if (didGrant) granted++;
-        else skipped++;
-      } catch {
-        failed++;
-      }
+          if (didGrant) granted++;
+          else skipped++;
+        } catch {
+          failed++;
+        }
       }
     }
 
