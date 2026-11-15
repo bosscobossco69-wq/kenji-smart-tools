@@ -268,6 +268,21 @@ export default async function handler(req, res) {
         });
       } else if (event.type.startsWith("customer.subscription.")) {
         const subscription = object;
+        // Backfill the creation timestamp for billing records written before
+        // this watermark was introduced. Fetch outside the transaction so no
+        // Stripe network request runs inside a Firestore transaction callback.
+        const existingBilling = await billingRef.get();
+        const existingBillingData = existingBilling.exists ? existingBilling.data() : {};
+        const existingSubscriptionId = existingBillingData.stripeSubscriptionId || null;
+        let existingSubscriptionCreated = Number(existingBillingData.stripeSubscriptionCreated || 0);
+        if (existingSubscriptionId && !existingSubscriptionCreated) {
+          try {
+            const existingSubscription = await services.stripe.subscriptions.retrieve(existingSubscriptionId);
+            existingSubscriptionCreated = Number(existingSubscription.created || 0);
+          } catch {
+            // Fail closed below if we cannot establish which subscription is newer.
+          }
+        }
         await services.db.runTransaction(async transaction => {
           const current = await transaction.get(billingRef);
           const data = current.exists ? current.data() : {};
@@ -280,9 +295,16 @@ export default async function handler(req, res) {
           // Per-subscription sequence watermarks prevent a replacement subscription
           // starting at sequence 1 from being blocked by its predecessor's counter.
           const incomingCreated = Number(subscription.created || 0);
-          const currentCreated = Number(data.stripeSubscriptionCreated || 0);
           const currentSubscriptionId = data.stripeSubscriptionId || null;
+          let currentCreated = Number(data.stripeSubscriptionCreated || 0);
+          if (currentSubscriptionId && currentSubscriptionId !== subscriptionId && !currentCreated) {
+            // Only apply the pre-fetched watermark if the billing record still
+            // points to the same subscription that was fetched above.
+            if (currentSubscriptionId !== existingSubscriptionId || !existingSubscriptionCreated) return;
+            currentCreated = existingSubscriptionCreated;
+          }
           if (currentSubscriptionId && currentSubscriptionId !== subscriptionId) {
+            if (!incomingCreated || !currentCreated) return;
             if (incomingCreated < currentCreated) return;
             if (incomingCreated === currentCreated && subscriptionId < currentSubscriptionId) return;
           }
