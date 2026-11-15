@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
@@ -7,6 +7,8 @@ const configuredCreditCost = Number(process.env.AI_REPLY_CREDIT_COST || 1);
 const CREDIT_COST = Number.isFinite(configuredCreditCost) && configuredCreditCost >= 1
   ? Math.floor(configuredCreditCost) : 1;
 const MAX_MESSAGE_LENGTH = 1200;
+const AI_REPLY_RESERVATION_LEASE_MS = 5 * 60 * 1000;
+const AI_REPLY_CACHE_TTL_MS = 60 * 60 * 1000;
 const scenarios = new Set(["price", "discount", "delay", "service", "followup"]);
 const tones = new Set(["professional", "friendly", "direct"]);
 const scenarioLabels = {
@@ -55,41 +57,137 @@ function requestHash({ message, scenario, tone }) {
 }
 
 async function reserveCredits(db, uid, requestId, hash) {
-  const billingRef = db.collection("users").doc(uid).collection("billing").doc("current");
-  const ledgerRef = db.collection("users").doc(uid).collection("creditLedger").doc(requestId);
+  const userRef = db.collection("users").doc(uid);
+  const billingRef = userRef.collection("billing").doc("current");
+  const ledgerRef = userRef.collection("creditLedger").doc(requestId);
+  const cacheRef = userRef.collection("aiReplyCache").doc(requestId);
+  const nowMs = Date.now();
+  const leaseToken = randomUUID();
+  const leaseExpiresAtMs = nowMs + AI_REPLY_RESERVATION_LEASE_MS;
+
   return db.runTransaction(async tx => {
-    const [billingSnap, ledgerSnap] = await Promise.all([tx.get(billingRef), tx.get(ledgerRef)]);
-    if (ledgerSnap.exists) {
-      const existing = ledgerSnap.data();
-      if (existing.requestHash !== hash) return { error: "This request ID was already used for different content.", status: 409 };
-      if (existing.status === "completed" && typeof existing.reply === "string") return { cachedReply: existing.reply };
-      if (existing.status === "processing") return { error: "This reply request is still processing. Please wait a moment before retrying.", status: 409 };
-      if (existing.status !== "refunded") return { error: "This request cannot be retried. Please start a new request.", status: 409 };
+    const [billingSnap, ledgerSnap, cacheSnap] = await Promise.all([
+      tx.get(billingRef), tx.get(ledgerRef), tx.get(cacheRef)
+    ]);
+    const existing = ledgerSnap.exists ? ledgerSnap.data() : null;
+    if (existing) {
+      if (existing.requestHash !== hash) {
+        return { error: "This request ID was already used for different content.", status: 409 };
+      }
+      if (existing.status === "completed") {
+        const cached = cacheSnap.exists ? cacheSnap.data() : {};
+        const expiresAtMs = cached.expiresAt?.toDate
+          ? cached.expiresAt.toDate().getTime()
+          : (cached.expiresAt instanceof Date ? cached.expiresAt.getTime() : 0);
+        if (typeof cached.reply === "string" && cached.requestHash === hash && expiresAtMs > nowMs) {
+          return { cachedReply: cached.reply };
+        }
+        if (cacheSnap.exists) tx.delete(cacheRef);
+        return {
+          error: "This reply was already completed. Clear the form to start a new request.",
+          status: 409
+        };
+      }
+      if (existing.status === "processing") {
+        const currentLeaseExpiresAtMs = Number(existing.leaseExpiresAtMs || 0);
+        if (currentLeaseExpiresAtMs > nowMs) {
+          return { error: "This reply request is still processing. Please wait a moment before retrying.", status: 409 };
+        }
+        // Reclaim the original debit only after its lease expires. The same
+        // request keeps one Credit charge; the new token fences off a late
+        // response from the abandoned invocation.
+        tx.set(ledgerRef, {
+          status: "processing",
+          leaseToken,
+          leaseExpiresAtMs,
+          recoveredAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          reply: FieldValue.delete()
+        }, { merge: true });
+        if (cacheSnap.exists) tx.delete(cacheRef);
+        const current = billingSnap.exists ? Number(billingSnap.data()?.creditBalance ?? 0) : 0;
+        const balance = Number.isFinite(current) && current >= 0 ? Math.floor(current) : 0;
+        return { reserved: true, recovered: true, balance, leaseToken };
+      }
+      if (existing.status !== "refunded") {
+        return { error: "This request cannot be retried. Please start a new request.", status: 409 };
+      }
     }
 
     const current = billingSnap.exists ? Number(billingSnap.data()?.creditBalance ?? 0) : 0;
     const balance = Number.isFinite(current) && current >= 0 ? Math.floor(current) : 0;
-    if (balance < CREDIT_COST) return { error: "You do not have enough AI Credits. Please buy a Credits pack.", status: 402, balance };
+    if (balance < CREDIT_COST) {
+      return { error: "You do not have enough AI Credits. Please buy a Credits pack.", status: 402, balance };
+    }
 
-    tx.set(billingRef, { creditBalance: balance - CREDIT_COST, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    tx.set(ledgerRef, {
-      type: "ai_reply_usage", credits: -CREDIT_COST, requestHash: hash, status: "processing",
-      createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()
+    tx.set(billingRef, {
+      creditBalance: balance - CREDIT_COST,
+      updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
-    return { reserved: true, balance: balance - CREDIT_COST };
+    tx.set(ledgerRef, {
+      type: "ai_reply_usage",
+      credits: -CREDIT_COST,
+      requestHash: hash,
+      status: "processing",
+      leaseToken,
+      leaseExpiresAtMs,
+      createdAt: existing?.createdAt || FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      reply: FieldValue.delete(),
+      refundReason: FieldValue.delete(),
+      refundedAt: FieldValue.delete()
+    }, { merge: true });
+    if (cacheSnap.exists) tx.delete(cacheRef);
+    return { reserved: true, balance: balance - CREDIT_COST, leaseToken };
   });
 }
 
-async function refundCredits(db, uid, requestId, reason) {
+async function refundCredits(db, uid, requestId, reason, leaseToken) {
   const billingRef = db.collection("users").doc(uid).collection("billing").doc("current");
   const ledgerRef = db.collection("users").doc(uid).collection("creditLedger").doc(requestId);
   await db.runTransaction(async tx => {
     const ledgerSnap = await tx.get(ledgerRef);
-    if (!ledgerSnap.exists || ledgerSnap.data()?.status !== "processing") return;
-    tx.set(billingRef, { creditBalance: FieldValue.increment(CREDIT_COST), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    const ledger = ledgerSnap.exists ? ledgerSnap.data() : null;
+    if (!ledger || ledger.status !== "processing" || ledger.leaseToken !== leaseToken) return;
+    tx.set(billingRef, {
+      creditBalance: FieldValue.increment(CREDIT_COST),
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
     tx.set(ledgerRef, {
-      status: "refunded", refundReason: reason,
-      refundedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()
+      status: "refunded",
+      refundReason: reason,
+      refundedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      leaseToken: FieldValue.delete(),
+      leaseExpiresAtMs: FieldValue.delete(),
+      reply: FieldValue.delete()
+    }, { merge: true });
+  });
+}
+
+async function completeCredits(db, uid, requestId, hash, reply, leaseToken) {
+  const userRef = db.collection("users").doc(uid);
+  const ledgerRef = userRef.collection("creditLedger").doc(requestId);
+  const cacheRef = userRef.collection("aiReplyCache").doc(requestId);
+  await db.runTransaction(async tx => {
+    const ledgerSnap = await tx.get(ledgerRef);
+    const ledger = ledgerSnap.exists ? ledgerSnap.data() : null;
+    if (!ledger || ledger.status !== "processing" || ledger.leaseToken !== leaseToken) {
+      throw new Error("The AI reply reservation expired or was replaced. Please retry the request.");
+    }
+    tx.set(cacheRef, {
+      requestHash: hash,
+      reply,
+      createdAt: FieldValue.serverTimestamp(),
+      expiresAt: new Date(Date.now() + AI_REPLY_CACHE_TTL_MS)
+    });
+    tx.set(ledgerRef, {
+      status: "completed",
+      completedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      leaseToken: FieldValue.delete(),
+      leaseExpiresAtMs: FieldValue.delete(),
+      reply: FieldValue.delete()
     }, { merge: true });
   });
 }
@@ -117,7 +215,7 @@ export default async function handler(req, res) {
   if (!scenarios.has(scenario) || !tones.has(tone)) return res.status(400).json({ error: "Choose a valid scenario and tone." });
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) return res.status(400).json({ error: "A valid request ID is required. Please try again." });
 
-  let services, uid, reserved = false;
+  let services, uid, reserved = false, reservationToken = null;
   const hash = requestHash({ message, scenario, tone });
   try {
     services = await getServices();
@@ -130,6 +228,7 @@ export default async function handler(req, res) {
       error: reservation.error, ...(reservation.balance !== undefined ? { creditBalance: reservation.balance } : {})
     });
     if (reservation.cachedReply) return res.status(200).json({ reply: reservation.cachedReply, cached: true });
+    reservationToken = reservation.leaseToken;
     reserved = true;
 
     let response;
@@ -145,13 +244,13 @@ export default async function handler(req, res) {
         })
       });
     } catch {
-      await refundCredits(services.db, uid, requestId, "ai_provider_unreachable"); reserved = false;
+      await refundCredits(services.db, uid, requestId, "ai_provider_unreachable", reservationToken); reserved = false;
       return res.status(502).json({ error: "Unable to reach the AI service. Your Credits have been returned." });
     }
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      await refundCredits(services.db, uid, requestId, response.status === 429 ? "ai_provider_busy" : "ai_provider_error"); reserved = false;
+      await refundCredits(services.db, uid, requestId, response.status === 429 ? "ai_provider_busy" : "ai_provider_error", reservationToken); reserved = false;
       return res.status(response.status === 429 ? 503 : 502).json({
         error: response.status === 429 ? "The AI service is busy. Your Credits have been returned; please try again shortly." : "The AI service could not complete the request. Your Credits have been returned."
       });
@@ -161,17 +260,16 @@ export default async function handler(req, res) {
       .flatMap(item => item.content || []).filter(item => item.type === "output_text")
       .map(item => item.text).join("\n").trim();
     if (!reply) {
-      await refundCredits(services.db, uid, requestId, "empty_ai_response"); reserved = false;
+      await refundCredits(services.db, uid, requestId, "empty_ai_response", reservationToken); reserved = false;
       return res.status(502).json({ error: "No reply was generated. Your Credits have been returned." });
     }
 
-    const ledgerRef = services.db.collection("users").doc(uid).collection("creditLedger").doc(requestId);
-    await ledgerRef.set({ status: "completed", reply, completedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    await completeCredits(services.db, uid, requestId, hash, reply, reservationToken);
     reserved = false;
     return res.status(200).json({ reply, creditCost: CREDIT_COST });
   } catch (error) {
     if (reserved && services && uid) {
-      try { await refundCredits(services.db, uid, requestId, "internal_error"); } catch {}
+      try { await refundCredits(services.db, uid, requestId, "internal_error", reservationToken); } catch {}
     }
     const message = error?.message || "";
     const unavailable = message.includes("not configured") || message.includes("project mismatch");
