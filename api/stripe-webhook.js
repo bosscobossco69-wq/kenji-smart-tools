@@ -268,90 +268,138 @@ export default async function handler(req, res) {
           }, { merge: true });
         });
       } else if (event.type.startsWith("customer.subscription.")) {
-        // Allocate a per-subscription sequence before retrieving the latest
-        // Stripe state so a slower earlier request cannot overwrite a later one.
-        const sequenceRef = services.db.collection("stripeSnapshotSequences").doc(object.id);
+        const incomingCreated = Number(subscription.created || 0);
+        const incomingOrderId = subscription.metadata?.orderId || null;
+        const incomingOrderAt = await getOrderCreatedAtMs(services.db, incomingOrderId);
+        const existingBilling = await billingRef.get();
+        const existingData = existingBilling.exists ? existingBilling.data() : {};
+        const existingSubscriptionId = existingData.stripeSubscriptionId || null;
+        let existingSubscriptionCreated = Number(existingData.stripeSubscriptionCreated || 0);
+        let existingOrderId = existingData.stripeSubscriptionOrderId || null;
+        let existingOrderAt = Number(existingData.stripeSubscriptionOrderCreatedAtMs || 0);
+        let existingSubscriptionMissing = false;
+        if (existingSubscriptionId && existingSubscriptionId !== subscription.id &&
+            (!existingSubscriptionCreated || existingSubscriptionCreated === incomingCreated ||
+              (incomingCreated && existingSubscriptionCreated === incomingCreated))) {
+          try {
+            const existingSubscription = await services.stripe.subscriptions.retrieve(existingSubscriptionId);
+            existingSubscriptionCreated = Number(existingSubscription.created || existingSubscriptionCreated || 0);
+            existingOrderId = existingOrderId || existingSubscription.metadata?.orderId || null;
+            existingOrderAt = existingOrderAt || Number(await getOrderCreatedAtMs(services.db, existingOrderId) || 0);
+          } catch (error) {
+            if (isMissingStripeResource(error)) {
+              existingSubscriptionMissing = true;
+            } else {
+              throw error;
+            }
+          }
+        }
+        const sequenceRef = services.db.collection("stripeSnapshotSequences").doc(subscription.id);
         const snapshotSequence = await services.db.runTransaction(async transaction => {
           const current = await transaction.get(sequenceRef);
           const next = Number(current.data()?.value || 0) + 1;
           transaction.set(sequenceRef, { value: next, updatedAt: FieldValue.serverTimestamp() });
           return next;
         });
-        let subscription;
+        let subscriptionSnapshot = subscription;
         try {
-          subscription = await services.stripe.subscriptions.retrieve(object.id);
+          // Always reconcile against current Stripe state, not the event snapshot.
+          subscriptionSnapshot = await services.stripe.subscriptions.retrieve(subscription.id);
         } catch (error) {
           if (!(event.type === "customer.subscription.deleted" && isMissingStripeResource(error))) {
             throw error;
           }
-          subscription = { ...object, status: "canceled" };
+          subscriptionSnapshot = { ...subscription, status: "canceled" };
         }
         await services.db.runTransaction(async transaction => {
           const current = await transaction.get(billingRef);
           const data = current.exists ? current.data() : {};
           const sequences = data.subscriptionSnapshotSequences || {};
-          const previousSequence = Number(sequences[subscription.id] || 0);
+          const previousSequence = Number(sequences[subscriptionSnapshot.id] || 0);
           if (snapshotSequence < previousSequence) return;
-          const incomingCreated = Number(subscription.created || 0);
-          const currentCreated = Number(data.stripeSubscriptionCreated || 0);
           const currentId = data.stripeSubscriptionId || null;
-          if (currentId && currentId !== subscription.id) {
-            if (!incomingCreated || !currentCreated) {
-              throw new Error("Cannot safely order subscription replacement.");
-            }
-            if (incomingCreated < currentCreated) return;
-            if (incomingCreated === currentCreated) {
-              const incomingOrderAt = await getOrderCreatedAtMs(services.db, subscription.metadata?.orderId);
-              const existingOrderAt = Number(data.stripeSubscriptionOrderCreatedAtMs || 0);
-              if (!incomingOrderAt || !existingOrderAt) {
-                throw new Error("Cannot safely order subscriptions created in the same second.");
-              }
-              if (incomingOrderAt < existingOrderAt) return;
-              if (incomingOrderAt === existingOrderAt &&
-                  subscription.metadata?.orderId !== data.stripeSubscriptionOrderId) {
-                throw new Error("Subscription replacement order timestamps are ambiguous.");
+          const incomingCreated = Number(subscriptionSnapshot.created || 0);
+          const transactionCurrentCreated = Number(data.stripeSubscriptionCreated || 0) ||
+            (currentId === existingSubscriptionId ? existingSubscriptionCreated : 0);
+          if (currentId && currentId !== subscriptionSnapshot.id) {
+            if (!incomingCreated) throw new Error("Incoming subscription creation timestamp is missing.");
+            if (existingSubscriptionMissing && currentId === existingSubscriptionId) {
+              // Stripe confirmed the previously stored subscription no longer exists.
+            } else {
+              if (!transactionCurrentCreated) throw new Error("Cannot safely order subscription replacement.");
+              if (incomingCreated < transactionCurrentCreated) return;
+              if (incomingCreated === transactionCurrentCreated) {
+                if (!incomingOrderAt || !existingOrderAt) {
+                  throw new Error("Cannot safely order subscriptions created in the same second.");
+                }
+                if (incomingOrderAt < existingOrderAt) return;
+                if (incomingOrderAt === existingOrderAt && incomingOrderId !== existingOrderId) {
+                  throw new Error("Subscription replacement order timestamps are ambiguous.");
+                }
               }
             }
           }
-          const incomingOrderId = subscription.metadata?.orderId || null;
-          const incomingOrderAt = await getOrderCreatedAtMs(services.db, incomingOrderId);
           transaction.set(billingRef, {
             ...common,
-            ...subscriptionData(subscription),
-            active: ["active", "trialing"].includes(subscription.status),
-            stripeSubscriptionId: subscription.id,
+            ...subscriptionData(subscriptionSnapshot),
+            active: ["active", "trialing"].includes(subscriptionSnapshot.status),
+            stripeSubscriptionId: subscriptionSnapshot.id,
             stripeSubscriptionCreated: incomingCreated,
             stripeSubscriptionOrderId: incomingOrderId,
             ...(incomingOrderAt ? { stripeSubscriptionOrderCreatedAtMs: incomingOrderAt } : {}),
             subscriptionSnapshotSequences: {
               ...sequences,
-              [subscription.id]: snapshotSequence
+              [subscriptionSnapshot.id]: snapshotSequence
             }
           }, { merge: true });
         });
       } else if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
-        // Invoice events are only markers. Reconcile the subscription's actual
-        // latest invoice, so an old paid invoice cannot clear a newer failure.
+        // Allocate before Stripe retrieval so a slower earlier request cannot win.
         const subscriptionId = typeof object.subscription === "string"
           ? object.subscription
           : object.subscription?.id || object.parent?.subscription_details?.subscription || null;
         if (!subscriptionId) throw new Error("Invoice event is missing a subscription reference.");
+        const sequenceRef = services.db.collection("stripeSnapshotSequences").doc(subscriptionId);
+        const snapshotSequence = await services.db.runTransaction(async transaction => {
+          const current = await transaction.get(sequenceRef);
+          const next = Number(current.data()?.value || 0) + 1;
+          transaction.set(sequenceRef, { value: next, updatedAt: FieldValue.serverTimestamp() });
+          return next;
+        });
         const subscription = await services.stripe.subscriptions.retrieve(subscriptionId);
         const latestInvoiceId = typeof subscription.latest_invoice === "string"
           ? subscription.latest_invoice
           : subscription.latest_invoice?.id || null;
         if (!latestInvoiceId) throw new Error("Subscription has no latest invoice to reconcile.");
         const latestInvoice = await services.stripe.invoices.retrieve(latestInvoiceId);
-        await billingRef.set({
-          ...common,
-          latestInvoiceId: latestInvoice.id,
-          latestInvoiceStatus: latestInvoice.status || "open",
-          latestInvoiceAmountPaid: latestInvoice.amount_paid ?? null,
-          latestInvoiceCurrency: latestInvoice.currency || null,
-          paymentIssue: latestInvoice.status === "uncollectible" ||
-            (latestInvoice.status === "open" && Boolean(latestInvoice.attempted) &&
-              Number(latestInvoice.attempt_count || 0) > 0)
-        }, { merge: true });
+        await services.db.runTransaction(async transaction => {
+          const current = await transaction.get(billingRef);
+          const data = current.exists ? current.data() : {};
+          const sequences = data.invoiceSnapshotSequences || {};
+          const previousSequence = Number(sequences[subscriptionId] || 0);
+          if (snapshotSequence < previousSequence) return;
+          if (data.stripeSubscriptionId && data.stripeSubscriptionId !== subscriptionId) {
+            const currentCreated = Number(data.stripeSubscriptionCreated || 0);
+            if (!currentCreated || Number(subscription.created || 0) > currentCreated) {
+              throw new Error("Invoice belongs to a subscription not yet linked to the billing record.");
+            }
+            return;
+          }
+          transaction.set(billingRef, {
+            ...common,
+            latestInvoiceId: latestInvoice.id,
+            latestInvoiceStatus: latestInvoice.status || "open",
+            latestInvoiceAmountPaid: latestInvoice.amount_paid ?? null,
+            latestInvoiceCurrency: latestInvoice.currency || null,
+            paymentIssue: latestInvoice.status === "uncollectible" ||
+              (latestInvoice.status === "open" && Boolean(latestInvoice.attempted) &&
+                Number(latestInvoice.attempt_count || 0) > 0),
+            invoiceSnapshotSequences: {
+              ...sequences,
+              [subscriptionId]: snapshotSequence
+            }
+          }, { merge: true });
+        });
       }
     }
 
