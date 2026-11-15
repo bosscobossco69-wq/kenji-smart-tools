@@ -162,13 +162,21 @@ async function reserveCredits(db, uid, requestId, hash) {
 async function refundCredits(db, uid, requestId, reason, leaseToken) {
   const billingRef = db.collection("users").doc(uid).collection("billing").doc("current");
   const ledgerRef = db.collection("users").doc(uid).collection("creditLedger").doc(requestId);
-  let refunded = false;
-  await db.runTransaction(async tx => {
+  return db.runTransaction(async tx => {
     const ledgerSnap = await tx.get(ledgerRef);
     const ledger = ledgerSnap.exists ? ledgerSnap.data() : null;
-    if (!ledger || ledger.status !== "processing" || ledger.leaseToken !== leaseToken) return;
+    if (!ledger || ledger.status !== "processing" || ledger.leaseToken !== leaseToken) return false;
+
+    // Refund the exact debit recorded when this request was reserved.
+    // Do not depend on the current environment setting, which may have changed.
+    const debitedCredits = Number(ledger.credits);
+    if (!Number.isSafeInteger(debitedCredits) || debitedCredits >= 0) {
+      throw new Error("The original AI reply debit is invalid; refusing to issue an unsafe refund.");
+    }
+    const refundAmount = Math.abs(debitedCredits);
+
     tx.set(billingRef, {
-      creditBalance: FieldValue.increment(CREDIT_COST),
+      creditBalance: FieldValue.increment(refundAmount),
       updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
     tx.set(ledgerRef, {
@@ -180,9 +188,8 @@ async function refundCredits(db, uid, requestId, reason, leaseToken) {
       leaseExpiresAtMs: FieldValue.delete(),
       reply: FieldValue.delete()
     }, { merge: true });
-    refunded = true;
+    return true;
   });
-  return refunded;
 }
 
 async function completeCredits(db, uid, requestId, hash, reply, leaseToken) {
