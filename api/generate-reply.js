@@ -169,8 +169,9 @@ async function refundCredits(db, uid, requestId, reason, leaseToken) {
 
     // Refund the exact debit recorded when this request was reserved.
     // Do not depend on the current environment setting, which may have changed.
-    const debitedCredits = Number(ledger.credits);
-    if (!Number.isSafeInteger(debitedCredits) || debitedCredits >= 0) {
+    const debitedCredits = ledger.credits;
+    if (typeof debitedCredits !== "number" ||
+        !Number.isSafeInteger(debitedCredits) || debitedCredits >= 0) {
       throw new Error("The original AI reply debit is invalid; refusing to issue an unsafe refund.");
     }
     const refundAmount = Math.abs(debitedCredits);
