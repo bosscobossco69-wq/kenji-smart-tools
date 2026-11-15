@@ -317,8 +317,15 @@ export default async function handler(req, res) {
           if (currentSubscriptionId && currentSubscriptionId !== subscriptionId && !currentCreated) {
             // Only apply the pre-fetched watermark if the billing record still
             // points to the same subscription that was fetched above.
-            if (currentSubscriptionId !== existingSubscriptionId || !existingSubscriptionCreated) return;
-            currentCreated = existingSubscriptionCreated;
+            if (currentSubscriptionId !== existingSubscriptionId) return;
+            if (existingSubscriptionMissing) {
+              // A confirmed Stripe 404 is a terminal stale-pointer recovery,
+              // not a missing watermark that should block the replacement.
+              if (!incomingCreated) return;
+            } else {
+              if (!existingSubscriptionCreated) return;
+              currentCreated = existingSubscriptionCreated;
+            }
           }
           if (currentSubscriptionId && currentSubscriptionId !== subscriptionId) {
             if (currentSubscriptionId !== existingSubscriptionId) return;
