@@ -103,17 +103,18 @@ const notice=document.getElementById("billingNotice");
 const monthlyButton=document.getElementById("monthly");
 const annualButton=document.getElementById("annual");
 let currentUser=null;
-let selectedPeriod="monthly";
+let selectedPeriod=annualButton?.getAttribute("aria-pressed")==="true"?"yearly":"monthly";
 monthlyButton?.addEventListener("click",()=>{selectedPeriod="monthly";});
 annualButton?.addEventListener("click",()=>{selectedPeriod="yearly";});
 function setNotice(message,isError=false){if(!notice)return;notice.textContent=message;notice.style.borderColor=isError?"rgba(255,120,120,.55)":"var(--line)";}
 function refreshCheckoutButtons(){document.querySelectorAll(".checkout-btn").forEach(button=>{button.disabled=!currentUser || !currentUser.emailVerified || button.dataset.loading==="true";button.style.cursor=button.disabled?"not-allowed":"pointer";button.style.opacity=button.disabled?".65":"1";});}
 document.querySelectorAll(".checkout-btn").forEach(button=>button.addEventListener("click",async()=>{
  if(!currentUser || !currentUser.emailVerified){setNotice("Please sign in and verify your email before checkout.",true);return;}
+ const requestedPeriod=selectedPeriod;
  button.dataset.loading="true";button.textContent="Creating secure checkout…";refreshCheckoutButtons();
  try{
   const idToken=await currentUser.getIdToken(true);
-  const response=await fetch("/api/stripe-checkout",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${idToken}`},body:JSON.stringify({planId:button.dataset.plan,interval:selectedPeriod})});
+  const response=await fetch("/api/stripe-checkout",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${idToken}`},body:JSON.stringify({planId:button.dataset.plan,interval:requestedPeriod})});
   const result=await response.json().catch(()=>({}));
   if(!response.ok || typeof result.url!=="string")throw new Error(result.error||"Checkout is not configured for this plan yet.");
   if(!result.url.startsWith("https://checkout.stripe.com/"))throw new Error("Stripe returned an unexpected checkout address.");
