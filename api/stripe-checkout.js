@@ -264,6 +264,10 @@ export default async function handler(req, res) {
       let reservationError = null;
 
       await db.runTransaction(async transaction => {
+        // Firestore may rerun this callback after a transaction conflict.
+        // Reset closure state on each attempt to avoid stale reservations leaking.
+        reservation = null;
+        reservationError = null;
         const currentSnap = await transaction.get(billingRef);
         const current = currentSnap.exists ? currentSnap.data() : {};
         if (current.active === true || ACTIVE_SUBSCRIPTION_STATUSES.has(current.status)) {
