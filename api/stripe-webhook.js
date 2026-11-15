@@ -276,11 +276,13 @@ export default async function handler(req, res) {
         const existingSubscriptionId = existingBillingData.stripeSubscriptionId || null;
         let existingSubscriptionCreated = Number(existingBillingData.stripeSubscriptionCreated || 0);
         if (existingSubscriptionId && !existingSubscriptionCreated) {
-          try {
-            const existingSubscription = await services.stripe.subscriptions.retrieve(existingSubscriptionId);
-            existingSubscriptionCreated = Number(existingSubscription.created || 0);
-          } catch {
-            // Fail closed below if we cannot establish which subscription is newer.
+          const existingSubscription = await services.stripe.subscriptions.retrieve(existingSubscriptionId);
+          existingSubscriptionCreated = Number(existingSubscription.created || 0);
+          if (!existingSubscriptionCreated) {
+            // Do not consume this webhook event when the current subscription
+            // watermark cannot be established. Throwing returns 500 so Stripe
+            // retries after the processing lease expires.
+            throw new Error("Could not establish existing subscription creation timestamp.");
           }
         }
         await services.db.runTransaction(async transaction => {
