@@ -61,6 +61,11 @@ function unixDate(seconds) {
   return Number.isFinite(seconds) ? new Date(seconds * 1000) : null;
 }
 
+function isMissingStripeResource(error) {
+  return error?.statusCode === 404 || error?.raw?.statusCode === 404 ||
+    error?.code === "resource_missing";
+}
+
 function getFirebaseUid(object) {
   // Only accept server-controlled Stripe metadata. client_reference_id can be
   // supplied in a Payment Link URL and must never be trusted as an account ID.
@@ -80,8 +85,10 @@ function subscriptionData(subscription) {
     priceId: item?.price?.id || null,
     currency: item?.price?.currency || null,
     interval: item?.price?.recurring?.interval || null,
-    currentPeriodStart: unixDate(subscription.current_period_start),
-    currentPeriodEnd: unixDate(subscription.current_period_end),
+    currentPeriodStart: unixDate(Number.isFinite(item?.current_period_start)
+      ? item.current_period_start : subscription.current_period_start),
+    currentPeriodEnd: unixDate(Number.isFinite(item?.current_period_end)
+      ? item.current_period_end : subscription.current_period_end),
     cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
     cancelAt: unixDate(subscription.cancel_at),
     updatedAt: FieldValue.serverTimestamp()
@@ -169,6 +176,7 @@ export default async function handler(req, res) {
     let object = event.data.object;
     let snapshotSequence = null;
     let latestInvoiceSnapshot = null;
+    let relatedSubscription = null;
     const isInvoiceEvent = event.type === "invoice.paid" || event.type === "invoice.payment_failed";
     let snapshotSubscriptionId = event.type.startsWith("customer.subscription.")
       ? object.id
@@ -205,23 +213,26 @@ export default async function handler(req, res) {
         snapshotSequence = await allocateSnapshotSequence(snapshotSubscriptionId);
       }
       if (snapshotSubscriptionId) {
-        const subscription = await services.stripe.subscriptions.retrieve(snapshotSubscriptionId);
-        const latestInvoiceId = typeof subscription.latest_invoice === "string"
-          ? subscription.latest_invoice
-          : subscription.latest_invoice?.id || null;
+        relatedSubscription = await services.stripe.subscriptions.retrieve(snapshotSubscriptionId);
+        const latestInvoiceId = typeof relatedSubscription.latest_invoice === "string"
+          ? relatedSubscription.latest_invoice
+          : relatedSubscription.latest_invoice?.id || null;
         if (latestInvoiceId) {
           latestInvoiceSnapshot = await services.stripe.invoices.retrieve(latestInvoiceId);
         }
       }
     }
-    let uid = getFirebaseUid(object);
+    let uid = getFirebaseUid(object) || getFirebaseUid(relatedSubscription);
     let customer = null;
     const customerId = typeof object?.customer === "string" ? object.customer : object?.customer?.id;
     if (customerId) {
       try {
         customer = await services.stripe.customers.retrieve(customerId);
         if (customer?.deleted) customer = null;
-      } catch {}
+      } catch (error) {
+        if (!isMissingStripeResource(error)) throw error;
+        customer = null;
+      }
     }
     if (!uid) uid = getFirebaseUid(customer);
 
@@ -233,7 +244,9 @@ export default async function handler(req, res) {
         try {
           const matchedUser = await services.auth.getUserByEmail(email);
           if (matchedUser.emailVerified) uid = matchedUser.uid;
-        } catch {}
+        } catch (error) {
+          if (error?.code !== "auth/user-not-found") throw error;
+        }
       }
     }
 
@@ -328,11 +341,14 @@ export default async function handler(req, res) {
             }
           }
           if (currentSubscriptionId && currentSubscriptionId !== subscriptionId) {
-            if (currentSubscriptionId !== existingSubscriptionId) return;
-            if (existingSubscriptionMissing) {
-              if (!incomingCreated) return;
+            // Another event may have changed the active pointer after this
+            // handler's preflight read. Compare against the transaction's
+            // current watermark, not the stale preflight pointer.
+            if (!incomingCreated) return;
+            if (currentSubscriptionId === existingSubscriptionId && existingSubscriptionMissing) {
+              // Stripe confirmed the old pointer is gone; permit replacement.
             } else {
-              if (!incomingCreated || !currentCreated) return;
+              if (!currentCreated) return;
               if (incomingCreated < currentCreated) return;
               if (incomingCreated === currentCreated && subscriptionId < currentSubscriptionId) return;
             }
@@ -362,10 +378,22 @@ export default async function handler(req, res) {
             const previousInvoiceSequence = Number(invoiceSequences[snapshotSubscriptionId] || 0);
             // An invoice from a superseded subscription must not replace the
             // payment status shown for the current subscription.
-            if (!snapshotSubscriptionId ||
-                data.stripeSubscriptionId !== snapshotSubscriptionId ||
-                snapshotSequence === null ||
+            if (!snapshotSubscriptionId || snapshotSequence === null ||
                 snapshotSequence < previousInvoiceSequence) return;
+            if (data.stripeSubscriptionId !== snapshotSubscriptionId) {
+              const currentCreated = Number(data.stripeSubscriptionCreated || 0);
+              const incomingCreated = Number(relatedSubscription?.created || 0);
+              // If linkage has not arrived yet, leave the event retryable. If
+              // this invoice belongs to an older subscription, it is safe to
+              // consume without changing the current account payment state.
+              if (!data.stripeSubscriptionId || !currentCreated || !incomingCreated) {
+                throw new Error("Invoice arrived before its subscription was linked.");
+              }
+              if (incomingCreated > currentCreated) {
+                throw new Error("Invoice belongs to a newer subscription not linked yet.");
+              }
+              return;
+            }
             transaction.set(billingRef, {
               ...common,
               latestInvoiceId: latestInvoiceSnapshot.id,
@@ -402,7 +430,20 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ received: true, linked: Boolean(uid) });
   } catch {
-    // Return a failure so Stripe retries transient processing errors.
+    // Release only this invocation's lease so Stripe can retry immediately.
+    // Never clear a lease acquired by a newer concurrent delivery.
+    try {
+      await services.db.runTransaction(async transaction => {
+        const current = await transaction.get(eventRef);
+        if (current.data()?.processingToken !== processingToken) return;
+        transaction.set(eventRef, {
+          processingStatus: "retryable",
+          processingToken: FieldValue.delete(),
+          processingLeaseUntilMs: FieldValue.delete(),
+          lastProcessingErrorAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+      });
+    } catch {}
     return res.status(500).json({ error: "Stripe event processing failed." });
   }
 }
