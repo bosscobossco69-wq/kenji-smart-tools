@@ -271,12 +271,32 @@ export default async function handler(req, res) {
         await services.db.runTransaction(async transaction => {
           const current = await transaction.get(billingRef);
           const data = current.exists ? current.data() : {};
-          if (snapshotSequence === null || snapshotSequence < Number(data.subscriptionSnapshotSequence || 0)) return;
+          const subscriptionId = subscription.id;
+          const sequences = data.subscriptionSnapshotSequences || {};
+          const previousSequence = Number(sequences[subscriptionId] || 0);
+          if (snapshotSequence === null || snapshotSequence < previousSequence) return;
+
+          // Keep the shared billing document pointed at the newest subscription.
+          // Per-subscription sequence watermarks prevent a replacement subscription
+          // starting at sequence 1 from being blocked by its predecessor's counter.
+          const incomingCreated = Number(subscription.created || 0);
+          const currentCreated = Number(data.stripeSubscriptionCreated || 0);
+          const currentSubscriptionId = data.stripeSubscriptionId || null;
+          if (currentSubscriptionId && currentSubscriptionId !== subscriptionId) {
+            if (incomingCreated < currentCreated) return;
+            if (incomingCreated === currentCreated && subscriptionId < currentSubscriptionId) return;
+          }
+
           transaction.set(billingRef, {
             ...common,
             ...subscriptionData(subscription),
             active: ["active", "trialing"].includes(subscription.status),
-            subscriptionSnapshotSequence: snapshotSequence
+            stripeSubscriptionId: subscriptionId,
+            stripeSubscriptionCreated: incomingCreated,
+            subscriptionSnapshotSequences: {
+              ...sequences,
+              [subscriptionId]: snapshotSequence
+            }
           }, { merge: true });
         });
       } else if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
@@ -287,7 +307,14 @@ export default async function handler(req, res) {
           await services.db.runTransaction(async transaction => {
             const current = await transaction.get(billingRef);
             const data = current.exists ? current.data() : {};
-            if (snapshotSequence === null || snapshotSequence < Number(data.invoiceSnapshotSequence || 0)) return;
+            const invoiceSequences = data.invoiceSnapshotSequences || {};
+            const previousInvoiceSequence = Number(invoiceSequences[snapshotSubscriptionId] || 0);
+            // An invoice from a superseded subscription must not replace the
+            // payment status shown for the current subscription.
+            if (!snapshotSubscriptionId ||
+                data.stripeSubscriptionId !== snapshotSubscriptionId ||
+                snapshotSequence === null ||
+                snapshotSequence < previousInvoiceSequence) return;
             transaction.set(billingRef, {
               ...common,
               latestInvoiceId: latestInvoiceSnapshot.id,
@@ -297,7 +324,10 @@ export default async function handler(req, res) {
               paymentIssue: invoiceStatus === "uncollectible" ||
                 (invoiceStatus === "open" && Boolean(latestInvoiceSnapshot.attempted) &&
                   Number(latestInvoiceSnapshot.attempt_count || 0) > 0),
-              invoiceSnapshotSequence: snapshotSequence
+              invoiceSnapshotSequences: {
+                ...invoiceSequences,
+                [snapshotSubscriptionId]: snapshotSequence
+              }
             }, { merge: true });
           });
         }
