@@ -202,7 +202,12 @@ async function grantSubscriptionInvoice({ db, invoice, subscription, uid }) {
       createdAt: FieldValue.serverTimestamp()
     });
     if (interval === "year") {
-      const periodStart = unixDate(subscription.current_period_start);
+      // Stripe API versions using the Basil model expose billing periods on subscription items.
+      // Keep the subscription-level fallback for older API responses.
+      const periodStartSeconds = Number.isFinite(item?.current_period_start)
+        ? item.current_period_start
+        : subscription.current_period_start;
+      const periodStart = unixDate(periodStartSeconds);
       if (!periodStart) throw new Error("Annual subscription period start is missing.");
       tx.set(billingRef, {
         nextCreditGrantAt: addUtcMonth(periodStart),
