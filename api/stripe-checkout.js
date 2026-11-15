@@ -57,6 +57,105 @@ function siteBase(req) {
   return `https://${host}`;
 }
 
+function isMissingStripeResource(error) {
+  return error?.statusCode === 404 || error?.raw?.statusCode === 404 ||
+    error?.code === "resource_missing";
+}
+
+async function ensureStripeCustomer({ stripe, billingRef, billingData, user }) {
+  let customer = null;
+  if (typeof billingData.stripeCustomerId === "string") {
+    try {
+      customer = await stripe.customers.retrieve(billingData.stripeCustomerId);
+    } catch (error) {
+      if (!isMissingStripeResource(error)) throw error;
+    }
+  }
+
+  if (!customer || customer.deleted) {
+    const matches = [];
+    let startingAfter;
+    while (true) {
+      const page = await stripe.customers.list({
+        email: user.email,
+        limit: 100,
+        ...(startingAfter ? { starting_after: startingAfter } : {})
+      });
+      matches.push(...page.data);
+      const owned = page.data.find(item => item.metadata?.firebaseUID === user.uid);
+      if (owned) {
+        customer = owned;
+        break;
+      }
+      if (!page.has_more || page.data.length === 0) break;
+      startingAfter = page.data[page.data.length - 1].id;
+    }
+    if (!customer && matches.length === 1) customer = matches[0];
+    if (!customer && matches.length > 1) {
+      throw new Error("Multiple Stripe customers match this account; manual billing review is required.");
+    }
+  }
+
+  if (!customer) {
+    customer = await stripe.customers.create({
+      email: user.email,
+      metadata: { firebaseUID: user.uid }
+    }, { idempotencyKey: `kenji-customer-${user.uid}` });
+  }
+  if (customer.deleted) throw new Error("The Stripe customer is unavailable.");
+  const linkedUid = customer.metadata?.firebaseUID;
+  if (linkedUid && linkedUid !== user.uid) {
+    throw new Error("The Stripe customer is linked to another account.");
+  }
+  if (!linkedUid) {
+    customer = await stripe.customers.update(customer.id, {
+      metadata: { ...(customer.metadata || {}), firebaseUID: user.uid }
+    });
+  }
+
+  await billingRef.set({
+    stripeCustomerId: customer.id,
+    updatedAt: FieldValue.serverTimestamp()
+  }, { merge: true });
+  return customer.id;
+}
+
+async function findActiveSubscription(stripe, customerId) {
+  if (typeof customerId !== "string") return null;
+  let startingAfter;
+  while (true) {
+    const page = await stripe.subscriptions.list({
+      customer: customerId,
+      status: "all",
+      limit: 100,
+      ...(startingAfter ? { starting_after: startingAfter } : {})
+    });
+    const active = page.data.find(subscription =>
+      ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status)
+    );
+    if (active) return active;
+    if (!page.has_more || page.data.length === 0) return null;
+    startingAfter = page.data[page.data.length - 1].id;
+  }
+}
+
+async function findCheckoutSessionByOrder(stripe, customerId, orderId) {
+  let startingAfter;
+  while (true) {
+    const page = await stripe.checkout.sessions.list({
+      customer: customerId,
+      limit: 100,
+      ...(startingAfter ? { starting_after: startingAfter } : {})
+    });
+    const match = page.data.find(session =>
+      session.mode === "subscription" && session.metadata?.orderId === orderId
+    );
+    if (match) return match;
+    if (!page.has_more || page.data.length === 0) return null;
+    startingAfter = page.data[page.data.length - 1].id;
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -105,7 +204,7 @@ export default async function handler(req, res) {
     const billingRef = db.collection("users").doc(user.uid).collection("billing").doc("current");
     const billingSnap = await billingRef.get();
     const billingData = billingSnap.exists ? billingSnap.data() : {};
-    const customerId = billingData.stripeCustomerId || null;
+    const customerId = await ensureStripeCustomer({ stripe, billingRef, billingData, user });
 
     // Fail closed when the account already has a non-terminal subscription.
     if (billingData.active === true ||
@@ -129,37 +228,30 @@ export default async function handler(req, res) {
       }
     }
 
-    if (typeof customerId === "string") {
-      let startingAfter;
-      while (true) {
-        const page = await stripe.subscriptions.list({
-          customer: customerId,
-          status: "all",
-          limit: 100,
-          ...(startingAfter ? { starting_after: startingAfter } : {})
-        });
-        const existingSubscription = page.data.find(subscription =>
-          ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status)
-        );
-        if (existingSubscription) {
-          return res.status(409).json({
-            error: "This account already has a subscription. Manage the current plan before starting another checkout."
-          });
-        }
-        if (!page.has_more || page.data.length === 0) break;
-        startingAfter = page.data[page.data.length - 1].id;
-      }
+    const existingSubscription = await findActiveSubscription(stripe, customerId);
+    if (existingSubscription) {
+      return res.status(409).json({
+        error: "This account already has a subscription. Manage the current plan before starting another checkout."
+      });
     }
 
-    const clearPendingCheckout = async expectedOrderId => {
+    const clearPendingCheckout = async (expectedOrderId, blockingSubscription = null) => {
       await db.runTransaction(async transaction => {
         const currentSnap = await transaction.get(billingRef);
         const pending = currentSnap.exists ? currentSnap.data()?.pendingSubscriptionCheckout : null;
         if (pending?.orderId === expectedOrderId) {
-          transaction.set(billingRef, {
+          const update = {
             pendingSubscriptionCheckout: FieldValue.delete(),
             updatedAt: FieldValue.serverTimestamp()
-          }, { merge: true });
+          };
+          if (blockingSubscription) {
+            update.stripeSubscriptionId = blockingSubscription.id;
+            update.stripeCustomerId = customerId;
+            update.status = blockingSubscription.status;
+            update.active = ["active", "trialing"].includes(blockingSubscription.status);
+            update.planId = blockingSubscription.metadata?.planId || null;
+          }
+          transaction.set(billingRef, update, { merge: true });
         }
       });
     };
@@ -199,6 +291,7 @@ export default async function handler(req, res) {
           reservation = {
             orderId: pending.orderId,
             sessionId: typeof pending.sessionId === "string" ? pending.sessionId : null,
+            stripeCreateAttempt: Math.max(1, Number(pending.stripeCreateAttempt) || 1),
             stripeExpiresAt: Number(pending.stripeExpiresAt)
           };
           return;
@@ -226,6 +319,7 @@ export default async function handler(req, res) {
             interval,
             priceId,
             sessionId: null,
+            stripeCreateAttempt: 1,
             stripeExpiresAt: proposedExpiresAt,
             expiresAtMs: proposedExpiresAt * 1000 + CHECKOUT_LOCK_GRACE_MS,
             createdAtMs: proposedNowMs
@@ -235,6 +329,7 @@ export default async function handler(req, res) {
         reservation = {
           orderId: proposedOrderId,
           sessionId: null,
+          stripeCreateAttempt: 1,
           stripeExpiresAt: proposedExpiresAt
         };
       });
@@ -250,6 +345,27 @@ export default async function handler(req, res) {
         });
       }
       if (!reservation) throw new Error("Could not reserve a Checkout order.");
+
+      // Re-read after taking the Firestore reservation. A completed first Checkout
+      // may have cleared the previous reservation while its Stripe subscription
+      // webhook was still being delivered.
+      const freshBillingSnap = await billingRef.get();
+      const freshBilling = freshBillingSnap.exists ? freshBillingSnap.data() : {};
+      if (freshBilling.active === true || ACTIVE_SUBSCRIPTION_STATUSES.has(freshBilling.status)) {
+        await clearPendingCheckout(reservation.orderId);
+        return res.status(409).json({
+          error: "This account already has a subscription. Manage the current plan before starting another checkout."
+        });
+      }
+      const freshCustomerId = typeof freshBilling.stripeCustomerId === "string"
+        ? freshBilling.stripeCustomerId : customerId;
+      const subscriptionAfterReservation = await findActiveSubscription(stripe, freshCustomerId);
+      if (subscriptionAfterReservation) {
+        await clearPendingCheckout(reservation.orderId, subscriptionAfterReservation);
+        return res.status(409).json({
+          error: "This account already has a subscription. Manage the current plan before starting another checkout."
+        });
+      }
 
       const orderRef = db.collection("billingOrders").doc(reservation.orderId);
       if (reservation.sessionId) {
@@ -270,6 +386,48 @@ export default async function handler(req, res) {
         continue;
       }
 
+      // Recover a session created by Stripe when the previous request lost its
+      // response or received a cached server error before saving the session ID.
+      const recoveredSession = await findCheckoutSessionByOrder(stripe, freshCustomerId, reservation.orderId);
+      if (recoveredSession?.status === "open" && typeof recoveredSession.url === "string") {
+        await db.runTransaction(async transaction => {
+          const currentSnap = await transaction.get(billingRef);
+          const pending = currentSnap.exists ? currentSnap.data()?.pendingSubscriptionCheckout : null;
+          if (pending?.orderId !== reservation.orderId) {
+            throw new Error("Checkout reservation changed while recovering the Stripe session.");
+          }
+          transaction.set(billingRef, {
+            pendingSubscriptionCheckout: { ...pending, sessionId: recoveredSession.id },
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+        });
+        await orderRef.set({
+          stripeCheckoutSessionId: recoveredSession.id,
+          status: "checkout_created",
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        return res.status(200).json({ url: recoveredSession.url, reused: true });
+      }
+      if (recoveredSession?.status === "complete") {
+        await orderRef.set({
+          stripeCheckoutSessionId: recoveredSession.id,
+          status: "checkout_completed",
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        return res.status(409).json({
+          error: "This Checkout has already completed. Refresh your account while the subscription is being confirmed."
+        });
+      }
+      if (recoveredSession?.status === "expired") {
+        await clearPendingCheckout(reservation.orderId);
+        await orderRef.set({
+          stripeCheckoutSessionId: recoveredSession.id,
+          status: "checkout_expired",
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        continue;
+      }
+
       const nowSeconds = Math.floor(Date.now() / 1000);
       if (reservation.stripeExpiresAt - nowSeconds < 30 * 60) {
         await clearPendingCheckout(reservation.orderId);
@@ -281,10 +439,10 @@ export default async function handler(req, res) {
       }
 
       try {
+        const createAttempt = reservation.stripeCreateAttempt;
         const session = await stripe.checkout.sessions.create({
           mode: "subscription",
-          customer: typeof customerId === "string" ? customerId : undefined,
-          customer_email: typeof customerId === "string" ? undefined : user.email,
+          customer: freshCustomerId,
           client_reference_id: user.uid,
           line_items: [{ price: priceId, quantity: 1 }],
           expires_at: reservation.stripeExpiresAt,
@@ -292,7 +450,7 @@ export default async function handler(req, res) {
           cancel_url: `${base}/workspace/billing.html?checkout=cancelled`,
           metadata: { firebaseUID: user.uid, orderId: reservation.orderId, planId, interval },
           subscription_data: { metadata: { firebaseUID: user.uid, orderId: reservation.orderId, planId, interval } }
-        }, { idempotencyKey: `kenji-checkout-${reservation.orderId}` });
+        }, { idempotencyKey: `kenji-checkout-${reservation.orderId}-${createAttempt}` });
 
         await db.runTransaction(async transaction => {
           const currentSnap = await transaction.get(billingRef);
@@ -312,11 +470,75 @@ export default async function handler(req, res) {
         }, { merge: true });
         return res.status(200).json({ url: session.url, reused: false });
       } catch (error) {
+        // Stripe may cache a 500 response for an idempotency key. Before rotating
+        // the attempt key, prove that no Checkout session for this order exists.
+        const recoveredAfterError = await findCheckoutSessionByOrder(stripe, freshCustomerId, reservation.orderId);
+        if (recoveredAfterError?.status === "open" && typeof recoveredAfterError.url === "string") {
+          await db.runTransaction(async transaction => {
+            const currentSnap = await transaction.get(billingRef);
+            const pending = currentSnap.exists ? currentSnap.data()?.pendingSubscriptionCheckout : null;
+            if (pending?.orderId !== reservation.orderId) {
+              throw new Error("Checkout reservation changed while recovering the Stripe session.");
+            }
+            transaction.set(billingRef, {
+              pendingSubscriptionCheckout: { ...pending, sessionId: recoveredAfterError.id },
+              updatedAt: FieldValue.serverTimestamp()
+            }, { merge: true });
+          });
+          await orderRef.set({
+            stripeCheckoutSessionId: recoveredAfterError.id,
+            status: "checkout_created",
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+          return res.status(200).json({ url: recoveredAfterError.url, reused: true });
+        }
+        if (recoveredAfterError?.status === "complete") {
+          await orderRef.set({
+            stripeCheckoutSessionId: recoveredAfterError.id,
+            status: "checkout_completed",
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+          return res.status(409).json({
+            error: "This Checkout has already completed. Refresh your account while the subscription is being confirmed."
+          });
+        }
+        if (recoveredAfterError?.status === "expired") {
+          await clearPendingCheckout(reservation.orderId);
+          await orderRef.set({
+            stripeCheckoutSessionId: recoveredAfterError.id,
+            status: "checkout_expired",
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+          continue;
+        }
+
+        let rotated = false;
+        await db.runTransaction(async transaction => {
+          const currentSnap = await transaction.get(billingRef);
+          const pending = currentSnap.exists ? currentSnap.data()?.pendingSubscriptionCheckout : null;
+          const currentAttempt = Math.max(1, Number(pending?.stripeCreateAttempt) || 1);
+          if (pending?.orderId === reservation.orderId && currentAttempt === createAttempt) {
+            transaction.set(billingRef, {
+              pendingSubscriptionCheckout: {
+                ...pending,
+                stripeCreateAttempt: createAttempt + 1,
+                lastCreateErrorAtMs: Date.now()
+              },
+              updatedAt: FieldValue.serverTimestamp()
+            }, { merge: true });
+            rotated = true;
+          }
+        });
         await orderRef.set({
-          status: "checkout_creation_failed",
+          status: "checkout_creation_retryable",
           failureCode: typeof error?.code === "string" ? error.code : "stripe_error",
           updatedAt: FieldValue.serverTimestamp()
         }, { merge: true });
+        if (rotated) {
+          const retryError = new Error("Checkout session creation failed. Please retry.");
+          retryError.statusCode = 503;
+          throw retryError;
+        }
         throw error;
       }
     }
@@ -326,7 +548,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    const status = error?.message === "This plan's Stripe price is not configured yet." ? 503 : 500;
+    const status = error?.message === "This plan's Stripe price is not configured yet." || error?.statusCode === 503 ? 503 : 500;
     return res.status(status).json({ error: status === 503 ? error.message : "Could not create a secure checkout session." });
   }
 }
