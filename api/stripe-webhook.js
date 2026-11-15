@@ -166,7 +166,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const object = event.data.object;
+    let object = event.data.object;
+    // Stripe does not guarantee event delivery order. For mutable subscription
+    // and invoice state, retrieve the latest object instead of trusting an
+    // older event snapshot (multiple events can share the same created second).
+    if (event.type.startsWith("customer.subscription.")) {
+      object = await services.stripe.subscriptions.retrieve(object.id);
+    } else if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
+      object = await services.stripe.invoices.retrieve(object.id);
+    }
     let uid = getFirebaseUid(object);
     let customer = null;
     const customerId = typeof object?.customer === "string" ? object.customer : object?.customer?.id;
@@ -221,34 +229,21 @@ export default async function handler(req, res) {
         });
       } else if (event.type.startsWith("customer.subscription.")) {
         const subscription = object;
-        await services.db.runTransaction(async transaction => {
-          const current = await transaction.get(billingRef);
-          const data = current.exists ? current.data() : {};
-          const lastCreated = Number(data.subscriptionEventCreated || 0);
-          if (event.created < lastCreated) return;
-          transaction.set(billingRef, {
-            ...common,
-            ...subscriptionData(subscription),
-            active: ["active", "trialing"].includes(subscription.status),
-            subscriptionEventCreated: event.created
-          }, { merge: true });
-        });
+        await billingRef.set({
+          ...common,
+          ...subscriptionData(subscription),
+          active: ["active", "trialing"].includes(subscription.status)
+        }, { merge: true });
       } else if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
-        await services.db.runTransaction(async transaction => {
-          const current = await transaction.get(billingRef);
-          const data = current.exists ? current.data() : {};
-          const lastCreated = Number(data.invoiceEventCreated || 0);
-          if (event.created < lastCreated) return;
-          transaction.set(billingRef, {
-            ...common,
-            latestInvoiceId: object.id,
-            latestInvoiceStatus: event.type === "invoice.paid" ? "paid" : "payment_failed",
-            latestInvoiceAmountPaid: object.amount_paid ?? null,
-            latestInvoiceCurrency: object.currency || null,
-            paymentIssue: event.type === "invoice.payment_failed",
-            invoiceEventCreated: event.created
-          }, { merge: true });
-        });
+        const invoiceStatus = object.status || (event.type === "invoice.paid" ? "paid" : "open");
+        await billingRef.set({
+          ...common,
+          latestInvoiceId: object.id,
+          latestInvoiceStatus: invoiceStatus,
+          latestInvoiceAmountPaid: object.amount_paid ?? null,
+          latestInvoiceCurrency: object.currency || null,
+          paymentIssue: invoiceStatus !== "paid"
+        }, { merge: true });
       }
     }
 
