@@ -29,7 +29,9 @@ After adding or changing environment variables, redeploy the relevant Preview de
 - [ ] With a valid key configured privately in Vercel, test each supported scenario and tone using non-sensitive sample text.
 - [ ] Verify invalid methods, invalid JSON content type, oversized bodies, invalid scenarios and invalid tones are rejected.
 - [ ] Confirm the endpoint accepts same-origin HTTPS Preview and production requests and rejects cross-origin requests.
-- [ ] Configure provider-side spending alerts/limits where available; do not assume a hard spend cap exists.\n- [ ] Add a durable abuse-control strategy (rate limiting and bot protection) before public launch; same-origin checks alone do not prevent scripted abuse.\n- [ ] Review API usage and spending limits in the Groq dashboard before inviting public users.
+- [ ] Configure provider-side spending alerts/limits where available; do not assume a hard spend cap exists.
+- [ ] Add a durable abuse-control strategy (rate limiting and bot protection) before public launch; same-origin checks alone do not prevent scripted abuse.
+- [ ] Review API usage and spending limits in the Groq dashboard before inviting public users.
 - [ ] Review privacy notice and retention practices before collecting customer messages.
 
 ## Not launch-ready yet
