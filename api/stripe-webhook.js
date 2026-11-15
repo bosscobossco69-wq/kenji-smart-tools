@@ -89,6 +89,34 @@ async function getOrderCreatedAtMs(db, orderId) {
   return Number.isFinite(milliseconds) && milliseconds > 0 ? milliseconds : null;
 }
 
+function timestampOrderKey(value) {
+  let seconds;
+  let nanoseconds;
+  if (Number.isInteger(value?.seconds) && Number.isInteger(value?.nanoseconds)) {
+    seconds = value.seconds;
+    nanoseconds = value.nanoseconds;
+  } else {
+    const milliseconds = value instanceof Date ? value.getTime() : Number(value);
+    if (!Number.isFinite(milliseconds) || milliseconds <= 0) return null;
+    seconds = Math.floor(milliseconds / 1000);
+    nanoseconds = Math.floor((milliseconds - seconds * 1000) * 1000000);
+  }
+  if (!Number.isInteger(seconds) || !Number.isInteger(nanoseconds) ||
+      nanoseconds < 0 || nanoseconds >= 1000000000) return null;
+  return String(seconds).padStart(12, "0") + String(nanoseconds).padStart(9, "0");
+}
+
+function millisecondsToOrderKey(milliseconds) {
+  return timestampOrderKey(Number(milliseconds));
+}
+
+async function getOrderCreatedAtKey(db, orderId) {
+  if (typeof orderId !== "string" || !orderId) return null;
+  const orderSnap = await db.collection("billingOrders").doc(orderId).get();
+  if (!orderSnap.exists) return null;
+  return timestampOrderKey(orderSnap.data()?.createdAt);
+}
+
 function subscriptionData(subscription) {
   const item = subscription.items?.data?.[0];
   return {
@@ -299,6 +327,7 @@ export default async function handler(req, res) {
             : object.payment_status || "unpaid";
         const orderId = object.metadata?.orderId || null;
         const orderCreatedAtMs = await getOrderCreatedAtMs(services.db, orderId);
+        const orderCreatedAtKey = await getOrderCreatedAtKey(services.db, orderId);
         const paymentStatusRank = status => ({
           unpaid: 0,
           failed: 1,
@@ -313,11 +342,18 @@ export default async function handler(req, res) {
           const incomingSessionCreated = Number(object.created || 0);
           if (!sameSession && data.checkoutSessionId) {
             const currentOrderCreatedAtMs = Number(data.checkoutOrderCreatedAtMs || 0);
-            if (orderCreatedAtMs && currentOrderCreatedAtMs) {
-              if (orderCreatedAtMs < currentOrderCreatedAtMs) return;
-              if (orderCreatedAtMs === currentOrderCreatedAtMs &&
-                  data.checkoutOrderId !== orderId) {
-                throw new Error("Cannot safely order distinct Checkout orders with identical creation time.");
+            const currentOrderCreatedAtKey = data.checkoutOrderCreatedAtKey ||
+              millisecondsToOrderKey(currentOrderCreatedAtMs);
+            if (orderCreatedAtKey && currentOrderCreatedAtKey) {
+              if (orderCreatedAtKey < currentOrderCreatedAtKey) return;
+              if (orderCreatedAtKey === currentOrderCreatedAtKey) {
+                if (data.checkoutOrderId !== orderId) {
+                  throw new Error("Cannot safely order distinct Checkout orders with identical creation time.");
+                }
+                if (incomingSessionCreated < currentSessionCreated) return;
+                if (incomingSessionCreated === currentSessionCreated) {
+                  throw new Error("Cannot safely order distinct Checkout sessions for the same order within one second.");
+                }
               }
             } else if (incomingSessionCreated < currentSessionCreated) {
               return;
@@ -338,7 +374,8 @@ export default async function handler(req, res) {
             checkoutMode: object.mode || null,
             checkoutSessionCreated: incomingSessionCreated,
             checkoutOrderId: orderId,
-            ...(orderCreatedAtMs ? { checkoutOrderCreatedAtMs: orderCreatedAtMs } : {}),
+            checkoutOrderCreatedAtMs: orderCreatedAtMs ?? FieldValue.delete(),
+            checkoutOrderCreatedAtKey: orderCreatedAtKey ?? FieldValue.delete(),
             checkoutEventCreated: sameSession
               ? Math.max(Number(data.checkoutEventCreated || 0), Number(event.created || 0))
               : Number(event.created || 0)
@@ -349,12 +386,15 @@ export default async function handler(req, res) {
         const incomingCreated = Number(subscription.created || 0);
         const incomingOrderId = subscription.metadata?.orderId || null;
         const incomingOrderAt = Number(await getOrderCreatedAtMs(services.db, incomingOrderId) || 0);
+        const incomingOrderKey = await getOrderCreatedAtKey(services.db, incomingOrderId);
         const existingBilling = await billingRef.get();
         const existingData = existingBilling.exists ? existingBilling.data() : {};
         const existingSubscriptionId = existingData.stripeSubscriptionId || null;
         let existingSubscriptionCreated = Number(existingData.stripeSubscriptionCreated || 0);
         let existingOrderId = existingData.stripeSubscriptionOrderId || null;
         let existingOrderAt = Number(existingData.stripeSubscriptionOrderCreatedAtMs || 0);
+        let existingOrderKey = existingData.stripeSubscriptionOrderCreatedAtKey ||
+          millisecondsToOrderKey(existingOrderAt);
         let existingSubscriptionMissing = false;
         if (existingSubscriptionId && existingSubscriptionId !== subscription.id &&
             (!existingSubscriptionCreated || existingSubscriptionCreated === incomingCreated)) {
@@ -364,6 +404,8 @@ export default async function handler(req, res) {
             existingOrderId = existingOrderId || existingSubscription.metadata?.orderId || null;
             existingOrderAt = existingOrderAt ||
               Number(await getOrderCreatedAtMs(services.db, existingOrderId) || 0);
+            existingOrderKey = existingOrderKey ||
+              await getOrderCreatedAtKey(services.db, existingOrderId);
           } catch (error) {
             if (isMissingStripeResource(error)) {
               existingSubscriptionMissing = true;
@@ -386,6 +428,9 @@ export default async function handler(req, res) {
             (currentSubscriptionId === existingSubscriptionId ? existingOrderId : null);
           const transactionCurrentOrderAt = Number(data.stripeSubscriptionOrderCreatedAtMs || 0) ||
             (currentSubscriptionId === existingSubscriptionId ? existingOrderAt : 0);
+          const transactionCurrentOrderKey = data.stripeSubscriptionOrderCreatedAtKey ||
+            millisecondsToOrderKey(transactionCurrentOrderAt) ||
+            (currentSubscriptionId === existingSubscriptionId ? existingOrderKey : null);
 
           if (currentSubscriptionId && currentSubscriptionId !== subscription.id) {
             if (!incomingCreated) throw new Error("Incoming subscription creation timestamp is missing.");
@@ -397,11 +442,11 @@ export default async function handler(req, res) {
               }
               if (incomingCreated < transactionCurrentCreated) return;
               if (incomingCreated === transactionCurrentCreated) {
-                if (!incomingOrderAt || !transactionCurrentOrderAt) {
+                if (!incomingOrderKey || !transactionCurrentOrderKey) {
                   throw new Error("Cannot safely order subscriptions created in the same second.");
                 }
-                if (incomingOrderAt < transactionCurrentOrderAt) return;
-                if (incomingOrderAt === transactionCurrentOrderAt &&
+                if (incomingOrderKey < transactionCurrentOrderKey) return;
+                if (incomingOrderKey === transactionCurrentOrderKey &&
                     incomingOrderId !== transactionCurrentOrderId) {
                   throw new Error("Subscription replacement order timestamps are ambiguous.");
                 }
@@ -416,7 +461,8 @@ export default async function handler(req, res) {
             stripeSubscriptionId: subscription.id,
             stripeSubscriptionCreated: incomingCreated,
             stripeSubscriptionOrderId: incomingOrderId,
-            ...(incomingOrderAt ? { stripeSubscriptionOrderCreatedAtMs: incomingOrderAt } : {}),
+            stripeSubscriptionOrderCreatedAtMs: incomingOrderAt || FieldValue.delete(),
+            stripeSubscriptionOrderCreatedAtKey: incomingOrderKey || FieldValue.delete(),
             subscriptionSnapshotSequences: {
               ...sequences,
               [subscription.id]: snapshotSequence
@@ -432,6 +478,8 @@ export default async function handler(req, res) {
           const invoiceSubscriptionOrderAt = Number(
             await getOrderCreatedAtMs(services.db, invoiceSubscriptionOrderId) || 0
           );
+          const invoiceSubscriptionOrderKey =
+            await getOrderCreatedAtKey(services.db, invoiceSubscriptionOrderId);
           await services.db.runTransaction(async transaction => {
             const current = await transaction.get(billingRef);
             const data = current.exists ? current.data() : {};
@@ -455,13 +503,15 @@ export default async function handler(req, res) {
               }
               if (incomingCreated === currentCreated) {
                 const currentOrderAt = Number(data.stripeSubscriptionOrderCreatedAtMs || 0);
-                if (!invoiceSubscriptionOrderAt || !currentOrderAt) {
+                const currentOrderKey = data.stripeSubscriptionOrderCreatedAtKey ||
+                  millisecondsToOrderKey(currentOrderAt);
+                if (!invoiceSubscriptionOrderKey || !currentOrderKey) {
                   throw new Error("Invoice subscription ordering is ambiguous within the same second.");
                 }
-                if (invoiceSubscriptionOrderAt > currentOrderAt) {
+                if (invoiceSubscriptionOrderKey > currentOrderKey) {
                   throw new Error("Invoice belongs to a newer same-second subscription not linked yet.");
                 }
-                if (invoiceSubscriptionOrderAt === currentOrderAt &&
+                if (invoiceSubscriptionOrderKey === currentOrderKey &&
                     invoiceSubscriptionOrderId !== data.stripeSubscriptionOrderId) {
                   throw new Error("Invoice subscription order timestamps are ambiguous.");
                 }
