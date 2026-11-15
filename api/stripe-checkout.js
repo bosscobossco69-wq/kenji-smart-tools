@@ -11,6 +11,13 @@ const PLAN_PRICE_ENV = {
   ultra: { monthly: "STRIPE_PRICE_ULTRA_MONTHLY", yearly: "STRIPE_PRICE_ULTRA_YEARLY" }
 };
 
+const PLAN_PRICE_AMOUNTS = {
+  lite: { monthly: 1000, yearly: 10000 },
+  pro: { monthly: 2000, yearly: 20000 },
+  pro_plus: { monthly: 6000, yearly: 60000 },
+  ultra: { monthly: 20000, yearly: 200000 }
+};
+
 let servicesPromise;
 function getServices() {
   if (!servicesPromise) {
@@ -81,8 +88,10 @@ export default async function handler(req, res) {
 
     const price = await stripe.prices.retrieve(priceId);
     const expectedInterval = interval === "yearly" ? "year" : "month";
+    const expectedAmount = PLAN_PRICE_AMOUNTS[planId][interval];
     if (!price.active || price.currency !== "usd" || price.type !== "recurring" ||
-        price.recurring?.interval !== expectedInterval || price.recurring?.interval_count !== 1) {
+        price.recurring?.interval !== expectedInterval || price.recurring?.interval_count !== 1 ||
+        price.unit_amount !== expectedAmount) {
       return res.status(409).json({ error: "The configured Stripe price does not match this plan and billing period." });
     }
 
@@ -92,6 +101,30 @@ export default async function handler(req, res) {
     const billingRef = db.collection("users").doc(user.uid).collection("billing").doc("current");
     const billingSnap = await billingRef.get();
     const customerId = billingSnap.exists ? billingSnap.data()?.stripeCustomerId : null;
+
+    // A workspace account may have only one non-terminal subscription at a time.
+    // This prevents accidental duplicate recurring subscriptions after retries.
+    if (typeof customerId === "string") {
+      let startingAfter;
+      while (true) {
+        const page = await stripe.subscriptions.list({
+          customer: customerId,
+          status: "all",
+          limit: 100,
+          ...(startingAfter ? { starting_after: startingAfter } : {})
+        });
+        const existingSubscription = page.data.find(subscription =>
+          !["canceled", "incomplete_expired"].includes(subscription.status)
+        );
+        if (existingSubscription) {
+          return res.status(409).json({
+            error: "This account already has a subscription. Manage the current plan before starting another checkout."
+          });
+        }
+        if (!page.has_more || page.data.length === 0) break;
+        startingAfter = page.data[page.data.length - 1].id;
+      }
+    }
 
     await orderRef.create({
       orderId,
