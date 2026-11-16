@@ -62,6 +62,55 @@ async function verifiedCreditCustomerId(stripe, customerId, uid) {
   return customer.id;
 }
 
+// Use the same verified Firebase UID ownership policy as subscription Checkout.
+// A first-time Credits buyer must also get a linked Stripe customer, otherwise
+// a later subscription could be blocked by an email-only historical customer.
+async function ensureCreditCustomer({ stripe, billingRef, billingData, user }) {
+  const storedId = billingData?.stripeCustomerId ?? null;
+  if (storedId != null) {
+    return verifiedCreditCustomerId(stripe, storedId, user.uid);
+  }
+  let customer = null;
+  let sawUnownedMatch = false;
+  let startingAfter;
+  while (true) {
+    const page = await stripe.customers.list({
+      email: user.email,
+      limit: 100,
+      ...(startingAfter ? { starting_after: startingAfter } : {})
+    });
+    for (const candidate of page.data) {
+      assertStripeObject(candidate);
+      if (candidate.deleted) continue;
+      if (candidate.metadata?.firebaseUID === user.uid) {
+        customer = candidate;
+        break;
+      }
+      sawUnownedMatch = true;
+    }
+    if (customer || !page.has_more || !page.data.length) break;
+    startingAfter = page.data[page.data.length - 1].id;
+  }
+  if (!customer && sawUnownedMatch) {
+    throw new Error("Stripe customer ownership review is required.");
+  }
+  if (!customer) {
+    customer = await stripe.customers.create({
+      email: user.email,
+      metadata: { firebaseUID: user.uid }
+    }, { idempotencyKey: `kenji-customer-${user.uid}` });
+  }
+  assertStripeObject(customer);
+  if (customer.deleted || customer.metadata?.firebaseUID !== user.uid) {
+    throw new Error("Stripe customer ownership review is required.");
+  }
+  await billingRef.set({
+    stripeCustomerId: customer.id,
+    updatedAt: FieldValue.serverTimestamp()
+  }, { merge: true });
+  return customer.id;
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -96,8 +145,9 @@ export default async function handler(req, res) {
     const orderRef = db.collection("billingOrders").doc(orderId);
     const billingRef = db.collection("users").doc(user.uid).collection(billingCollection()).doc("current");
     const billingSnap = await billingRef.get();
-    const storedCustomerId = billingSnap.exists ? billingSnap.data()?.stripeCustomerId : null;
-    const customerId = await verifiedCreditCustomerId(stripe, storedCustomerId, user.uid);
+    const customerId = await ensureCreditCustomer({
+      stripe, billingRef, billingData: billingSnap.exists ? billingSnap.data() : {}, user
+    });
     const metadata = {
       firebaseUID: user.uid,
       orderId,
@@ -122,8 +172,7 @@ export default async function handler(req, res) {
     try {
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
-        customer: typeof customerId === "string" ? customerId : undefined,
-        customer_email: typeof customerId === "string" ? undefined : user.email,
+        customer: customerId,
         client_reference_id: user.uid,
         line_items: [{
           price_data: {
