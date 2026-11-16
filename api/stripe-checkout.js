@@ -141,6 +141,23 @@ async function findActiveSubscription(stripe, customerId) {
   }
 }
 
+// A returning customer cannot silently receive another free trial after cancellation.
+async function customerHasUsedTrial(stripe, customerId) {
+  let startingAfter;
+  while (true) {
+    const page = await stripe.subscriptions.list({
+      customer: customerId,
+      status: "all",
+      limit: 100,
+      ...(startingAfter ? { starting_after: startingAfter } : {})
+    });
+    if (page.data.some(subscription => subscription.trial_start != null ||
+      subscription.trial_end != null)) return true;
+    if (!page.has_more || page.data.length === 0) return false;
+    startingAfter = page.data[page.data.length - 1].id;
+  }
+}
+
 async function findCheckoutSessionByOrder(stripe, customerId, orderId) {
   let startingAfter;
   while (true) {
@@ -453,7 +470,8 @@ export default async function handler(req, res) {
 
       try {
         const createAttempt = reservation.stripeCreateAttempt;
-        const trialEnabled = process.env.STRIPE_SUBSCRIPTION_TRIAL_ENABLED === "true";
+        const trialEnabled = process.env.STRIPE_SUBSCRIPTION_TRIAL_ENABLED === "true" &&
+          !(await customerHasUsedTrial(stripe, freshCustomerId));
         const subscriptionData = {
           metadata: { firebaseUID: user.uid, orderId: reservation.orderId, planId, interval },
           ...(trialEnabled ? {
