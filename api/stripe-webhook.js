@@ -7,7 +7,6 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 export const config = { api: { bodyParser: false } };
 
 const MAX_BODY_BYTES = 1024 * 1024;
-
 const PLAN_CREDITS = { lite: 10000, pro: 30000, pro_plus: 100000, ultra: 400000 };
 const CREDIT_PACKS = {
   mini: { amount: 500, credits: 10000 }, basic: { amount: 2000, credits: 50000 },
@@ -77,6 +76,11 @@ function addUtcMonth(date) {
   return next;
 }
 
+function isMissingStripeResource(error) {
+  return error?.statusCode === 404 || error?.raw?.statusCode === 404 ||
+    error?.code === "resource_missing";
+}
+
 function getFirebaseUid(object) {
   // Only accept server-controlled Stripe metadata. client_reference_id can be
   // supplied in a Payment Link URL and must never be trusted as an account ID.
@@ -86,6 +90,55 @@ function getFirebaseUid(object) {
     : null;
 }
 
+
+async function getOrderCreatedAtMs(db, orderId) {
+  if (typeof orderId !== "string" || !orderId) return null;
+  const orderSnap = await db.collection("billingOrders").doc(orderId).get();
+  if (!orderSnap.exists) return null;
+  const value = orderSnap.data()?.createdAt;
+  const milliseconds = typeof value?.toMillis === "function"
+    ? value.toMillis()
+    : value instanceof Date
+      ? value.getTime()
+      : Number(value);
+  return Number.isFinite(milliseconds) && milliseconds > 0 ? milliseconds : null;
+}
+
+function timestampOrderKey(value) {
+  let seconds;
+  let nanoseconds;
+  if (Number.isInteger(value?.seconds) && Number.isInteger(value?.nanoseconds)) {
+    seconds = value.seconds;
+    nanoseconds = value.nanoseconds;
+  } else {
+    const milliseconds = value instanceof Date ? value.getTime() : Number(value);
+    if (!Number.isFinite(milliseconds) || milliseconds <= 0) return null;
+    seconds = Math.floor(milliseconds / 1000);
+    nanoseconds = Math.floor((milliseconds - seconds * 1000) * 1000000);
+  }
+  if (!Number.isInteger(seconds) || !Number.isInteger(nanoseconds) ||
+      nanoseconds < 0 || nanoseconds >= 1000000000) return null;
+  return String(seconds).padStart(12, "0") + String(nanoseconds).padStart(9, "0");
+}
+
+function millisecondsToOrderKey(milliseconds) {
+  return timestampOrderKey(Number(milliseconds));
+}
+
+async function getOrderCreatedAtKey(db, orderId) {
+  if (typeof orderId !== "string" || !orderId) return null;
+  const orderSnap = await db.collection("billingOrders").doc(orderId).get();
+  if (!orderSnap.exists) return null;
+  return timestampOrderKey(orderSnap.data()?.createdAt);
+}
+
+async function getOrderCheckoutSessionId(db, orderId) {
+  if (typeof orderId !== "string" || !orderId) return null;
+  const orderSnap = await db.collection("billingOrders").doc(orderId).get();
+  if (!orderSnap.exists) return null;
+  const sessionId = orderSnap.data()?.stripeCheckoutSessionId;
+  return typeof sessionId === "string" && sessionId ? sessionId : null;
+}
 
 function subscriptionData(subscription) {
   const item = subscription.items?.data?.[0];
@@ -98,8 +151,10 @@ function subscriptionData(subscription) {
     priceId: item?.price?.id || null,
     currency: item?.price?.currency || null,
     interval: item?.price?.recurring?.interval || null,
-    currentPeriodStart: unixDate(Number.isFinite(item?.current_period_start) ? item.current_period_start : subscription.current_period_start),
-    currentPeriodEnd: unixDate(Number.isFinite(item?.current_period_end) ? item.current_period_end : subscription.current_period_end),
+    currentPeriodStart: unixDate(Number.isFinite(item?.current_period_start)
+      ? item.current_period_start : subscription.current_period_start),
+    currentPeriodEnd: unixDate(Number.isFinite(item?.current_period_end)
+      ? item.current_period_end : subscription.current_period_end),
     cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
     cancelAt: unixDate(subscription.cancel_at),
     updatedAt: FieldValue.serverTimestamp()
@@ -319,9 +374,18 @@ export default async function handler(req, res) {
 
   try {
     let object = event.data.object;
+    const isCheckoutEvent = [
+      "checkout.session.completed",
+      "checkout.session.async_payment_succeeded",
+      "checkout.session.async_payment_failed"
+    ].includes(event.type);
+    // Resolve current server metadata and payment state before account binding or fulfillment.
+    if (isCheckoutEvent) {
+      object = await services.stripe.checkout.sessions.retrieve(object.id);
+    }
     let snapshotSequence = null;
     let latestInvoiceSnapshot = null;
-    let invoiceSubscription = null;
+    let relatedSubscription = null;
     const isInvoiceEvent = event.type === "invoice.paid" || event.type === "invoice.payment_failed";
     let snapshotSubscriptionId = event.type.startsWith("customer.subscription.")
       ? object.id
@@ -348,7 +412,15 @@ export default async function handler(req, res) {
     }
 
     if (event.type.startsWith("customer.subscription.")) {
-      object = await services.stripe.subscriptions.retrieve(object.id);
+      const eventSubscription = object;
+      try {
+        object = await services.stripe.subscriptions.retrieve(eventSubscription.id);
+      } catch (error) {
+        if (!(event.type === "customer.subscription.deleted" && isMissingStripeResource(error))) {
+          throw error;
+        }
+        object = { ...eventSubscription, status: "canceled" };
+      }
     } else if (isInvoiceEvent) {
       object = await services.stripe.invoices.retrieve(object.id);
       snapshotSubscriptionId = typeof object.subscription === "string"
@@ -358,37 +430,32 @@ export default async function handler(req, res) {
         snapshotSequence = await allocateSnapshotSequence(snapshotSubscriptionId);
       }
       if (snapshotSubscriptionId) {
-        invoiceSubscription = await services.stripe.subscriptions.retrieve(snapshotSubscriptionId);
-        const latestInvoiceId = typeof invoiceSubscription.latest_invoice === "string"
-          ? invoiceSubscription.latest_invoice
-          : invoiceSubscription.latest_invoice?.id || null;
+        relatedSubscription = await services.stripe.subscriptions.retrieve(snapshotSubscriptionId);
+        const latestInvoiceId = typeof relatedSubscription.latest_invoice === "string"
+          ? relatedSubscription.latest_invoice
+          : relatedSubscription.latest_invoice?.id || null;
         if (latestInvoiceId) {
           latestInvoiceSnapshot = await services.stripe.invoices.retrieve(latestInvoiceId);
         }
       }
     }
-    let uid = getFirebaseUid(object) || getFirebaseUid(invoiceSubscription);
+    let uid = getFirebaseUid(object) || getFirebaseUid(relatedSubscription);
     let customer = null;
     const customerId = typeof object?.customer === "string" ? object.customer : object?.customer?.id;
     if (customerId) {
       try {
         customer = await services.stripe.customers.retrieve(customerId);
         if (customer?.deleted) customer = null;
-      } catch {}
+      } catch (error) {
+        if (!isMissingStripeResource(error)) throw error;
+        customer = null;
+      }
     }
     if (!uid) uid = getFirebaseUid(customer);
 
-    // Payment Links may not carry Firebase UID metadata. In that case, match only
-    // an exact, verified Firebase email from the Stripe customer/session.
-    if (!uid) {
-      const email = object?.customer_details?.email || object?.customer_email || customer?.email;
-      if (typeof email === "string" && email.includes("@")) {
-        try {
-          const matchedUser = await services.auth.getUserByEmail(email);
-          if (matchedUser.emailVerified) uid = matchedUser.uid;
-        } catch {}
-      }
-    }
+    // Never infer Firebase account ownership from Checkout/customer email.
+    // Only server-written Stripe metadata may link billing to a Firebase UID.
+    // Public Payment Links without that metadata remain unlinked for explicit reconciliation.
 
     if (uid) {
       // Verify that the UID belongs to a real Firebase account before granting billing state.
@@ -402,8 +469,8 @@ export default async function handler(req, res) {
     ].includes(event.type) && object?.metadata?.purchaseType === "credit_pack";
     if (isPackCheckout) {
       await fulfillCreditPack({ db: services.db, session: object, uid, event });
-    } else if (event.type === "invoice.paid" && invoiceSubscription) {
-      await grantSubscriptionInvoice({ db: services.db, invoice: object, subscription: invoiceSubscription, uid });
+    } else if (event.type === "invoice.paid" && relatedSubscription) {
+      await grantSubscriptionInvoice({ db: services.db, invoice: object, subscription: relatedSubscription, uid });
     }
 
     if (uid) {
@@ -415,57 +482,121 @@ export default async function handler(req, res) {
         updatedAt: FieldValue.serverTimestamp()
       };
 
-      if (event.type === "checkout.session.completed" ||
-          event.type === "checkout.session.async_payment_succeeded") {
+      if ([
+        "checkout.session.completed",
+        "checkout.session.async_payment_succeeded",
+        "checkout.session.async_payment_failed"
+      ].includes(event.type)) {
+        const incomingPaymentStatus = event.type === "checkout.session.async_payment_succeeded"
+          ? "paid"
+          : event.type === "checkout.session.async_payment_failed"
+            ? "failed"
+            : object.payment_status || "unpaid";
+        const orderId = object.metadata?.orderId || null;
+        const orderCreatedAtMs = await getOrderCreatedAtMs(services.db, orderId);
+        const orderCreatedAtKey = await getOrderCreatedAtKey(services.db, orderId);
+        const orderCheckoutSessionId = await getOrderCheckoutSessionId(services.db, orderId);
+        const paymentStatusRank = status => ({
+          unpaid: 0,
+          failed: 1,
+          paid: 2,
+          no_payment_required: 2
+        }[status] ?? -1);
         await services.db.runTransaction(async transaction => {
           const current = await transaction.get(billingRef);
           const data = current.exists ? current.data() : {};
-          const lastCreated = Number(data.checkoutEventCreated || 0);
-          if (event.created < lastCreated) return;
-          const pendingCheckout = data.pendingSubscriptionCheckout;
+          const sameSession = data.checkoutSessionId === object.id;
+          const currentSessionCreated = Number(data.checkoutSessionCreated || 0);
+          const incomingSessionCreated = Number(object.created || 0);
+          if (!sameSession && data.checkoutSessionId) {
+            const currentOrderCreatedAtMs = Number(data.checkoutOrderCreatedAtMs || 0);
+            const currentOrderCreatedAtKey = data.checkoutOrderCreatedAtKey ||
+              millisecondsToOrderKey(currentOrderCreatedAtMs);
+            if (orderCreatedAtKey && currentOrderCreatedAtKey) {
+              if (orderCreatedAtKey < currentOrderCreatedAtKey) return;
+              if (orderCreatedAtKey === currentOrderCreatedAtKey) {
+                if (data.checkoutOrderId !== orderId) {
+                  throw new Error("Cannot safely order distinct Checkout orders with identical creation time.");
+                }
+                if (incomingSessionCreated < currentSessionCreated) return;
+                if (incomingSessionCreated === currentSessionCreated) {
+                  const pending = data.pendingSubscriptionCheckout;
+                  const authoritativeSessionId =
+                    pending?.orderId === orderId && typeof pending.sessionId === "string"
+                      ? pending.sessionId
+                      : orderCheckoutSessionId;
+                  // Use the session selected by the server-side checkout reservation/order.
+                  // If no authoritative pointer exists, keep the existing billing pointer
+                  // rather than retrying an immutable same-second ambiguity forever.
+                  if (authoritativeSessionId) {
+                    if (object.id !== authoritativeSessionId) return;
+                  } else {
+                    return;
+                  }
+                }
+              }
+            } else if (incomingSessionCreated < currentSessionCreated) {
+              return;
+            } else if (incomingSessionCreated === currentSessionCreated) {
+              // No reliable order key exists. Keep the current pointer rather than
+              // retrying a same-second ambiguity indefinitely.
+              return;
+            }
+          }
+          if (sameSession && event.created < Number(data.checkoutEventCreated || 0)) return;
+          const previousPaymentStatus = sameSession ? data.checkoutPaymentStatus : null;
+          const checkoutPaymentStatus =
+            paymentStatusRank(previousPaymentStatus) > paymentStatusRank(incomingPaymentStatus)
+              ? previousPaymentStatus
+              : incomingPaymentStatus;
           const checkoutUpdate = {
             ...common,
             checkoutSessionId: object.id,
-            checkoutPaymentStatus: object.payment_status || null,
+            checkoutPaymentStatus,
             checkoutMode: object.mode || null,
-            checkoutEventCreated: event.created
+            checkoutSessionCreated: incomingSessionCreated,
+            checkoutOrderId: orderId,
+            checkoutOrderCreatedAtMs: orderCreatedAtMs ?? FieldValue.delete(),
+            checkoutOrderCreatedAtKey: orderCreatedAtKey ?? FieldValue.delete(),
+            checkoutEventCreated: sameSession
+              ? Math.max(Number(data.checkoutEventCreated || 0), Number(event.created || 0))
+              : Number(event.created || 0)
           };
-          if (pendingCheckout?.orderId === object.metadata?.orderId ||
-              pendingCheckout?.sessionId === object.id) {
+          const pending = data.pendingSubscriptionCheckout;
+          if (pending?.orderId === object.metadata?.orderId || pending?.sessionId === object.id) {
             checkoutUpdate.pendingSubscriptionCheckout = FieldValue.delete();
           }
           transaction.set(billingRef, checkoutUpdate, { merge: true });
         });
       } else if (event.type.startsWith("customer.subscription.")) {
         const subscription = object;
-        // Backfill the creation timestamp for billing records written before
-        // this watermark was introduced. Fetch outside the transaction so no
-        // Stripe network request runs inside a Firestore transaction callback.
+        const incomingCreated = Number(subscription.created || 0);
+        const incomingOrderId = subscription.metadata?.orderId || null;
+        const incomingOrderAt = Number(await getOrderCreatedAtMs(services.db, incomingOrderId) || 0);
+        const incomingOrderKey = await getOrderCreatedAtKey(services.db, incomingOrderId);
         const existingBilling = await billingRef.get();
-        const existingBillingData = existingBilling.exists ? existingBilling.data() : {};
-        const existingSubscriptionId = existingBillingData.stripeSubscriptionId || null;
-        let existingSubscriptionCreated = Number(existingBillingData.stripeSubscriptionCreated || 0);
+        const existingData = existingBilling.exists ? existingBilling.data() : {};
+        const existingSubscriptionId = existingData.stripeSubscriptionId || null;
+        let existingSubscriptionCreated = Number(existingData.stripeSubscriptionCreated || 0);
+        let existingOrderId = existingData.stripeSubscriptionOrderId || null;
+        let existingOrderAt = Number(existingData.stripeSubscriptionOrderCreatedAtMs || 0);
+        let existingOrderKey = existingData.stripeSubscriptionOrderCreatedAtKey ||
+          millisecondsToOrderKey(existingOrderAt);
         let existingSubscriptionMissing = false;
-        if (existingSubscriptionId && !existingSubscriptionCreated) {
+        if (existingSubscriptionId && existingSubscriptionId !== subscription.id &&
+            (!existingSubscriptionCreated || existingSubscriptionCreated === incomingCreated)) {
           try {
             const existingSubscription = await services.stripe.subscriptions.retrieve(existingSubscriptionId);
-            existingSubscriptionCreated = Number(existingSubscription.created || 0);
-            if (!existingSubscriptionCreated) {
-              throw new Error("Existing subscription response has no creation timestamp.");
-            }
+            existingSubscriptionCreated = Number(existingSubscription.created || existingSubscriptionCreated || 0);
+            existingOrderId = existingOrderId || existingSubscription.metadata?.orderId || null;
+            existingOrderAt = existingOrderAt ||
+              Number(await getOrderCreatedAtMs(services.db, existingOrderId) || 0);
+            existingOrderKey = existingOrderKey ||
+              await getOrderCreatedAtKey(services.db, existingOrderId);
           } catch (error) {
-            const isNotFound = error?.statusCode === 404 ||
-              error?.raw?.statusCode === 404 ||
-              error?.code === "resource_missing";
-            if (isNotFound) {
-              // Terminal recovery: Stripe confirms the stored subscription no
-              // longer exists. The incoming, signature-verified subscription
-              // event may replace this stale pointer if the billing record has
-              // not changed since the preflight read.
+            if (isMissingStripeResource(error)) {
               existingSubscriptionMissing = true;
             } else {
-              // Rate limits, network errors, authentication/configuration
-              // failures and unknown errors remain retryable/non-acknowledged.
               throw error;
             }
           }
@@ -473,31 +604,55 @@ export default async function handler(req, res) {
         await services.db.runTransaction(async transaction => {
           const current = await transaction.get(billingRef);
           const data = current.exists ? current.data() : {};
-          const subscriptionId = subscription.id;
           const sequences = data.subscriptionSnapshotSequences || {};
-          const previousSequence = Number(sequences[subscriptionId] || 0);
+          const previousSequence = Number(sequences[subscription.id] || 0);
           if (snapshotSequence === null || snapshotSequence < previousSequence) return;
 
-          // Keep the shared billing document pointed at the newest subscription.
-          // Per-subscription sequence watermarks prevent a replacement subscription
-          // starting at sequence 1 from being blocked by its predecessor's counter.
-          const incomingCreated = Number(subscription.created || 0);
           const currentSubscriptionId = data.stripeSubscriptionId || null;
-          let currentCreated = Number(data.stripeSubscriptionCreated || 0);
-          if (currentSubscriptionId && currentSubscriptionId !== subscriptionId && !currentCreated) {
-            // Only apply the pre-fetched watermark if the billing record still
-            // points to the same subscription that was fetched above.
-            if (currentSubscriptionId !== existingSubscriptionId || !existingSubscriptionCreated) return;
-            currentCreated = existingSubscriptionCreated;
-          }
-          if (currentSubscriptionId && currentSubscriptionId !== subscriptionId) {
-            if (currentSubscriptionId !== existingSubscriptionId) return;
-            if (existingSubscriptionMissing) {
-              if (!incomingCreated) return;
-            } else {
-              if (!incomingCreated || !currentCreated) return;
-              if (incomingCreated < currentCreated) return;
-              if (incomingCreated === currentCreated && subscriptionId < currentSubscriptionId) return;
+          const transactionCurrentCreated = Number(data.stripeSubscriptionCreated || 0) ||
+            (currentSubscriptionId === existingSubscriptionId ? existingSubscriptionCreated : 0);
+          const transactionCurrentOrderId = data.stripeSubscriptionOrderId ||
+            (currentSubscriptionId === existingSubscriptionId ? existingOrderId : null);
+          const transactionCurrentOrderAt = Number(data.stripeSubscriptionOrderCreatedAtMs || 0) ||
+            (currentSubscriptionId === existingSubscriptionId ? existingOrderAt : 0);
+          const transactionCurrentOrderKey = data.stripeSubscriptionOrderCreatedAtKey ||
+            millisecondsToOrderKey(transactionCurrentOrderAt) ||
+            (currentSubscriptionId === existingSubscriptionId ? existingOrderKey : null);
+
+          if (currentSubscriptionId && currentSubscriptionId !== subscription.id) {
+            if (!incomingCreated) throw new Error("Incoming subscription creation timestamp is missing.");
+            const missingLegacyPointerWithoutWatermark =
+              existingSubscriptionMissing &&
+              currentSubscriptionId === existingSubscriptionId &&
+              !transactionCurrentCreated &&
+              !transactionCurrentOrderKey;
+            if (!missingLegacyPointerWithoutWatermark) {
+              if (!transactionCurrentCreated) {
+                // Some older billing records have an order watermark but predate
+                // stripeSubscriptionCreated. Compare the surviving order key.
+                if (!incomingOrderKey || !transactionCurrentOrderKey) {
+                  throw new Error("Cannot safely order subscription replacement without a creation or order watermark.");
+                }
+                if (incomingOrderKey < transactionCurrentOrderKey) return;
+                if (incomingOrderKey === transactionCurrentOrderKey) {
+                  if (incomingOrderId === transactionCurrentOrderId) return;
+                  throw new Error("Subscription replacement order timestamps are ambiguous.");
+                }
+              } else {
+                if (incomingCreated < transactionCurrentCreated) return;
+                if (incomingCreated === transactionCurrentCreated) {
+                  if (!incomingOrderKey || !transactionCurrentOrderKey) {
+                    throw new Error("Cannot safely order subscriptions created in the same second.");
+                  }
+                  if (incomingOrderKey < transactionCurrentOrderKey) return;
+                  if (incomingOrderKey === transactionCurrentOrderKey) {
+                    // Distinct subscriptions cannot be ordered by identical Stripe
+                    // second and identical billing order; retain the current pointer.
+                    if (incomingOrderId === transactionCurrentOrderId) return;
+                    throw new Error("Subscription replacement order timestamps are ambiguous.");
+                  }
+                }
+              }
             }
           }
 
@@ -505,11 +660,14 @@ export default async function handler(req, res) {
             ...common,
             ...subscriptionData(subscription),
             active: ["active", "trialing"].includes(subscription.status),
-            stripeSubscriptionId: subscriptionId,
+            stripeSubscriptionId: subscription.id,
             stripeSubscriptionCreated: incomingCreated,
+            stripeSubscriptionOrderId: incomingOrderId,
+            stripeSubscriptionOrderCreatedAtMs: incomingOrderAt || FieldValue.delete(),
+            stripeSubscriptionOrderCreatedAtKey: incomingOrderKey || FieldValue.delete(),
             subscriptionSnapshotSequences: {
               ...sequences,
-              [subscriptionId]: snapshotSequence
+              [subscription.id]: snapshotSequence
             }
           }, { merge: true });
         });
@@ -518,6 +676,9 @@ export default async function handler(req, res) {
         // displayed payment state; an older invoice event cannot replace it.
         if (latestInvoiceSnapshot) {
           const invoiceStatus = latestInvoiceSnapshot.status || "open";
+          const invoiceSubscriptionOrderId = relatedSubscription?.metadata?.orderId || null;
+          const invoiceSubscriptionOrderKey =
+            await getOrderCreatedAtKey(services.db, invoiceSubscriptionOrderId);
           await services.db.runTransaction(async transaction => {
             const current = await transaction.get(billingRef);
             const data = current.exists ? current.data() : {};
@@ -525,10 +686,37 @@ export default async function handler(req, res) {
             const previousInvoiceSequence = Number(invoiceSequences[snapshotSubscriptionId] || 0);
             // An invoice from a superseded subscription must not replace the
             // payment status shown for the current subscription.
-            if (!snapshotSubscriptionId ||
-                data.stripeSubscriptionId !== snapshotSubscriptionId ||
-                snapshotSequence === null ||
+            if (!snapshotSubscriptionId || snapshotSequence === null ||
                 snapshotSequence < previousInvoiceSequence) return;
+            if (data.stripeSubscriptionId !== snapshotSubscriptionId) {
+              const currentCreated = Number(data.stripeSubscriptionCreated || 0);
+              const incomingCreated = Number(relatedSubscription?.created || 0);
+              // If linkage has not arrived yet, leave the event retryable. If
+              // this invoice belongs to an older subscription, it is safe to
+              // consume without changing the current account payment state.
+              if (!data.stripeSubscriptionId || !currentCreated || !incomingCreated) {
+                throw new Error("Invoice arrived before its subscription was linked.");
+              }
+              if (incomingCreated > currentCreated) {
+                throw new Error("Invoice belongs to a newer subscription not linked yet.");
+              }
+              if (incomingCreated === currentCreated) {
+                const currentOrderAt = Number(data.stripeSubscriptionOrderCreatedAtMs || 0);
+                const currentOrderKey = data.stripeSubscriptionOrderCreatedAtKey ||
+                  millisecondsToOrderKey(currentOrderAt);
+                if (!invoiceSubscriptionOrderKey || !currentOrderKey) {
+                  throw new Error("Invoice subscription ordering is ambiguous within the same second.");
+                }
+                if (invoiceSubscriptionOrderKey > currentOrderKey) {
+                  throw new Error("Invoice belongs to a newer same-second subscription not linked yet.");
+                }
+                if (invoiceSubscriptionOrderKey === currentOrderKey &&
+                    invoiceSubscriptionOrderId !== data.stripeSubscriptionOrderId) {
+                  throw new Error("Invoice subscription order timestamps are ambiguous.");
+                }
+              }
+              return;
+            }
             transaction.set(billingRef, {
               ...common,
               latestInvoiceId: latestInvoiceSnapshot.id,
@@ -548,6 +736,19 @@ export default async function handler(req, res) {
       }
     }
 
+    const requiresVerifiedAccount = [
+      "checkout.session.completed",
+      "checkout.session.async_payment_succeeded",
+      "checkout.session.async_payment_failed"
+    ].includes(event.type) ||
+      event.type.startsWith("customer.subscription.") ||
+      event.type === "invoice.paid" ||
+      event.type === "invoice.payment_failed";
+
+    if (!uid && requiresVerifiedAccount) {
+      throw new Error("Stripe billing event is not linked to a verified Firebase account yet.");
+    }
+
     await services.db.runTransaction(async transaction => {
       const current = await transaction.get(eventRef);
       if (current.data()?.processingToken !== processingToken) {
@@ -565,7 +766,20 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ received: true, linked: Boolean(uid) });
   } catch {
-    // Return a failure so Stripe retries transient processing errors.
+    // Release only this invocation's lease so Stripe can retry immediately.
+    // Never clear a lease acquired by a newer concurrent delivery.
+    try {
+      await services.db.runTransaction(async transaction => {
+        const current = await transaction.get(eventRef);
+        if (current.data()?.processingToken !== processingToken) return;
+        transaction.set(eventRef, {
+          processingStatus: "retryable",
+          processingToken: FieldValue.delete(),
+          processingLeaseUntilMs: FieldValue.delete(),
+          lastProcessingErrorAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+      });
+    } catch {}
     return res.status(500).json({ error: "Stripe event processing failed." });
   }
 }

@@ -111,3 +111,42 @@ for (const processed of [true, false]) test(`webhook ${processed ? 'processed ev
   assert.equal(res.code, processed ? 200 : 500);
   assert.equal(db.read(billing), undefined);
 });
+test('Checkout reconciliation retrieves current metadata before binding and grants only once', async () => {
+  const c = load('api/stripe-webhook.js');
+  const db = store({ 'billingOrders/o': { ...order, createdAt: 1000 }, [billing]: { creditBalance: 3, pendingSubscriptionCheckout: { orderId: 'o', sessionId: 'cs_1' } } });
+  let deliveries = 0;
+  const verified = [];
+  c.mockServices = { db, auth: { async getUser(uid) { verified.push(uid); return { emailVerified: true }; } }, stripe: {
+    webhooks: { constructEvent: () => ({ id: 'fresh_' + (++deliveries), created: 10, type: 'checkout.session.completed', data: { object: { id: 'cs_1', metadata: { firebaseUID: 'stale' } } } }) },
+    checkout: { sessions: { retrieve: async () => ({ ...session, created: 9, metadata: { ...session.metadata, purchaseType: 'credit_pack' } }) } }
+  } };
+  vm.runInContext('servicesPromise = Promise.resolve(mockServices)', c);
+  for (let i = 0; i < 2; i++) {
+    const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+    await c.handler({ method: 'POST', headers: { 'stripe-signature': 'mock' }, rawBody: Buffer.from('{}') }, res);
+    assert.equal(res.code, 200);
+  }
+  assert.deepEqual(verified, ['u', 'u']);
+  assert.equal(db.read(billing).creditBalance, 10003);
+  assert.equal(db.read(billing).pendingSubscriptionCheckout, null);
+  assert.equal(db.read('billingOrders/o').status, 'paid');
+});
+test('unlinked billing events retry and release their processing lease without email matching', async () => {
+  const c = load('api/stripe-webhook.js');
+  const db = store();
+  c.mockServices = { db, auth: { getUserByEmail() { throw Error('email lookup must not occur'); } }, stripe: {
+    webhooks: { constructEvent: () => ({ id: 'unlinked', type: 'checkout.session.completed', data: { object: { id: 'cs_1' } } }) },
+    checkout: { sessions: { retrieve: async () => ({ id: 'cs_1', customer_email: 'someone@example.com', payment_status: 'paid' }) } }
+  } };
+  vm.runInContext('servicesPromise = Promise.resolve(mockServices)', c);
+  const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+  await c.handler({ method: 'POST', headers: { 'stripe-signature': 'mock' }, rawBody: Buffer.from('{}') }, res);
+  assert.equal(res.code, 500);
+  assert.equal(db.read('stripeWebhookEvents/unlinked').processingStatus, 'retryable');
+  assert.equal(db.read('stripeWebhookEvents/unlinked').processed, false);
+  assert.equal(db.read(billing), undefined);
+});
+test('order timestamps retain nanosecond ordering', () => {
+  const c = load('api/stripe-webhook.js');
+  assert.ok(c.timestampOrderKey({ seconds: 100, nanoseconds: 1 }) < c.timestampOrderKey({ seconds: 100, nanoseconds: 2 }));
+});
