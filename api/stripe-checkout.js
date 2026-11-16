@@ -92,9 +92,10 @@ async function ensureStripeCustomer({ stripe, billingRef, billingData, user }) {
       if (!page.has_more || page.data.length === 0) break;
       startingAfter = page.data[page.data.length - 1].id;
     }
-    if (!customer && matches.length === 1) customer = matches[0];
-    if (!customer && matches.length > 1) {
-      throw new Error("Multiple Stripe customers match this account; manual billing review is required.");
+    if (!customer && matches.length > 0) {
+      // Email alone is not proof of Stripe account ownership. Never claim an
+      // existing customer (and its subscriptions or payment methods) by email.
+      throw new Error("Existing Stripe customer requires manual billing ownership review.");
     }
   }
 
@@ -110,9 +111,7 @@ async function ensureStripeCustomer({ stripe, billingRef, billingData, user }) {
     throw new Error("The Stripe customer is linked to another account.");
   }
   if (!linkedUid) {
-    customer = await stripe.customers.update(customer.id, {
-      metadata: { ...(customer.metadata || {}), firebaseUID: user.uid }
-    });
+    throw new Error("Stripe customer ownership metadata is missing; manual billing review is required.");
   }
 
   await billingRef.set({
