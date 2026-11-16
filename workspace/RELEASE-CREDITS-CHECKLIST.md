@@ -164,6 +164,13 @@ ordering, dispute outcomes, fraud holds, Portal ownership, legacy migration/revi
 AI reservation/refund/cache/debt, and default subscription closure plus restored dual-sales UI. This is not a
 claim that dashboard settings or real Live end-to-end payment have been verified.
 
+
+## Read-only environment preflight
+
+Run `npm run check:billing-config` **inside the intended Vercel environment** or a trusted shell with matching scoped environment variables. It prints pass/fail flags only, not credential values. It verifies project ID consistency, required environment variables, all eight distinct Price ID shapes, annual Cron configuration, and the subscription/Live activation gates. A failure returns a nonzero exit code.
+
+This does **not** query Stripe and cannot verify that Price IDs exist, are active, or have the correct USD amounts/intervals. It does not prove webhook delivery, successful recurring billing, or account readiness. These remain mandatory dashboard/Preview validations before changing any Live gate.
+
 ## Dual-sales release acceptance gates
 
 - Monthly and yearly subscription Checkout sessions are validated against the correct
