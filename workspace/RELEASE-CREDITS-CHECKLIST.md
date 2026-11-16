@@ -107,6 +107,11 @@ Never paste secret values in a ticket, PR or chat.
   Email-only matches, missing UID metadata, and cross-user pointers stop with a
   manual ownership review; neither email coincidence nor a Firebase email-verified
   claim permits adopting another Stripe customer's subscriptions or payment methods.
+- Both Credits Checkout and subscription Checkout create or reuse a Stripe Customer
+  with exact `metadata.firebaseUID` ownership; a first-time Credits buyer must not
+  rely on email-only Checkout customer creation. This allows Credits-first buyers
+  to subscribe later using the same verified customer and prevents an unowned
+  Stripe record from breaking the second purchase.
 - A new Stripe customer is created only when no matching historical email customer
   needs review. Review old customer records in the matching Stripe mode and use an
   authorized, auditable migration procedure rather than editing a UID blindly.
