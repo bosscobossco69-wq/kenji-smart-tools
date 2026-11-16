@@ -33,8 +33,8 @@ footer{margin-top:32px;color:var(--muted);font-size:.82rem}
 <section class="grid">
 <article class="card"><h2>Account email</h2><div class="value" id="email">Checking…</div></article>
 <article class="card"><h2>Email verification</h2><div class="value" id="verified">Checking…</div></article>
-<article class="card"><h2>Workspace plan</h2><div class="value">Not activated</div><p class="muted">Plans and billing are not connected yet.</p></article>
-<article class="card"><h2>AI Credits</h2><div class="value">Not available yet</div><p class="muted">No credit balance is being charged or displayed.</p></article>
+<article class="card"><h2>Workspace plan</h2><div class="value" id="planStatus">Checking…</div><p class="muted" id="planNote">Checking your subscription status.</p></article>
+<article class="card"><h2>AI Credits</h2><div class="value" id="creditBalance">Loading…</div><p class="muted">Available Credits in your Workspace account.</p></article>
 </section>
 <section class="grid">
 <article class="card"><h2>Profile</h2><label for="displayName">Display name</label><p><input id="displayName" maxlength="80" style="width:100%;padding:11px;border-radius:9px;border:1px solid #405875;background:#091526;color:white"></p><button id="save" type="button">Save name</button></article>
@@ -57,7 +57,27 @@ const notice=(message,isError=false)=>{el("notice").textContent=message;el("noti
    el("verified").textContent="Verified";
    el("displayName").value=user.displayName||"";
    notice("You are signed in. Your account session is active.");
+   loadBilling(user);
   },error=>notice("Could not verify your session: "+(error?.message||"Please sign in again."),true));
+  async function loadBilling(user){
+   el("creditBalance").textContent="Loading…";
+   el("planStatus").textContent="Checking…";
+   try{
+    const token=await user.getIdToken();
+    const response=await fetch("/api/account-billing",{method:"GET",headers:{Authorization:"Bearer "+token},cache:"no-store"});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||"Could not load billing details.");
+    const credits=Number(data.creditBalance);
+    el("creditBalance").textContent=(Number.isFinite(credits)?Math.max(0,Math.floor(credits)):0).toLocaleString("en-US");
+    const active=data.planActive===true;
+    el("planStatus").textContent=active?"Active":"Not activated";
+    el("planNote").textContent=active?"Your subscription is active.":"No active subscription is linked to this account.";
+   }catch(error){
+    el("creditBalance").textContent="Unavailable";
+    el("planStatus").textContent="Unable to verify";
+    el("planNote").textContent="Billing details could not be loaded. Please refresh or contact support.";
+   }
+  }
   el("save").addEventListener("click",async()=>{
    const user=f.auth.currentUser,name=el("displayName").value.trim();
    if(!user){notice("Please sign in again.",true);return;}
