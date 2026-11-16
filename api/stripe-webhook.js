@@ -126,7 +126,7 @@ async function fulfillCreditPack({ db, session, uid, event }) {
     if (!orderSnap.exists) throw new Error("Credit order not found.");
     const order = orderSnap.data();
     if (order.uid !== uid || order.type !== "credit_pack" || order.packId !== meta.packId ||
-        order.credits !== pack.credits || order.amount !== pack.amount ||
+        order.credits !== pack.credits || order.amount !== pack.amount || order.currency !== "usd" ||
         order.stripeCheckoutSessionId !== session.id) {
       throw new Error("Credit order does not match payment.");
     }
@@ -163,6 +163,10 @@ async function fulfillCreditPack({ db, session, uid, event }) {
 async function grantSubscriptionInvoice({ db, invoice, subscription, uid }) {
   if (!uid || !subscription) throw new Error("Paid subscription invoice is not linked to a verified user.");
   if (!["subscription_create", "subscription_cycle"].includes(invoice.billing_reason)) return;
+
+  if (invoice.status !== "paid" || invoice.currency !== "usd") {
+    throw new Error("Subscription invoice is not a paid USD invoice.");
+  }
 
   const metadata = subscription.metadata || {};
   const orderId = metadata.orderId;
@@ -392,8 +396,10 @@ export default async function handler(req, res) {
       if (!firebaseUser.emailVerified) uid = null;
     }
 
-    const isPackCheckout = event.type === "checkout.session.completed" &&
-      object?.metadata?.purchaseType === "credit_pack";
+    const isPackCheckout = [
+      "checkout.session.completed",
+      "checkout.session.async_payment_succeeded"
+    ].includes(event.type) && object?.metadata?.purchaseType === "credit_pack";
     if (isPackCheckout) {
       await fulfillCreditPack({ db: services.db, session: object, uid, event });
     } else if (event.type === "invoice.paid" && invoiceSubscription) {
@@ -409,7 +415,8 @@ export default async function handler(req, res) {
         updatedAt: FieldValue.serverTimestamp()
       };
 
-      if (event.type === "checkout.session.completed") {
+      if (event.type === "checkout.session.completed" ||
+          event.type === "checkout.session.async_payment_succeeded") {
         await services.db.runTransaction(async transaction => {
           const current = await transaction.get(billingRef);
           const data = current.exists ? current.data() : {};
