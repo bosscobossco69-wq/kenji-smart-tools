@@ -596,10 +596,10 @@ test('published billing prices and Credits match both Stripe checkout and webhoo
     assert.match(card, new RegExp('data-month="' + expected.monthly / 100 + '"'));
     assert.match(card, new RegExp('data-year="' + expected.yearly / 100 + '"'));
     assert.ok(card.includes(expected.credits.toLocaleString('en-US') + ' Credits'));
-    assert.deepEqual(JSON.parse(JSON.stringify(subscriptions.PLAN_PRICE_AMOUNTS[id])), {
+    assert.deepEqual(JSON.parse(JSON.stringify(vm.runInContext('PLAN_PRICE_AMOUNTS', subscriptions)[id])), {
       monthly: expected.monthly, yearly: expected.yearly
     });
-    assert.equal(webhook.PLAN_CREDITS[id], expected.credits);
+    assert.equal(vm.runInContext('PLAN_CREDITS', webhook)[id], expected.credits);
   }
   const packs = {
     mini: { amount: 500, credits: 10000 },
@@ -613,12 +613,12 @@ test('published billing prices and Credits match both Stripe checkout and webhoo
       .find(piece => piece.includes('data-pack="' + id + '"'));
     assert.ok(card, 'pack ' + id + ' missing');
     assert.ok(card.includes('
-    assert.deepEqual(JSON.parse(JSON.stringify(packCheckout.PACKS[id])), {
-      name: packCheckout.PACKS[id].name,
+    assert.deepEqual(JSON.parse(JSON.stringify(vm.runInContext('PACKS', packCheckout)[id])), {
+      name: vm.runInContext('PACKS', packCheckout)[id].name,
       ...expected
     });
-    assert.equal(webhook.CREDIT_PACKS[id].amount, expected.amount);
-    assert.equal(webhook.CREDIT_PACKS[id].credits, expected.credits);
+    assert.equal(vm.runInContext('CREDIT_PACKS', webhook)[id].amount, expected.amount);
+    assert.equal(vm.runInContext('CREDIT_PACKS', webhook)[id].credits, expected.credits);
   }
 });
  + expected.amount / 100));
