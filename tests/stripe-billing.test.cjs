@@ -478,3 +478,31 @@ test('three-day subscription trial is opt-in and requires payment method', () =>
   assert.match(checkout, /missing_payment_method: "cancel"/);
   assert.match(checkout, /subscription_data: subscriptionData/);
 });
+
+test('zero-dollar trial invoice never grants Credits before first charge', async () => {
+  const c = load('api/stripe-webhook.js');
+  const db = store({
+    'billingOrders/o': { uid: 'u', planId: 'lite', interval: 'monthly', priceId: 'price_1', currency: 'usd' }
+  });
+  const subscription = {
+    id: 'sub_trial', status: 'trialing',
+    metadata: { orderId: 'o', planId: 'lite' },
+    items: { data: [{ price: { id: 'price_1', recurring: { interval: 'month' } } }] }
+  };
+  const invoice = {
+    id: 'in_trial', status: 'paid', amount_paid: 0, currency: 'usd',
+    billing_reason: 'subscription_create',
+    lines: { data: [{ price: { id: 'price_1' } }] }
+  };
+  await c.grantSubscriptionInvoice({ db, invoice, subscription, uid: 'u' });
+  assert.equal(db.read(billing), undefined);
+  assert.equal(db.read('users/u/creditLedger/stripe_invoice_in_trial'), undefined);
+  const paidSubscription = { ...subscription, status: 'active' };
+  await c.grantSubscriptionInvoice({
+    db,
+    invoice: { ...invoice, id: 'in_first_paid', amount_paid: 1000, billing_reason: 'subscription_cycle' },
+    subscription: paidSubscription, uid: 'u'
+  });
+  assert.equal(db.read(billing).creditBalance, 10000);
+  assert.equal(db.read('users/u/creditLedger/stripe_invoice_in_first_paid').credits, 10000);
+});
