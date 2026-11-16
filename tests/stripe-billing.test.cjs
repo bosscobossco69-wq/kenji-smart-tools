@@ -469,3 +469,12 @@ test('subscription and live payment gates remain explicit before deployment', ()
   assert.match(credit, /assertStripeKey\(stripeKey, true\)/);
   assert.match(environment, /STRIPE_LIVE_CHECKOUT_ENABLED/);
 });
+
+test('three-day subscription trial is opt-in and requires payment method', () => {
+  const checkout = fs.readFileSync('api/stripe-checkout.js', 'utf8');
+  assert.match(checkout, /STRIPE_SUBSCRIPTION_TRIAL_ENABLED === "true"/);
+  assert.match(checkout, /trial_period_days: 3/);
+  assert.match(checkout, /payment_method_collection: "always"/);
+  assert.match(checkout, /missing_payment_method: "cancel"/);
+  assert.match(checkout, /subscription_data: subscriptionData/);
+});
