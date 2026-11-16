@@ -754,3 +754,32 @@ test('Credits customer lookup reuses only verified UID matching existing custome
     billingRef: { set: async () => { throw Error('must not save'); } }, billingData: {}, user
   }), /ownership review/);
 });
+
+test('paid Credits session recovers safely when Firestore did not save the Checkout pointer', async () => {
+  const c = load('api/stripe-webhook.js');
+  const verifiedCharge = {
+    id: 'ch_verified', amount: 500, currency: 'usd', payment_intent: 'pi_1',
+    amount_refunded: 0, disputed: false
+  };
+  const creditOrder = { uid: 'u', type: 'credit_pack', packId: 'mini', credits: 10000,
+    amount: 500, currency: 'usd', status: 'checkout_creation_failed' };
+  const db = store({ 'billingOrders/o': creditOrder });
+  await c.fulfillCreditPack({ db, session, uid: 'u', event: { id: 'evt_recovered' }, charge: verifiedCharge });
+  await c.fulfillCreditPack({ db, session, uid: 'u', event: { id: 'evt_again' }, charge: verifiedCharge });
+  assert.equal(db.read('billingOrders/o').stripeCheckoutSessionId, 'cs_1');
+  assert.equal(db.read('billingOrders/o').status, 'paid');
+  assert.equal(db.read(billing).creditBalance, 10000);
+  assert.equal(db.read('users/u/creditLedger/stripe_pack_o').credits, 10000);
+
+  const noProof = store({ 'billingOrders/o': creditOrder });
+  await assert.rejects(c.fulfillCreditPack({
+    db: noProof, session, uid: 'u', event: { id: 'evt_without_charge' }
+  }), /verified charge/);
+  assert.equal(noProof.read(billing), undefined);
+
+  const conflict = store({ 'billingOrders/o': { ...creditOrder, stripeCheckoutSessionId: 'cs_other' } });
+  await assert.rejects(c.fulfillCreditPack({
+    db: conflict, session, uid: 'u', event: { id: 'evt_wrong_session' }, charge: verifiedCharge
+  }), /does not match/);
+  assert.equal(conflict.read(billing), undefined);
+});
