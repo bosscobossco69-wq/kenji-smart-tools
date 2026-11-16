@@ -690,3 +690,20 @@ test('Credits checkout rejects unverified stored Stripe customers and keeps new 
     customers: { retrieve: async () => ({ ...valid, deleted: true }) }
   }, 'cus_owner', 'uid1'), /ownership review/);
 });
+
+test('subscription redirects accept only a configured HTTPS origin', () => {
+  const req = { headers: {} };
+  const valid = load('api/stripe-checkout.js', { SITE_URL: 'https://kenji-smart-tools.vercel.app/' });
+  assert.equal(valid.siteBase(req), 'https://kenji-smart-tools.vercel.app');
+  for (const origin of [
+    'https://user:pass@example.com/',
+    'https://example.com:8443/',
+    'https://example.com/path',
+    'https://example.com/?q=1',
+    'https://example.com/#fragment',
+    'http://example.com/'
+  ]) {
+    const c = load('api/stripe-checkout.js', { SITE_URL: origin });
+    assert.throws(() => c.siteBase(req), /HTTPS origin/);
+  }
+});
