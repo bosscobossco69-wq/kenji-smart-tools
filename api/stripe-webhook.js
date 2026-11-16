@@ -553,6 +553,7 @@ export default async function handler(req, res) {
             ...common,
             checkoutSessionId: object.id,
             checkoutPaymentStatus,
+            checkoutPaymentUpdatedAt: FieldValue.serverTimestamp(),
             checkoutMode: object.mode || null,
             checkoutSessionCreated: incomingSessionCreated,
             checkoutOrderId: orderId,
