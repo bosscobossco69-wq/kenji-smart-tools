@@ -49,6 +49,19 @@ function siteBase(req) {
   return `https://${host}`;
 }
 
+async function verifiedCreditCustomerId(stripe, customerId, uid) {
+  if (customerId == null) return null;
+  if (typeof customerId !== "string" || !customerId.startsWith("cus_")) {
+    throw new Error("Stripe customer ownership review is required.");
+  }
+  const customer = await stripe.customers.retrieve(customerId);
+  assertStripeObject(customer);
+  if (customer.deleted || customer.metadata?.firebaseUID !== uid) {
+    throw new Error("Stripe customer ownership review is required.");
+  }
+  return customer.id;
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -83,7 +96,8 @@ export default async function handler(req, res) {
     const orderRef = db.collection("billingOrders").doc(orderId);
     const billingRef = db.collection("users").doc(user.uid).collection(billingCollection()).doc("current");
     const billingSnap = await billingRef.get();
-    const customerId = billingSnap.exists ? billingSnap.data()?.stripeCustomerId : null;
+    const storedCustomerId = billingSnap.exists ? billingSnap.data()?.stripeCustomerId : null;
+    const customerId = await verifiedCreditCustomerId(stripe, storedCustomerId, user.uid);
     const metadata = {
       firebaseUID: user.uid,
       orderId,
@@ -145,6 +159,9 @@ export default async function handler(req, res) {
     }
   } catch (error) {
     if (error?.code === "billing_legacy_review_required") return res.status(409).json({ error: error.message });
+    if (error?.message === "Stripe customer ownership review is required.") {
+      return res.status(409).json({ error: "Billing account ownership needs review. Contact billing support before checkout." });
+    }
     const message = error?.message || "";
     const status = message.includes("not configured") || message.includes("disabled") ||
       message.includes("requires a Stripe Test Mode") || message.includes("not allowlisted") ? 503 : 500;
