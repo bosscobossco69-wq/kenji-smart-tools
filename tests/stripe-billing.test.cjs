@@ -497,6 +497,13 @@ test('zero-dollar trial invoice never grants Credits before first charge', async
   await c.grantSubscriptionInvoice({ db, invoice, subscription, uid: 'u' });
   assert.equal(db.read(billing), undefined);
   assert.equal(db.read('users/u/creditLedger/stripe_invoice_in_trial'), undefined);
+  // Replay a delayed $0 trial invoice after Stripe already marks the subscription active.
+  await c.grantSubscriptionInvoice({
+    db, invoice: { ...invoice, id: 'in_delayed_trial' },
+    subscription: { ...subscription, status: 'active' }, uid: 'u'
+  });
+  assert.equal(db.read(billing), undefined);
+  assert.equal(db.read('users/u/creditLedger/stripe_invoice_in_delayed_trial'), undefined);
   const paidSubscription = { ...subscription, status: 'active' };
   await c.grantSubscriptionInvoice({
     db,
