@@ -671,3 +671,22 @@ test('Stripe customer linking permits only exact Firebase UID and creates verifi
   }), /linked to another account/);
   assert.equal(writes.length, 2);
 });
+
+test('Credits checkout rejects unverified stored Stripe customers and keeps new accounts independent', async () => {
+  const creditCheckout = load('api/stripe-credit-checkout.js');
+  const valid = { id: 'cus_owner', livemode: false, deleted: false, metadata: { firebaseUID: 'uid1' } };
+  const stripe = { customers: { retrieve: async () => valid } };
+  assert.equal(await creditCheckout.verifiedCreditCustomerId(stripe, 'cus_owner', 'uid1'), 'cus_owner');
+  assert.equal(await creditCheckout.verifiedCreditCustomerId(stripe, null, 'uid1'), null);
+  await assert.rejects(creditCheckout.verifiedCreditCustomerId(stripe, 'cus_owner', 'uid2'), /ownership review/);
+  await assert.rejects(creditCheckout.verifiedCreditCustomerId(stripe, 'random-id', 'uid1'), /ownership review/);
+  await assert.rejects(creditCheckout.verifiedCreditCustomerId({
+    customers: { retrieve: async () => ({ ...valid, metadata: {} }) }
+  }, 'cus_owner', 'uid1'), /ownership review/);
+  await assert.rejects(creditCheckout.verifiedCreditCustomerId({
+    customers: { retrieve: async () => ({ ...valid, livemode: true }) }
+  }, 'cus_owner', 'uid1'), /environment mismatch/);
+  await assert.rejects(creditCheckout.verifiedCreditCustomerId({
+    customers: { retrieve: async () => ({ ...valid, deleted: true }) }
+  }, 'cus_owner', 'uid1'), /ownership review/);
+});
