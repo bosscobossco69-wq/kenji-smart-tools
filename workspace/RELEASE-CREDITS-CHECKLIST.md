@@ -177,7 +177,7 @@ claim that dashboard settings or real Live end-to-end payment have been verified
   missing-payment-method trial end behavior is `cancel`. Keep the flag OFF until
   verified trial signup, trial invoice, first paid invoice, cancellation before
   trial end, recurring charge and Credits grants have all passed Preview tests.
-  Do not advertise a trial until these pass. Confirm Stripe sends the appropriate
+  Trial-start $0 invoices do **not** grant plan Credits; plan Credits begin after\n  the first successful payment. Do not advertise a trial until these pass. Confirm Stripe sends the appropriate
   customer notices for trial expiration and automatic charging.
 - Credits packs still work independently and retain duplicate-event, refund, dispute,
   and fraud-warning protections. Existing Sandbox tests do not establish Live readiness.
