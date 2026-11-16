@@ -453,8 +453,17 @@ export default async function handler(req, res) {
 
       try {
         const createAttempt = reservation.stripeCreateAttempt;
+        const trialEnabled = process.env.STRIPE_SUBSCRIPTION_TRIAL_ENABLED === "true";
+        const subscriptionData = {
+          metadata: { firebaseUID: user.uid, orderId: reservation.orderId, planId, interval },
+          ...(trialEnabled ? {
+            trial_period_days: 3,
+            trial_settings: { end_behavior: { missing_payment_method: "cancel" } }
+          } : {})
+        };
         const session = await stripe.checkout.sessions.create({
           mode: "subscription",
+          ...(trialEnabled ? { payment_method_collection: "always" } : {}),
           customer: freshCustomerId,
           client_reference_id: user.uid,
           line_items: [{ price: priceId, quantity: 1 }],
@@ -462,7 +471,7 @@ export default async function handler(req, res) {
           success_url: `${base}/workspace/billing.html?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${base}/workspace/billing.html?checkout=cancelled`,
           metadata: { firebaseUID: user.uid, orderId: reservation.orderId, planId, interval },
-          subscription_data: { metadata: { firebaseUID: user.uid, orderId: reservation.orderId, planId, interval } }
+          subscription_data: subscriptionData
         }, { idempotencyKey: `kenji-checkout-${reservation.orderId}-${createAttempt}` });
 
         await db.runTransaction(async transaction => {
