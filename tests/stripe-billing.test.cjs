@@ -707,3 +707,50 @@ test('subscription redirects accept only a configured HTTPS origin', () => {
     assert.throws(() => c.siteBase(req), /HTTPS origin/);
   }
 });
+
+test('first Credits purchase creates a UID-owned Stripe customer usable for subscriptions', async () => {
+  const credit = load('api/stripe-credit-checkout.js');
+  const user = { uid: 'u_credits', email: 'buyer@example.invalid' };
+  const saved = [];
+  const calls = [];
+  const stripe = { customers: {
+    list: async opts => { calls.push(['list', opts.email]); return { data: [], has_more: false }; },
+    create: async (data, opts) => {
+      calls.push(['create', data.metadata.firebaseUID, opts.idempotencyKey]);
+      return { id: 'cus_first', metadata: data.metadata, livemode: false, deleted: false };
+    }
+  } };
+  const id = await credit.ensureCreditCustomer({
+    stripe, billingRef: { set: async data => saved.push(data) }, billingData: {}, user
+  });
+  assert.equal(id, 'cus_first');
+  assert.equal(saved[0].stripeCustomerId, 'cus_first');
+  assert.deepEqual(calls[1], ['create', 'u_credits', 'kenji-customer-u_credits']);
+  const source = fs.readFileSync('api/stripe-credit-checkout.js', 'utf8');
+  assert.match(source, /customer: customerId,/);
+  assert.doesNotMatch(source, /customer_email: typeof customerId/);
+});
+
+test('Credits customer lookup reuses only verified UID matching existing customer', async () => {
+  const credit = load('api/stripe-credit-checkout.js');
+  const user = { uid: 'u_owner', email: 'buyer@example.invalid' };
+  const owned = { id: 'cus_owned', metadata: { firebaseUID: user.uid }, livemode: false, deleted: false };
+  const unowned = { id: 'cus_unowned', metadata: {}, livemode: false, deleted: false };
+  const writes = [];
+  let created = false;
+  const stripe = { customers: {
+    list: async () => ({ data: [unowned, owned], has_more: false }),
+    create: async () => { created = true; throw Error('must not create'); }
+  } };
+  const linked = await credit.ensureCreditCustomer({
+    stripe, billingRef: { set: async data => writes.push(data) }, billingData: {}, user
+  });
+  assert.equal(linked, 'cus_owned');
+  assert.equal(created, false);
+  assert.equal(writes[0].stripeCustomerId, 'cus_owned');
+  await assert.rejects(credit.ensureCreditCustomer({
+    stripe: { customers: { list: async () => ({ data: [unowned], has_more: false }),
+      create: async () => { throw Error('must not create'); } } },
+    billingRef: { set: async () => { throw Error('must not save'); } }, billingData: {}, user
+  }), /ownership review/);
+});
