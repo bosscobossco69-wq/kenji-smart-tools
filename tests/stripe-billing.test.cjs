@@ -589,11 +589,13 @@ test('published billing prices and Credits match both Stripe checkout and webhoo
     ultra: { monthly: 20000, yearly: 200000, credits: 400000 }
   };
   for (const [id, expected] of Object.entries(planAmounts)) {
-    const block = html.match(new RegExp('<article\\b[^>]*>[\\s\\S]*?data-plan="' + id + '"[\\s\\S]*?<\\/article>'));
-    assert.ok(block, 'plan ' + id + ' not found in billing HTML');
-    assert.match(block[0], new RegExp('data-month="' + expected.monthly / 100 + '"'));
-    assert.match(block[0], new RegExp('data-year="' + expected.yearly / 100 + '"'));
-    assert.ok(block[0].includes(expected.credits.toLocaleString('en-US') + ' Credits'));
+    const card = html.split('<article').slice(1)
+      .map(piece => '<article' + piece.split('</article>')[0] + '</article>')
+      .find(piece => piece.includes('data-plan="' + id + '"'));
+    assert.ok(card, 'plan ' + id + ' not found in billing HTML');
+    assert.match(card, new RegExp('data-month="' + expected.monthly / 100 + '"'));
+    assert.match(card, new RegExp('data-year="' + expected.yearly / 100 + '"'));
+    assert.ok(card.includes(expected.credits.toLocaleString('en-US') + ' Credits'));
     assert.deepEqual(JSON.parse(JSON.stringify(subscriptions.PLAN_PRICE_AMOUNTS[id])), {
       monthly: expected.monthly, yearly: expected.yearly
     });
@@ -606,10 +608,21 @@ test('published billing prices and Credits match both Stripe checkout and webhoo
     business: { amount: 15000, credits: 500000 }
   };
   for (const [id, expected] of Object.entries(packs)) {
-    const block = html.match(new RegExp('<article\\b[^>]*>[\\s\\S]*?data-pack="' + id + '"[\\s\\S]*?<\\/article>'));
-    assert.ok(block, 'pack ' + id + ' missing');
-    assert.ok(block[0].includes('$' + expected.amount / 100));
-    assert.ok(block[0].includes(expected.credits.toLocaleString('en-US') + ' Credits'));
+    const card = html.split('<article').slice(1)
+      .map(piece => '<article' + piece.split('</article>')[0] + '</article>')
+      .find(piece => piece.includes('data-pack="' + id + '"'));
+    assert.ok(card, 'pack ' + id + ' missing');
+    assert.ok(card.includes('
+    assert.deepEqual(JSON.parse(JSON.stringify(packCheckout.PACKS[id])), {
+      name: packCheckout.PACKS[id].name,
+      ...expected
+    });
+    assert.equal(webhook.CREDIT_PACKS[id].amount, expected.amount);
+    assert.equal(webhook.CREDIT_PACKS[id].credits, expected.credits);
+  }
+});
+ + expected.amount / 100));
+    assert.ok(card.includes(expected.credits.toLocaleString('en-US') + ' Credits'));
     assert.deepEqual(JSON.parse(JSON.stringify(packCheckout.PACKS[id])), {
       name: packCheckout.PACKS[id].name,
       ...expected
