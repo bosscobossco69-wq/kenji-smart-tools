@@ -239,9 +239,10 @@ async function fulfillCreditPack({ db, session, uid, event, charge = null }) {
 async function grantSubscriptionInvoice({ db, invoice, subscription, uid }) {
   if (!uid || !subscription) throw new Error("Paid subscription invoice is not linked to a verified user.");
   if (!["subscription_create", "subscription_cycle"].includes(invoice.billing_reason)) return;
-  // A $0 trial-start invoice is not a paid month of Credits. Award after actual payment;
-  // otherwise trial signup followed by the first charge can double-grant monthly Credits.
-  if (subscription.status === "trialing" && invoice.amount_paid === 0) return;
+  // Zero-value trial invoices grant no Credits, even when Stripe's current subscription
+  // has already moved from trialing to active by the time a delayed webhook arrives.
+  // Paid Credits are granted by a separate, successfully collected invoice.
+  if (invoice.amount_paid === 0) return;
 
   if (invoice.status !== "paid" || invoice.currency !== "usd") {
     throw new Error("Subscription invoice is not a paid USD invoice.");
