@@ -126,7 +126,7 @@ async function fulfillCreditPack({ db, session, uid, event }) {
     if (!orderSnap.exists) throw new Error("Credit order not found.");
     const order = orderSnap.data();
     if (order.uid !== uid || order.type !== "credit_pack" || order.packId !== meta.packId ||
-        order.credits !== pack.credits || order.amount !== pack.amount ||
+        order.credits !== pack.credits || order.amount !== pack.amount || order.currency !== "usd" ||
         order.stripeCheckoutSessionId !== session.id) {
       throw new Error("Credit order does not match payment.");
     }
@@ -163,6 +163,10 @@ async function fulfillCreditPack({ db, session, uid, event }) {
 async function grantSubscriptionInvoice({ db, invoice, subscription, uid }) {
   if (!uid || !subscription) throw new Error("Paid subscription invoice is not linked to a verified user.");
   if (!["subscription_create", "subscription_cycle"].includes(invoice.billing_reason)) return;
+
+  if (invoice.status !== "paid" || invoice.currency !== "usd") {
+    throw new Error("Subscription invoice is not a paid USD invoice.");
+  }
 
   const metadata = subscription.metadata || {};
   const orderId = metadata.orderId;
@@ -223,6 +227,7 @@ async function grantSubscriptionInvoice({ db, invoice, subscription, uid }) {
         nextCreditGrantAt: addUtcMonth(periodStart),
         annualCreditGrantSubscriptionId: subscription.id,
         annualCreditGrantPlanId: planId,
+        annualCreditGrantPeriodStart: periodStart,
         annualCreditGrantAnchorDay: periodStart.getUTCDate()
       }, { merge: true });
     }
@@ -417,13 +422,19 @@ export default async function handler(req, res) {
           const data = current.exists ? current.data() : {};
           const lastCreated = Number(data.checkoutEventCreated || 0);
           if (event.created < lastCreated) return;
-          transaction.set(billingRef, {
+          const pendingCheckout = data.pendingSubscriptionCheckout;
+          const checkoutUpdate = {
             ...common,
             checkoutSessionId: object.id,
             checkoutPaymentStatus: object.payment_status || null,
             checkoutMode: object.mode || null,
             checkoutEventCreated: event.created
-          }, { merge: true });
+          };
+          if (pendingCheckout?.orderId === object.metadata?.orderId ||
+              pendingCheckout?.sessionId === object.id) {
+            checkoutUpdate.pendingSubscriptionCheckout = FieldValue.delete();
+          }
+          transaction.set(billingRef, checkoutUpdate, { merge: true });
         });
       } else if (event.type.startsWith("customer.subscription.")) {
         const subscription = object;
