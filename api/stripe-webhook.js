@@ -7,6 +7,11 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 export const config = { api: { bodyParser: false } };
 
 const MAX_BODY_BYTES = 1024 * 1024;
+const PLAN_CREDITS = { lite: 10000, pro: 30000, pro_plus: 100000, ultra: 400000 };
+const CREDIT_PACKS = {
+  mini: { amount: 500, credits: 10000 }, basic: { amount: 2000, credits: 50000 },
+  pro: { amount: 3500, credits: 100000 }, business: { amount: 15000, credits: 500000 }
+};
 let servicesPromise;
 
 async function readRawBody(req) {
@@ -59,6 +64,16 @@ function getServices() {
 
 function unixDate(seconds) {
   return Number.isFinite(seconds) ? new Date(seconds * 1000) : null;
+}
+
+function addUtcMonth(date) {
+  const next = new Date(date);
+  const anchorDay = next.getUTCDate();
+  next.setUTCDate(1);
+  next.setUTCMonth(next.getUTCMonth() + 1);
+  const lastDay = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate();
+  next.setUTCDate(Math.min(anchorDay, lastDay));
+  return next;
 }
 
 function isMissingStripeResource(error) {
@@ -130,6 +145,8 @@ function subscriptionData(subscription) {
   return {
     stripeCustomerId: typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id || null,
     stripeSubscriptionId: subscription.id,
+    planId: subscription.metadata?.planId || null,
+    orderId: subscription.metadata?.orderId || null,
     status: subscription.status,
     priceId: item?.price?.id || null,
     currency: item?.price?.currency || null,
@@ -143,6 +160,140 @@ function subscriptionData(subscription) {
     updatedAt: FieldValue.serverTimestamp()
   };
 }
+
+async function fulfillCreditPack({ db, session, uid, event }) {
+  const meta = session.metadata || {};
+  const orderId = typeof meta.orderId === "string" ? meta.orderId : "";
+  const pack = CREDIT_PACKS[meta.packId];
+  if (!orderId || !pack) throw new Error("Invalid credit pack metadata.");
+  if (session.payment_status !== "paid") return;
+  if (!uid || meta.firebaseUID !== uid) throw new Error("Credit pack payment has no verified Firebase user.");
+  if (session.mode !== "payment" || session.currency !== "usd" || session.amount_total !== pack.amount) {
+    throw new Error("Credit pack payment mismatch.");
+  }
+
+  const orderRef = db.collection("billingOrders").doc(orderId);
+  const billingRef = db.collection("users").doc(uid).collection("billing").doc("current");
+  const ledgerRef = db.collection("users").doc(uid).collection("creditLedger").doc("stripe_pack_" + orderId);
+
+  await db.runTransaction(async tx => {
+    const [orderSnap, ledgerSnap] = await Promise.all([tx.get(orderRef), tx.get(ledgerRef)]);
+    if (!orderSnap.exists) throw new Error("Credit order not found.");
+    const order = orderSnap.data();
+    if (order.uid !== uid || order.type !== "credit_pack" || order.packId !== meta.packId ||
+        order.credits !== pack.credits || order.amount !== pack.amount || order.currency !== "usd" ||
+        order.stripeCheckoutSessionId !== session.id) {
+      throw new Error("Credit order does not match payment.");
+    }
+    if (ledgerSnap.exists || order.status === "paid") return;
+
+    tx.set(billingRef, {
+      creditBalance: FieldValue.increment(pack.credits),
+      lastCreditOrderId: orderId,
+      lastStripeEventId: event.id,
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    tx.create(ledgerRef, {
+      type: "credit_pack_purchase",
+      source: "stripe_checkout",
+      orderId,
+      stripeCheckoutSessionId: session.id,
+      stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
+      stripeEventId: event.id,
+      credits: pack.credits,
+      amount: pack.amount,
+      currency: "usd",
+      createdAt: FieldValue.serverTimestamp()
+    });
+    tx.set(orderRef, {
+      status: "paid",
+      stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
+      stripeEventId: event.id,
+      paidAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+  });
+}
+
+async function grantSubscriptionInvoice({ db, invoice, subscription, uid }) {
+  if (!uid || !subscription) throw new Error("Paid subscription invoice is not linked to a verified user.");
+  if (!["subscription_create", "subscription_cycle"].includes(invoice.billing_reason)) return;
+
+  if (invoice.status !== "paid" || invoice.currency !== "usd") {
+    throw new Error("Subscription invoice is not a paid USD invoice.");
+  }
+
+  const metadata = subscription.metadata || {};
+  const orderId = metadata.orderId;
+  const planId = metadata.planId;
+  const credits = PLAN_CREDITS[planId];
+  const item = subscription.items?.data?.[0];
+  const interval = item?.price?.recurring?.interval;
+  const invoicePriceIds = (invoice.lines?.data || []).map(line =>
+    line.price?.id || line.pricing?.price_details?.price
+  ).filter(Boolean);
+
+  if (!orderId || !credits || !["month", "year"].includes(interval) ||
+      !item?.price?.id || !invoicePriceIds.includes(item.price.id)) {
+    throw new Error("Paid invoice does not match a supported subscription plan.");
+  }
+
+  const orderRef = db.collection("billingOrders").doc(orderId);
+  const billingRef = db.collection("users").doc(uid).collection("billing").doc("current");
+  const ledgerRef = db.collection("users").doc(uid).collection("creditLedger").doc("stripe_invoice_" + invoice.id);
+
+  await db.runTransaction(async tx => {
+    const [orderSnap, ledgerSnap] = await Promise.all([tx.get(orderRef), tx.get(ledgerRef)]);
+    if (!orderSnap.exists) throw new Error("Checkout order was not found for paid invoice.");
+    const order = orderSnap.data();
+    const expectedInterval = interval === "year" ? "yearly" : "monthly";
+    if (order.uid !== uid || order.planId !== planId || order.interval !== expectedInterval ||
+        order.priceId !== item.price.id || order.currency !== "usd") {
+      throw new Error("Paid invoice does not match its pending Checkout order.");
+    }
+    if (ledgerSnap.exists) return;
+
+    tx.set(billingRef, {
+      creditBalance: FieldValue.increment(credits),
+      lastCreditGrantInvoiceId: invoice.id,
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    tx.create(ledgerRef, {
+      type: interval === "year" ? "annual_subscription_initial_grant" : "subscription_cycle_grant",
+      source: "stripe_invoice",
+      stripeInvoiceId: invoice.id,
+      stripeSubscriptionId: subscription.id,
+      orderId,
+      planId,
+      credits,
+      currency: invoice.currency || null,
+      amountPaid: invoice.amount_paid ?? null,
+      createdAt: FieldValue.serverTimestamp()
+    });
+    if (interval === "year") {
+      // Stripe API versions using the Basil model expose billing periods on subscription items.
+      // Keep the subscription-level fallback for older API responses.
+      const periodStartSeconds = Number.isFinite(item?.current_period_start)
+        ? item.current_period_start
+        : subscription.current_period_start;
+      const periodStart = unixDate(periodStartSeconds);
+      if (!periodStart) throw new Error("Annual subscription period start is missing.");
+      tx.set(billingRef, {
+        nextCreditGrantAt: addUtcMonth(periodStart),
+        annualCreditGrantSubscriptionId: subscription.id,
+        annualCreditGrantPlanId: planId,
+        annualCreditGrantPeriodStart: periodStart,
+        annualCreditGrantAnchorDay: periodStart.getUTCDate()
+      }, { merge: true });
+    }
+    tx.set(orderRef, {
+      status: "paid",
+      lastPaidInvoiceId: invoice.id,
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+  });
+}
+
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -223,6 +374,15 @@ export default async function handler(req, res) {
 
   try {
     let object = event.data.object;
+    const isCheckoutEvent = [
+      "checkout.session.completed",
+      "checkout.session.async_payment_succeeded",
+      "checkout.session.async_payment_failed"
+    ].includes(event.type);
+    // Resolve current server metadata and payment state before account binding or fulfillment.
+    if (isCheckoutEvent) {
+      object = await services.stripe.checkout.sessions.retrieve(object.id);
+    }
     let snapshotSequence = null;
     let latestInvoiceSnapshot = null;
     let relatedSubscription = null;
@@ -303,6 +463,16 @@ export default async function handler(req, res) {
       if (!firebaseUser.emailVerified) uid = null;
     }
 
+    const isPackCheckout = [
+      "checkout.session.completed",
+      "checkout.session.async_payment_succeeded"
+    ].includes(event.type) && object?.metadata?.purchaseType === "credit_pack";
+    if (isPackCheckout) {
+      await fulfillCreditPack({ db: services.db, session: object, uid, event });
+    } else if (event.type === "invoice.paid" && relatedSubscription) {
+      await grantSubscriptionInvoice({ db: services.db, invoice: object, subscription: relatedSubscription, uid });
+    }
+
     if (uid) {
       const billingRef = services.db.collection("users").doc(uid).collection("billing").doc("current");
       const common = {
@@ -317,7 +487,6 @@ export default async function handler(req, res) {
         "checkout.session.async_payment_succeeded",
         "checkout.session.async_payment_failed"
       ].includes(event.type)) {
-        object = await services.stripe.checkout.sessions.retrieve(object.id);
         const incomingPaymentStatus = event.type === "checkout.session.async_payment_succeeded"
           ? "paid"
           : event.type === "checkout.session.async_payment_failed"
@@ -380,7 +549,7 @@ export default async function handler(req, res) {
             paymentStatusRank(previousPaymentStatus) > paymentStatusRank(incomingPaymentStatus)
               ? previousPaymentStatus
               : incomingPaymentStatus;
-          transaction.set(billingRef, {
+          const checkoutUpdate = {
             ...common,
             checkoutSessionId: object.id,
             checkoutPaymentStatus,
@@ -392,7 +561,12 @@ export default async function handler(req, res) {
             checkoutEventCreated: sameSession
               ? Math.max(Number(data.checkoutEventCreated || 0), Number(event.created || 0))
               : Number(event.created || 0)
-          }, { merge: true });
+          };
+          const pending = data.pendingSubscriptionCheckout;
+          if (pending?.orderId === object.metadata?.orderId || pending?.sessionId === object.id) {
+            checkoutUpdate.pendingSubscriptionCheckout = FieldValue.delete();
+          }
+          transaction.set(billingRef, checkoutUpdate, { merge: true });
         });
       } else if (event.type.startsWith("customer.subscription.")) {
         const subscription = object;
