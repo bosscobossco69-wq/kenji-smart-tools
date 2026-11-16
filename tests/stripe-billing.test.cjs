@@ -577,29 +577,30 @@ test('read-only release preflight validates Preview and fails closed on missing 
   assert.match(duplicatePrice.stdout, /Subscription Price IDs are distinct/);
 });
 
-test('published billing prices and Credits match both Stripe checkout and webhook grants', () => {
+test('published billing prices and Credits match server checkout and webhook grants', () => {
   const html = fs.readFileSync('workspace/billing.html', 'utf8');
   const subscriptions = load('api/stripe-checkout.js');
   const packCheckout = load('api/stripe-credit-checkout.js');
   const webhook = load('api/stripe-webhook.js');
+  const cards = html.split('<article').slice(1).map(piece =>
+    '<article' + piece.split('</article>')[0] + '</article>');
   const planAmounts = {
     lite: { monthly: 1000, yearly: 10000, credits: 10000 },
     pro: { monthly: 2000, yearly: 20000, credits: 30000 },
     pro_plus: { monthly: 6000, yearly: 60000, credits: 100000 },
     ultra: { monthly: 20000, yearly: 200000, credits: 400000 }
   };
+  const checkoutPlans = vm.runInContext('PLAN_PRICE_AMOUNTS', subscriptions);
+  const webhookPlans = vm.runInContext('PLAN_CREDITS', webhook);
   for (const [id, expected] of Object.entries(planAmounts)) {
-    const card = html.split('<article').slice(1)
-      .map(piece => '<article' + piece.split('</article>')[0] + '</article>')
-      .find(piece => piece.includes('data-plan="' + id + '"'));
-    assert.ok(card, 'plan ' + id + ' not found in billing HTML');
-    assert.match(card, new RegExp('data-month="' + expected.monthly / 100 + '"'));
-    assert.match(card, new RegExp('data-year="' + expected.yearly / 100 + '"'));
+    const card = cards.find(piece => piece.includes('data-plan="' + id + '"'));
+    assert.ok(card, 'plan ' + id + ' missing');
+    assert.ok(card.includes('data-month="' + expected.monthly / 100 + '"'));
+    assert.ok(card.includes('data-year="' + expected.yearly / 100 + '"'));
     assert.ok(card.includes(expected.credits.toLocaleString('en-US') + ' Credits'));
-    assert.deepEqual(JSON.parse(JSON.stringify(vm.runInContext('PLAN_PRICE_AMOUNTS', subscriptions)[id])), {
-      monthly: expected.monthly, yearly: expected.yearly
-    });
-    assert.equal(vm.runInContext('PLAN_CREDITS', webhook)[id], expected.credits);
+    assert.equal(checkoutPlans[id].monthly, expected.monthly);
+    assert.equal(checkoutPlans[id].yearly, expected.yearly);
+    assert.equal(webhookPlans[id], expected.credits);
   }
   const packs = {
     mini: { amount: 500, credits: 10000 },
@@ -607,27 +608,16 @@ test('published billing prices and Credits match both Stripe checkout and webhoo
     pro: { amount: 3500, credits: 100000 },
     business: { amount: 15000, credits: 500000 }
   };
+  const checkoutPacks = vm.runInContext('PACKS', packCheckout);
+  const webhookPacks = vm.runInContext('CREDIT_PACKS', webhook);
   for (const [id, expected] of Object.entries(packs)) {
-    const card = html.split('<article').slice(1)
-      .map(piece => '<article' + piece.split('</article>')[0] + '</article>')
-      .find(piece => piece.includes('data-pack="' + id + '"'));
+    const card = cards.find(piece => piece.includes('data-pack="' + id + '"'));
     assert.ok(card, 'pack ' + id + ' missing');
-    assert.ok(card.includes('
-    assert.deepEqual(JSON.parse(JSON.stringify(vm.runInContext('PACKS', packCheckout)[id])), {
-      name: vm.runInContext('PACKS', packCheckout)[id].name,
-      ...expected
-    });
-    assert.equal(vm.runInContext('CREDIT_PACKS', webhook)[id].amount, expected.amount);
-    assert.equal(vm.runInContext('CREDIT_PACKS', webhook)[id].credits, expected.credits);
-  }
-});
- + expected.amount / 100));
+    assert.ok(card.includes('$' + expected.amount / 100));
     assert.ok(card.includes(expected.credits.toLocaleString('en-US') + ' Credits'));
-    assert.deepEqual(JSON.parse(JSON.stringify(packCheckout.PACKS[id])), {
-      name: packCheckout.PACKS[id].name,
-      ...expected
-    });
-    assert.equal(webhook.CREDIT_PACKS[id].amount, expected.amount);
-    assert.equal(webhook.CREDIT_PACKS[id].credits, expected.credits);
+    assert.equal(checkoutPacks[id].amount, expected.amount);
+    assert.equal(checkoutPacks[id].credits, expected.credits);
+    assert.equal(webhookPacks[id].amount, expected.amount);
+    assert.equal(webhookPacks[id].credits, expected.credits);
   }
 });
