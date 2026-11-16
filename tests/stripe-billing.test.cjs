@@ -513,3 +513,26 @@ test('zero-dollar trial invoice never grants Credits before first charge', async
   assert.equal(db.read(billing).creditBalance, 10000);
   assert.equal(db.read('users/u/creditLedger/stripe_invoice_in_first_paid').credits, 10000);
 });
+
+test('trial eligibility denies repeat trials across paginated canceled subscriptions', async () => {
+  const checkout = load('api/stripe-checkout.js');
+  const requests = [];
+  const stripe = { subscriptions: { list: async params => {
+    requests.push(params);
+    if (!params.starting_after) return {
+      data: [{ id: 'sub_old', trial_start: null, trial_end: null }], has_more: true
+    };
+    return {
+      data: [{ id: 'sub_trial', trial_start: 1700000000, trial_end: 1700259200 }],
+      has_more: false
+    };
+  } } };
+  assert.equal(await checkout.customerHasUsedTrial(stripe, 'cus_one'), true);
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].starting_after, 'sub_old');
+  assert.equal(await checkout.customerHasUsedTrial({
+    subscriptions: { list: async () => ({ data: [{ id: 'sub_untested' }], has_more: false }) }
+  }, 'cus_new'), false);
+  const checkoutSource = fs.readFileSync('api/stripe-checkout.js', 'utf8');
+  assert.match(checkoutSource, /!\(await customerHasUsedTrial\(stripe, freshCustomerId\)\)/);
+});
