@@ -100,6 +100,19 @@ Never paste secret values in a ticket, PR or chat.
 - Review every legacy Live account before importing anything. Until review its
   historical data remains intact and purchases/AI/balance display are held.
 
+## Stripe customer ownership gate
+
+- Subscription Checkout only links an existing Stripe customer when its
+  `metadata.firebaseUID` exactly matches the verified Firebase user.
+  Email-only matches, missing UID metadata, and cross-user pointers stop with a
+  manual ownership review; neither email coincidence nor a Firebase email-verified
+  claim permits adopting another Stripe customer's subscriptions or payment methods.
+- A new Stripe customer is created only when no matching historical email customer
+  needs review. Review old customer records in the matching Stripe mode and use an
+  authorized, auditable migration procedure rather than editing a UID blindly.
+- This restriction may block an older legitimate customer until reviewed, which is
+  intentional. Do not bypass it by recreating the customer or stripping metadata.
+
 ## Support and historical-account procedure
 
 1. Customer uses Billing → Manage or cancel subscription. The API verifies Firebase
