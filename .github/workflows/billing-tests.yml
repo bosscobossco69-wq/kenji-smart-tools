@@ -31,3 +31,4 @@ jobs:
           node --check api/stripe-webhook.js
           node --check api/stripe-annual-credit-grant.js
           node --check api/stripe-portal.js
+          node --check scripts/check-billing-config.mjs
