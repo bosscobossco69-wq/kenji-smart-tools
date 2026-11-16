@@ -444,3 +444,28 @@ test('annual Cron skips foreign roots and refuses cross-mode subscriptions witho
   assert.equal(res.body.failed, 1);
   assert.equal(native.paths().length, 0);
 });
+
+test('billing UI offers all four subscriptions alongside four one-time Credits packs', () => {
+  const html = fs.readFileSync('workspace/billing.html', 'utf8');
+  for (const plan of ['lite', 'pro', 'pro_plus', 'ultra']) {
+    assert.match(html, new RegExp('<button[^>]*class="btn checkout-btn"[^>]*data-plan="' + plan + '"'));
+  }
+  for (const pack of ['mini', 'basic', 'pro', 'business']) {
+    assert.match(html, new RegExp('<button[^>]*class="btn credit-pack-btn"[^>]*data-pack="' + pack + '"'));
+  }
+  assert.match(html, /selectedPeriod/);
+  assert.match(html, /\/api\/stripe-checkout/);
+  assert.match(html, /\/api\/stripe-credit-checkout/);
+});
+
+test('subscription and live payment gates remain explicit before deployment', () => {
+  const subscription = fs.readFileSync('api/stripe-checkout.js', 'utf8');
+  const credit = fs.readFileSync('api/stripe-credit-checkout.js', 'utf8');
+  const environment = fs.readFileSync('lib/billing-environment.js', 'utf8');
+  assert.match(subscription, /STRIPE_SUBSCRIPTIONS_ENABLED/);
+  assert.match(subscription, /STRIPE_PRICE_LITE_MONTHLY/);
+  assert.match(subscription, /STRIPE_PRICE_ULTRA_YEARLY/);
+  assert.match(subscription, /assertStripeKey\(stripeKey, true\)/);
+  assert.match(credit, /assertStripeKey\(stripeKey, true\)/);
+  assert.match(environment, /STRIPE_LIVE_CHECKOUT_ENABLED/);
+});
