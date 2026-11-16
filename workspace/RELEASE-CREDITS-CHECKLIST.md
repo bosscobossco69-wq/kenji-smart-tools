@@ -172,8 +172,13 @@ claim that dashboard settings or real Live end-to-end payment have been verified
 - Subscription invoice webhook grants the correct monthly Credits once; annual plans
   receive monthly scheduled grants without duplicating the initial invoice grant.
 - Customer Portal cancellation and subscription renewal/payment failure handling
-  are checked against the same environment. A three-day trial must not be advertised
-  unless its Stripe Checkout and lifecycle behavior are explicitly configured and tested.
+  are checked against the same environment. The 3-day Stripe Checkout trial is implemented behind
+  `STRIPE_SUBSCRIPTION_TRIAL_ENABLED=true` and requests a payment method up front;
+  missing-payment-method trial end behavior is `cancel`. Keep the flag OFF until
+  verified trial signup, trial invoice, first paid invoice, cancellation before
+  trial end, recurring charge and Credits grants have all passed Preview tests.
+  Do not advertise a trial until these pass. Confirm Stripe sends the appropriate
+  customer notices for trial expiration and automatic charging.
 - Credits packs still work independently and retain duplicate-event, refund, dispute,
   and fraud-warning protections. Existing Sandbox tests do not establish Live readiness.
 - Verify effective Firestore rules for new isolated roots and review historical Live
