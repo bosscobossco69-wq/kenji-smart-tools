@@ -536,3 +536,43 @@ test('trial eligibility denies repeat trials across paginated canceled subscript
   const checkoutSource = fs.readFileSync('api/stripe-checkout.js', 'utf8');
   assert.match(checkoutSource, /!\(await customerHasUsedTrial\(stripe, freshCustomerId\)\)/);
 });
+
+test('read-only release preflight validates Preview and fails closed on missing Live gates', () => {
+  const { spawnSync } = require('node:child_process');
+  const priceNames = [
+    'STRIPE_PRICE_LITE_MONTHLY', 'STRIPE_PRICE_LITE_YEARLY',
+    'STRIPE_PRICE_PRO_MONTHLY', 'STRIPE_PRICE_PRO_YEARLY',
+    'STRIPE_PRICE_PRO_PLUS_MONTHLY', 'STRIPE_PRICE_PRO_PLUS_YEARLY',
+    'STRIPE_PRICE_ULTRA_MONTHLY', 'STRIPE_PRICE_ULTRA_YEARLY'
+  ];
+  const env = {
+    VERCEL_ENV: 'preview', STRIPE_SECRET_KEY: 'sk_test_private_fixture',
+    STRIPE_WEBHOOK_SECRET: 'whsec_private_fixture',
+    FIREBASE_PROJECT_ID: 'project_fixture',
+    FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({
+      type: 'service_account', project_id: 'project_fixture',
+      client_email: 'unit-test@example.invalid', private_key: 'private_fixture'
+    }),
+    SITE_URL: 'https://example.invalid/', GROQ_API_KEY: 'groq_private_fixture',
+    CRON_SECRET: 'cron_private_fixture', STRIPE_SUBSCRIPTIONS_ENABLED: 'true'
+  };
+  priceNames.forEach((name, index) => { env[name] = 'price_fixture' + index; });
+  const run = vars => spawnSync(process.execPath, ['scripts/check-billing-config.mjs'], {
+    env: vars, encoding: 'utf8'
+  });
+  const preview = run(env);
+  assert.equal(preview.status, 0, preview.stderr + preview.stdout);
+  assert.match(preview.stdout, /All eight subscription Price IDs present/);
+  assert.doesNotMatch(preview.stdout, /private_fixture/);
+  const liveBlocked = run({ ...env, VERCEL_ENV: 'production' });
+  assert.equal(liveBlocked.status, 1);
+  assert.match(liveBlocked.stdout, /Live Checkout explicitly enabled/);
+  const liveReady = run({
+    ...env, VERCEL_ENV: 'production',
+    STRIPE_SECRET_KEY: 'sk_live_private_fixture', STRIPE_LIVE_CHECKOUT_ENABLED: 'true'
+  });
+  assert.equal(liveReady.status, 0, liveReady.stderr + liveReady.stdout);
+  const duplicatePrice = run({ ...env, STRIPE_PRICE_PRO_YEARLY: env.STRIPE_PRICE_LITE_YEARLY });
+  assert.equal(duplicatePrice.status, 1);
+  assert.match(duplicatePrice.stdout, /Subscription Price IDs are distinct/);
+});
