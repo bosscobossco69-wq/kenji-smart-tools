@@ -621,3 +621,53 @@ test('published billing prices and Credits match server checkout and webhook gra
     assert.equal(webhookPacks[id].credits, expected.credits);
   }
 });
+
+test('Stripe customer linking never adopts an unowned email match or unowned stored pointer', async () => {
+  const checkout = load('api/stripe-checkout.js');
+  const user = { uid: 'user_1', email: 'buyer@example.invalid' };
+  const writes = [];
+  const billingRef = { set: async value => { writes.push(value); } };
+  const unowned = { id: 'cus_legacy', email: user.email, metadata: {} };
+  const stripe = {
+    customers: {
+      retrieve: async () => unowned,
+      list: async () => ({ data: [unowned], has_more: false }),
+      create: async () => { throw Error('must not create on unowned email match'); },
+      update: async () => { throw Error('must not claim unowned customer'); }
+    }
+  };
+  await assert.rejects(checkout.ensureStripeCustomer({
+    stripe, billingRef, billingData: {}, user
+  }), /manual billing ownership review/);
+  await assert.rejects(checkout.ensureStripeCustomer({
+    stripe, billingRef, billingData: { stripeCustomerId: 'cus_legacy' }, user
+  }), /manual billing review/);
+  assert.equal(writes.length, 0);
+});
+
+test('Stripe customer linking permits only exact Firebase UID and creates verified new ownership', async () => {
+  const checkout = load('api/stripe-checkout.js');
+  const user = { uid: 'user_1', email: 'buyer@example.invalid' };
+  const writes = [];
+  const billingRef = { set: async value => { writes.push(value); } };
+  const stripe = { customers: {
+    retrieve: async () => ({ id: 'cus_owned', metadata: { firebaseUID: user.uid } }),
+    list: async () => ({ data: [], has_more: false }),
+    create: async data => ({ id: 'cus_created', metadata: data.metadata, email: data.email })
+  } };
+  const linked = await checkout.ensureStripeCustomer({
+    stripe, billingRef, billingData: { stripeCustomerId: 'cus_owned' }, user
+  });
+  assert.equal(linked, 'cus_owned');
+  const created = await checkout.ensureStripeCustomer({ stripe, billingRef, billingData: {}, user });
+  assert.equal(created, 'cus_created');
+  assert.equal(writes.length, 2);
+  assert.deepEqual(writes.map(value => value.stripeCustomerId), ['cus_owned', 'cus_created']);
+  await assert.rejects(checkout.ensureStripeCustomer({
+    stripe: { customers: { retrieve: async () => ({
+      id: 'cus_wrong', metadata: { firebaseUID: 'someone_else' }
+    }) } },
+    billingRef, billingData: { stripeCustomerId: 'cus_wrong' }, user
+  }), /linked to another account/);
+  assert.equal(writes.length, 2);
+});
