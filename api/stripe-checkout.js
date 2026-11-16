@@ -48,7 +48,10 @@ function siteBase(req) {
   const configured = process.env.SITE_URL;
   if (configured) {
     const url = new URL(configured);
-    if (url.protocol !== "https:") throw new Error("SITE_URL must use HTTPS.");
+    if (url.protocol !== "https:" || url.username || url.password || url.port ||
+        url.search || url.hash || url.pathname !== "/") {
+      throw new Error("SITE_URL must be a valid HTTPS origin.");
+    }
     return url.origin;
   }
   const host = req.headers["x-forwarded-host"];
