@@ -576,3 +576,45 @@ test('read-only release preflight validates Preview and fails closed on missing 
   assert.equal(duplicatePrice.status, 1);
   assert.match(duplicatePrice.stdout, /Subscription Price IDs are distinct/);
 });
+
+test('published billing prices and Credits match both Stripe checkout and webhook grants', () => {
+  const html = fs.readFileSync('workspace/billing.html', 'utf8');
+  const subscriptions = load('api/stripe-checkout.js');
+  const packCheckout = load('api/stripe-credit-checkout.js');
+  const webhook = load('api/stripe-webhook.js');
+  const planAmounts = {
+    lite: { monthly: 1000, yearly: 10000, credits: 10000 },
+    pro: { monthly: 2000, yearly: 20000, credits: 30000 },
+    pro_plus: { monthly: 6000, yearly: 60000, credits: 100000 },
+    ultra: { monthly: 20000, yearly: 200000, credits: 400000 }
+  };
+  for (const [id, expected] of Object.entries(planAmounts)) {
+    const block = html.match(new RegExp('<article\\b[^>]*>[\\s\\S]*?data-plan="' + id + '"[\\s\\S]*?<\\/article>'));
+    assert.ok(block, 'plan ' + id + ' not found in billing HTML');
+    assert.match(block[0], new RegExp('data-month="' + expected.monthly / 100 + '"'));
+    assert.match(block[0], new RegExp('data-year="' + expected.yearly / 100 + '"'));
+    assert.ok(block[0].includes(expected.credits.toLocaleString('en-US') + ' Credits'));
+    assert.deepEqual(JSON.parse(JSON.stringify(subscriptions.PLAN_PRICE_AMOUNTS[id])), {
+      monthly: expected.monthly, yearly: expected.yearly
+    });
+    assert.equal(webhook.PLAN_CREDITS[id], expected.credits);
+  }
+  const packs = {
+    mini: { amount: 500, credits: 10000 },
+    basic: { amount: 2000, credits: 50000 },
+    pro: { amount: 3500, credits: 100000 },
+    business: { amount: 15000, credits: 500000 }
+  };
+  for (const [id, expected] of Object.entries(packs)) {
+    const block = html.match(new RegExp('<article\\b[^>]*>[\\s\\S]*?data-pack="' + id + '"[\\s\\S]*?<\\/article>'));
+    assert.ok(block, 'pack ' + id + ' missing');
+    assert.ok(block[0].includes('$' + expected.amount / 100));
+    assert.ok(block[0].includes(expected.credits.toLocaleString('en-US') + ' Credits'));
+    assert.deepEqual(JSON.parse(JSON.stringify(packCheckout.PACKS[id])), {
+      name: packCheckout.PACKS[id].name,
+      ...expected
+    });
+    assert.equal(webhook.CREDIT_PACKS[id].amount, expected.amount);
+    assert.equal(webhook.CREDIT_PACKS[id].credits, expected.credits);
+  }
+});
