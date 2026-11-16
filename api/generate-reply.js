@@ -1,3 +1,4 @@
+import { billingCollection, billingDb, assertLegacyReviewed } from "../lib/billing-environment.js";
 import { createHash, randomUUID } from "node:crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
@@ -35,7 +36,7 @@ function getServices() {
       try { account = JSON.parse(rawAccount); } catch { throw new Error("Firebase service account is invalid."); }
       if (account.project_id !== projectId) throw new Error("Firebase project mismatch.");
       const app = getApps()[0] || initializeApp({ credential: cert(account), projectId });
-      return { auth: getAuth(app), db: getFirestore(app) };
+      return { auth: getAuth(app), db: billingDb(getFirestore(app)) };
     })();
   }
   return servicesPromise;
@@ -58,7 +59,7 @@ function requestHash({ message, scenario, tone }) {
 
 async function reserveCredits(db, uid, requestId, hash) {
   const userRef = db.collection("users").doc(uid);
-  const billingRef = userRef.collection("billing").doc("current");
+  const billingRef = userRef.collection(billingCollection()).doc("current");
   const ledgerRef = userRef.collection("creditLedger").doc(requestId);
   const cacheRef = userRef.collection("aiReplyCache").doc(requestId);
   const nowMs = Date.now();
@@ -160,7 +161,7 @@ async function reserveCredits(db, uid, requestId, hash) {
 }
 
 async function refundCredits(db, uid, requestId, reason, leaseToken) {
-  const billingRef = db.collection("users").doc(uid).collection("billing").doc("current");
+  const billingRef = db.collection("users").doc(uid).collection(billingCollection()).doc("current");
   const ledgerRef = db.collection("users").doc(uid).collection("creditLedger").doc(requestId);
   return db.runTransaction(async tx => {
     const ledgerSnap = await tx.get(ledgerRef);
@@ -250,6 +251,7 @@ export default async function handler(req, res) {
     const user = await services.auth.verifyIdToken(token, true);
     if (!user.email || user.email_verified !== true) return res.status(403).json({ error: "Please verify your email address before using AI Credits." });
     uid = user.uid;
+    await assertLegacyReviewed(services.db, uid);
 
     const reservation = await reserveCredits(services.db, uid, requestId, hash);
     if (reservation.error) return res.status(reservation.status).json({
@@ -320,8 +322,9 @@ export default async function handler(req, res) {
     if (reserved && services && uid) {
       try { await refundCredits(services.db, uid, requestId, "internal_error", reservationToken); } catch {}
     }
+    if (error?.code === "billing_legacy_review_required") return res.status(409).json({ error: error.message });
     const message = error?.message || "";
-    const unavailable = message.includes("not configured") || message.includes("project mismatch");
+    const unavailable = message.includes("not configured") || message.includes("Legacy billing review") || message.includes("project mismatch");
     return res.status(unavailable ? 503 : 500).json({ error: unavailable ? "AI billing service is not configured." : "Could not complete the reply request. Please try again." });
   }
 }

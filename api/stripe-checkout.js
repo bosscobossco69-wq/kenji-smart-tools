@@ -1,3 +1,4 @@
+import { billingCollection, billingDb, assertStripeKey, assertStripeObject, assertLegacyReviewed } from "../lib/billing-environment.js";
 import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
@@ -29,21 +30,15 @@ function getServices() {
   if (!servicesPromise) {
     servicesPromise = (async () => {
       const stripeKey = process.env.STRIPE_SECRET_KEY;
+      assertStripeKey(stripeKey, true);
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const rawAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
       if (!stripeKey || !projectId || !rawAccount) throw new Error("Billing service is not configured.");
-      if (process.env.VERCEL_ENV === "production") {
-        if (!stripeKey.startsWith("sk_live_") || process.env.STRIPE_LIVE_CHECKOUT_ENABLED !== "true") {
-          throw new Error("Live Stripe checkout is disabled.");
-        }
-      } else if (!stripeKey.startsWith("sk_test_")) {
-        throw new Error("Preview checkout requires a Stripe Test Mode key.");
-      }
       let account;
       try { account = JSON.parse(rawAccount); } catch { throw new Error("Firebase service account is invalid."); }
       if (account.project_id !== projectId) throw new Error("Firebase project mismatch.");
       const app = getApps()[0] || initializeApp({ credential: cert(account), projectId });
-      return { stripe: new Stripe(stripeKey), auth: getAuth(app), db: getFirestore(app) };
+      return { stripe: new Stripe(stripeKey), auth: getAuth(app), db: billingDb(getFirestore(app)) };
     })();
   }
   return servicesPromise;
@@ -171,6 +166,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed." });
   }
 
+  if (process.env.STRIPE_SUBSCRIPTIONS_ENABLED !== "true") {
+    return res.status(503).json({ error: "New subscriptions are not available. One-time Credits packs remain available." });
+  }
+
   try {
     const authorization = req.headers.authorization;
     if (typeof authorization !== "string" || !authorization.startsWith("Bearer ")) {
@@ -184,6 +183,8 @@ export default async function handler(req, res) {
     if (!user.email || user.email_verified !== true) {
       return res.status(403).json({ error: "A verified email address is required." });
     }
+
+    await assertLegacyReviewed(db, user.uid);
 
     const body = req.body && typeof req.body === "object" ? req.body : {};
     const planId = typeof body.planId === "string" ? body.planId : "";
@@ -199,6 +200,7 @@ export default async function handler(req, res) {
     }
 
     const price = await stripe.prices.retrieve(priceId);
+    assertStripeObject(price);
     const expectedInterval = interval === "yearly" ? "year" : "month";
     const expectedAmount = PLAN_PRICE_AMOUNTS[planId][interval];
     if (!price.active || price.currency !== "usd" || price.type !== "recurring" ||
@@ -208,7 +210,7 @@ export default async function handler(req, res) {
     }
 
     const base = siteBase(req);
-    const billingRef = db.collection("users").doc(user.uid).collection("billing").doc("current");
+    const billingRef = db.collection("users").doc(user.uid).collection(billingCollection()).doc("current");
     const billingSnap = await billingRef.get();
     const billingData = billingSnap.exists ? billingSnap.data() : {};
     const customerId = await ensureStripeCustomer({ stripe, billingRef, billingData, user });
@@ -559,6 +561,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
+    if (error?.code === "billing_legacy_review_required") return res.status(409).json({ error: error.message });
     const message = error?.message || "";
     const configurationError = /not configured|disabled|requires a Stripe Test Mode|not allowlisted|secure site origin/i.test(message);
     const status = configurationError || error?.statusCode === 503 ? 503 : 500;

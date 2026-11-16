@@ -1,3 +1,4 @@
+import { billingCollection, billingDb, assertStripeKey, assertStripeObject, assertLegacyReviewed } from "../lib/billing-environment.js";
 import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
@@ -16,21 +17,15 @@ function getServices() {
   if (!servicesPromise) {
     servicesPromise = (async () => {
       const stripeKey = process.env.STRIPE_SECRET_KEY;
+      assertStripeKey(stripeKey, true);
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const rawAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
       if (!stripeKey || !projectId || !rawAccount) throw new Error("Billing service is not configured.");
-      if (process.env.VERCEL_ENV === "production") {
-        if (!stripeKey.startsWith("sk_live_") || process.env.STRIPE_LIVE_CHECKOUT_ENABLED !== "true") {
-          throw new Error("Live Stripe checkout is disabled.");
-        }
-      } else if (!stripeKey.startsWith("sk_test_")) {
-        throw new Error("Preview checkout requires a Stripe Test Mode key.");
-      }
       let account;
       try { account = JSON.parse(rawAccount); } catch { throw new Error("Firebase service account is invalid."); }
       if (account.project_id !== projectId) throw new Error("Firebase project mismatch.");
       const app = getApps()[0] || initializeApp({ credential: cert(account), projectId });
-      return { stripe: new Stripe(stripeKey), auth: getAuth(app), db: getFirestore(app) };
+      return { stripe: new Stripe(stripeKey), auth: getAuth(app), db: billingDb(getFirestore(app)) };
     })();
   }
   return servicesPromise;
@@ -76,15 +71,17 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: "A verified email address is required." });
     }
 
+    await assertLegacyReviewed(db, user.uid);
+
     const body = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
     const packId = typeof body.packId === "string" ? body.packId : "";
-    const pack = PACKS[packId];
+    const pack = Object.hasOwn(PACKS, packId) ? PACKS[packId] : null;
     if (!pack) return res.status(400).json({ error: "Choose a valid Credits pack." });
 
     const base = siteBase(req);
     const orderId = randomUUID();
     const orderRef = db.collection("billingOrders").doc(orderId);
-    const billingRef = db.collection("users").doc(user.uid).collection("billing").doc("current");
+    const billingRef = db.collection("users").doc(user.uid).collection(billingCollection()).doc("current");
     const billingSnap = await billingRef.get();
     const customerId = billingSnap.exists ? billingSnap.data()?.stripeCustomerId : null;
     const metadata = {
@@ -131,6 +128,7 @@ export default async function handler(req, res) {
         payment_intent_data: { metadata }
       }, { idempotencyKey: `kenji-credit-pack-${orderId}` });
 
+      assertStripeObject(session);
       await orderRef.set({
         stripeCheckoutSessionId: session.id,
         status: "checkout_created",
@@ -146,6 +144,7 @@ export default async function handler(req, res) {
       throw error;
     }
   } catch (error) {
+    if (error?.code === "billing_legacy_review_required") return res.status(409).json({ error: error.message });
     const message = error?.message || "";
     const status = message.includes("not configured") || message.includes("disabled") ||
       message.includes("requires a Stripe Test Mode") || message.includes("not allowlisted") ? 503 : 500;

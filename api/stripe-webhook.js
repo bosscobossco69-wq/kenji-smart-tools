@@ -1,3 +1,5 @@
+import { ADJUSTMENT_EVENTS, reconcileAdjustment } from "../lib/stripe-adjustments.js";
+import { billingCollection, billingDb, assertStripeKey, assertStripeObject } from "../lib/billing-environment.js";
 import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
@@ -31,6 +33,7 @@ function getServices() {
   if (!servicesPromise) {
     servicesPromise = (async () => {
       const stripeSecret = process.env.STRIPE_SECRET_KEY;
+      assertStripeKey(stripeSecret);
       const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const serviceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -55,7 +58,7 @@ function getServices() {
       return {
         stripe: new Stripe(stripeSecret),
         auth: getAuth(app),
-        db: getFirestore(app)
+        db: billingDb(getFirestore(app))
       };
     })();
   }
@@ -161,10 +164,10 @@ function subscriptionData(subscription) {
   };
 }
 
-async function fulfillCreditPack({ db, session, uid, event }) {
+async function fulfillCreditPack({ db, session, uid, event, charge = null }) {
   const meta = session.metadata || {};
   const orderId = typeof meta.orderId === "string" ? meta.orderId : "";
-  const pack = CREDIT_PACKS[meta.packId];
+  const pack = Object.hasOwn(CREDIT_PACKS, meta.packId) ? CREDIT_PACKS[meta.packId] : null;
   if (!orderId || !pack) throw new Error("Invalid credit pack metadata.");
   if (session.payment_status !== "paid") return;
   if (!uid || meta.firebaseUID !== uid) throw new Error("Credit pack payment has no verified Firebase user.");
@@ -173,8 +176,15 @@ async function fulfillCreditPack({ db, session, uid, event }) {
   }
 
   const orderRef = db.collection("billingOrders").doc(orderId);
-  const billingRef = db.collection("users").doc(uid).collection("billing").doc("current");
+  const billingRef = db.collection("users").doc(uid).collection(billingCollection()).doc("current");
   const ledgerRef = db.collection("users").doc(uid).collection("creditLedger").doc("stripe_pack_" + orderId);
+  if (charge && (charge.amount !== pack.amount || charge.currency !== "usd" ||
+      (typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id) !== session.payment_intent)) {
+    throw new Error("Credit charge does not match Checkout.");
+  }
+  const initialHold = charge ? (charge.disputed ? pack.credits :
+    Math.min(pack.credits, Math.ceil(pack.credits * Number(charge.amount_refunded || 0) / pack.amount))) : 0;
+  if (!Number.isSafeInteger(initialHold) || initialHold < 0) throw new Error("Invalid charge refund state.");
 
   await db.runTransaction(async tx => {
     const [orderSnap, ledgerSnap] = await Promise.all([tx.get(orderRef), tx.get(ledgerRef)]);
@@ -188,11 +198,22 @@ async function fulfillCreditPack({ db, session, uid, event }) {
     if (ledgerSnap.exists || order.status === "paid") return;
 
     tx.set(billingRef, {
-      creditBalance: FieldValue.increment(pack.credits),
+      creditBalance: FieldValue.increment(pack.credits - initialHold),
       lastCreditOrderId: orderId,
       lastStripeEventId: event.id,
       updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
+    if (charge) {
+      tx.set(db.collection("stripeChargeAdjustments").doc(charge.id), {
+        revokedCredits: initialHold, manualReview: Boolean(charge.disputed), updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+    if (initialHold) {
+      tx.create(db.collection("users").doc(uid).collection("creditLedger").doc("stripe_pack_initial_hold_" + orderId), {
+        type: "stripe_payment_initial_hold", credits: -initialHold, orderId,
+        stripeChargeId: charge.id, stripeEventId: event.id, createdAt: FieldValue.serverTimestamp()
+      });
+    }
     tx.create(ledgerRef, {
       type: "credit_pack_purchase",
       source: "stripe_checkout",
@@ -239,7 +260,7 @@ async function grantSubscriptionInvoice({ db, invoice, subscription, uid }) {
   }
 
   const orderRef = db.collection("billingOrders").doc(orderId);
-  const billingRef = db.collection("users").doc(uid).collection("billing").doc("current");
+  const billingRef = db.collection("users").doc(uid).collection(billingCollection()).doc("current");
   const ledgerRef = db.collection("users").doc(uid).collection("creditLedger").doc("stripe_invoice_" + invoice.id);
 
   await db.runTransaction(async tx => {
@@ -327,6 +348,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Invalid Stripe webhook signature or payload." });
   }
 
+  try { assertStripeObject(event); } catch {
+    return res.status(400).json({ error: "Stripe event environment mismatch." });
+  }
+
   const eventRef = services.db.collection("stripeWebhookEvents").doc(event.id);
   const processingToken = randomUUID();
   let alreadyProcessed = false;
@@ -373,6 +398,9 @@ export default async function handler(req, res) {
   }
 
   try {
+    if (ADJUSTMENT_EVENTS.has(event.type)) {
+      await reconcileAdjustment({ ...services, event });
+    }
     let object = event.data.object;
     const isCheckoutEvent = [
       "checkout.session.completed",
@@ -382,6 +410,7 @@ export default async function handler(req, res) {
     // Resolve current server metadata and payment state before account binding or fulfillment.
     if (isCheckoutEvent) {
       object = await services.stripe.checkout.sessions.retrieve(object.id);
+      assertStripeObject(object);
     }
     let snapshotSequence = null;
     let latestInvoiceSnapshot = null;
@@ -415,6 +444,7 @@ export default async function handler(req, res) {
       const eventSubscription = object;
       try {
         object = await services.stripe.subscriptions.retrieve(eventSubscription.id);
+        assertStripeObject(object);
       } catch (error) {
         if (!(event.type === "customer.subscription.deleted" && isMissingStripeResource(error))) {
           throw error;
@@ -423,6 +453,7 @@ export default async function handler(req, res) {
       }
     } else if (isInvoiceEvent) {
       object = await services.stripe.invoices.retrieve(object.id);
+      assertStripeObject(object);
       snapshotSubscriptionId = typeof object.subscription === "string"
         ? object.subscription
         : object.subscription?.id || object.parent?.subscription_details?.subscription || snapshotSubscriptionId;
@@ -431,11 +462,13 @@ export default async function handler(req, res) {
       }
       if (snapshotSubscriptionId) {
         relatedSubscription = await services.stripe.subscriptions.retrieve(snapshotSubscriptionId);
+        assertStripeObject(relatedSubscription);
         const latestInvoiceId = typeof relatedSubscription.latest_invoice === "string"
           ? relatedSubscription.latest_invoice
           : relatedSubscription.latest_invoice?.id || null;
         if (latestInvoiceId) {
           latestInvoiceSnapshot = await services.stripe.invoices.retrieve(latestInvoiceId);
+          assertStripeObject(latestInvoiceSnapshot);
         }
       }
     }
@@ -468,13 +501,20 @@ export default async function handler(req, res) {
       "checkout.session.async_payment_succeeded"
     ].includes(event.type) && object?.metadata?.purchaseType === "credit_pack";
     if (isPackCheckout) {
-      await fulfillCreditPack({ db: services.db, session: object, uid, event });
+      if (object.payment_status === "paid") {
+        const intent = await services.stripe.paymentIntents.retrieve(object.payment_intent, { expand: ["latest_charge"] });
+        assertStripeObject(intent);
+        let charge = intent.latest_charge;
+        if (typeof charge === "string") charge = await services.stripe.charges.retrieve(charge);
+        assertStripeObject(charge);
+        await fulfillCreditPack({ db: services.db, session: object, uid, event, charge });
+      }
     } else if (event.type === "invoice.paid" && relatedSubscription) {
       await grantSubscriptionInvoice({ db: services.db, invoice: object, subscription: relatedSubscription, uid });
     }
 
     if (uid) {
-      const billingRef = services.db.collection("users").doc(uid).collection("billing").doc("current");
+      const billingRef = services.db.collection("users").doc(uid).collection(billingCollection()).doc("current");
       const common = {
         stripeCustomerId: typeof object?.customer === "string" ? object.customer : object?.customer?.id || null,
         lastStripeEventId: event.id,
