@@ -1,4 +1,4 @@
-# Credits-first release checklist
+# Dual-sales release checklist (Subscriptions + one-time Credits)
 
 This change is code preparation only. Do not merge or deploy automatically. Keep the
 Vercel Ignored Build Step and Production checkout gate unchanged until a release is
@@ -31,8 +31,10 @@ explicitly approved. No Stripe products, Prices, endpoints or secrets are create
 - Checkout arriving after a refund/dispute applies the hold atomically with the
   grant. It cannot temporarily grant a refunded pack's full spendable Credits.
 - Existing subscriptions have a verified Stripe Customer Portal entry plus a
-  support email fallback. New subscription purchases are disabled by default in
-  the API and all subscription purchase buttons remain disabled in the UI.
+  support email fallback. All four monthly/yearly subscription checkout buttons
+  are restored alongside all four one-time Credits packs. New subscription
+  checkout remains fail-closed until STRIPE_SUBSCRIPTIONS_ENABLED=true is set
+  after price, entitlement, billing period and refund tests.
 - Browser tools remain free. No automatic free monthly Credits are promised.
   Unimplemented seats/channels/team/automation features are marked Coming Soon.
 - Search Console verification, sitemap, robots, advertisements and affiliate code
@@ -52,8 +54,10 @@ Never paste secret values in a ticket, PR or chat.
 - Preview retains Test credentials and its own SITE_URL. `SITE_URL` must be an HTTPS
   origin. AI origin checks currently support the existing Vercel domain and its
   Preview hosts; a new custom domain needs a separate explicit allowlist change.
-- Do not set `STRIPE_SUBSCRIPTIONS_ENABLED=true` for the Credits-first launch. Eight
-  subscription Price variables are not required for pack purchases.
+- For dual-sales launch, validate all eight USD subscription Price variables
+  (`STRIPE_PRICE_*_MONTHLY` and `STRIPE_PRICE_*_YEARLY`) against active Stripe
+  recurring Prices before setting `STRIPE_SUBSCRIPTIONS_ENABLED=true`.
+  This flag is deliberately not changed by the PR. Pack purchases do not require Price IDs.
 - Keep `STRIPE_LIVE_CHECKOUT_ENABLED` off until an approved release. Keep the saved
   production build skip command; this PR neither reads nor changes that dashboard setting.
 - `CRON_SECRET` and the daily schedule must be verified if maintaining reviewed
@@ -142,10 +146,11 @@ Never paste secret values in a ticket, PR or chat.
    the underlying Stripe warning/status when appropriate and replay its signed event;
    do not manually zero an automatic adjustment state or generate free Credits.
 
-## Can follow the Credits-first release
+## Can follow the dual-sales release
 
-- Implement and separately validate subscription self-service and all advertised
-  team/channel features before removing Coming Soon or opening new subscriptions.
+- Implement and separately validate all advertised team/channel features before
+  removing Coming Soon. Subscription buyers must only be promised and charged for
+  verified Credits entitlements and working billing/cancellation capabilities.
 - Automate the legacy/subscription review queue and richer operational notifications.
 - Custom-domain expansion, expanded reporting and optional free monthly Credit
   provisioning. None should be promised until implemented and tested.
@@ -156,5 +161,20 @@ Never paste secret values in a ticket, PR or chat.
 no actual charges, refunds or database changes are made. Tests cover namespace and
 mode fencing, payment/order verification, duplicate events, partial refunds, refund
 ordering, dispute outcomes, fraud holds, Portal ownership, legacy migration/review,
-AI reservation/refund/cache/debt, and default subscription closure. This is not a
+AI reservation/refund/cache/debt, and default subscription closure plus restored dual-sales UI. This is not a
 claim that dashboard settings or real Live end-to-end payment have been verified.
+
+## Dual-sales release acceptance gates
+
+- Monthly and yearly subscription Checkout sessions are validated against the correct
+  **USD** recurring Price IDs, interval, amount, and Stripe mode. Older MYR catalog
+  products must not be substituted without a coordinated currency/pricing redesign.
+- Subscription invoice webhook grants the correct monthly Credits once; annual plans
+  receive monthly scheduled grants without duplicating the initial invoice grant.
+- Customer Portal cancellation and subscription renewal/payment failure handling
+  are checked against the same environment. A three-day trial must not be advertised
+  unless its Stripe Checkout and lifecycle behavior are explicitly configured and tested.
+- Credits packs still work independently and retain duplicate-event, refund, dispute,
+  and fraud-warning protections. Existing Sandbox tests do not establish Live readiness.
+- Verify effective Firestore rules for new isolated roots and review historical Live
+  balances before switching. Do not automatically merge, deploy, or enable live charges.
