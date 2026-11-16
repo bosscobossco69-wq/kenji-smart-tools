@@ -191,9 +191,19 @@ async function fulfillCreditPack({ db, session, uid, event, charge = null }) {
     if (!orderSnap.exists) throw new Error("Credit order not found.");
     const order = orderSnap.data();
     if (order.uid !== uid || order.type !== "credit_pack" || order.packId !== meta.packId ||
-        order.credits !== pack.credits || order.amount !== pack.amount || order.currency !== "usd" ||
-        order.stripeCheckoutSessionId !== session.id) {
+        order.credits !== pack.credits || order.amount !== pack.amount || order.currency !== "usd") {
       throw new Error("Credit order does not match payment.");
+    }
+    // Stripe can create a valid Checkout before its session ID is persisted.
+    // Recover only a missing pointer for the same server-issued order, and only
+    // after the signed, Stripe-retrieved paid Checkout + charge are validated.
+    const needsSessionRecovery = !order.stripeCheckoutSessionId &&
+      ["checkout_pending", "checkout_creation_failed"].includes(order.status);
+    if (order.stripeCheckoutSessionId !== session.id && !needsSessionRecovery) {
+      throw new Error("Credit order does not match payment.");
+    }
+    if (needsSessionRecovery && !charge) {
+      throw new Error("Credit order recovery requires a verified charge.");
     }
     if (ledgerSnap.exists || order.status === "paid") return;
 
@@ -228,6 +238,7 @@ async function fulfillCreditPack({ db, session, uid, event, charge = null }) {
     });
     tx.set(orderRef, {
       status: "paid",
+      stripeCheckoutSessionId: session.id,
       stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
       stripeEventId: event.id,
       paidAt: FieldValue.serverTimestamp(),
