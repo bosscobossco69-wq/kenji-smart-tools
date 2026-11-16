@@ -10,6 +10,7 @@
     "stripe": "^18.5.0"
   },
   "scripts": {
-    "test:billing": "node --experimental-vm-modules tests/stripe-billing.test.cjs"
+    "test:billing": "node --experimental-vm-modules tests/stripe-billing.test.cjs",
+    "check:billing-config": "node scripts/check-billing-config.mjs"
   }
 }
