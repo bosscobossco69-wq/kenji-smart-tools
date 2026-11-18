@@ -488,7 +488,7 @@ export default async function handler(req, res) {
           client_reference_id: user.uid,
           line_items: [{ price: priceId, quantity: 1 }],
           expires_at: reservation.stripeExpiresAt,
-          success_url: `${base}/workspace/billing.html?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+          success_url: `${base}/workspace/checkout-success.html?type=subscription&session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${base}/workspace/billing.html?checkout=cancelled`,
           metadata: { firebaseUID: user.uid, orderId: reservation.orderId, planId, interval },
           subscription_data: subscriptionData
