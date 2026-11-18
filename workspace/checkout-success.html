@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#17110d">
+<title>Checkout confirmation | KENJI Smart Tools</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 0,#433123 0,transparent 36rem),#17110d;color:#f9f1e6;display:grid;place-items:center;padding:24px}
+main{max-width:620px;width:100%;background:#272018;border:1px solid #68523d;border-radius:24px;padding:clamp(24px,6vw,42px);box-shadow:0 18px 55px #0004}
+small{color:#d5b386;letter-spacing:.17em;font-weight:700}h1{font-size:clamp(1.75rem,5vw,2.5rem);line-height:1.2;margin:16px 0}
+p{color:#dfcfbc;line-height:1.7}#status{border-radius:12px;padding:15px;background:#342b23;border:1px solid #675441;color:#f4e5d1}
+#detail{font-weight:600;color:#f8d89f}.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+a{display:inline-block;text-decoration:none;padding:12px 18px;border:1px solid #7d6548;border-radius:12px;color:#efcf99;font-weight:700}
+a.primary{background:#f3d5a7;color:#261b11;border-color:#f3d5a7}footer{font-size:13px;color:#c7b7a3;margin-top:22px}
+</style>
+</head>
+<body>
+<main>
+<small>KENJI SMART TOOLS · STRIPE CHECKOUT</small>
+<h1 id="heading">Confirming your purchase…</h1>
+<p id="intro">You returned from Stripe Checkout. We are checking your account before confirming activation.</p>
+<div id="status" role="status" aria-live="polite">Checking your signed-in session…</div>
+<p id="detail"></p>
+<div class="actions"><a class="primary" href="/workspace/account.html">View account and Credits</a><a href="/workspace/billing.html">Back to plans</a></div>
+<footer>Do not pay again while confirmation is pending. If you need help, contact <a href="mailto:kenjing3073@gmail.com?subject=Checkout%20confirmation">billing support</a>.</footer>
+</main>
+<script type="module">
+const heading=document.getElementById("heading"),status=document.getElementById("status"),detail=document.getElementById("detail");
+const params=new URLSearchParams(location.search),mode=params.get("type")==="credits"?"credits":"subscription";
+const set=(title,message,extra="")=>{heading.textContent=title;status.textContent=message;detail.textContent=extra;};
+(async()=>{
+  try{
+    const f=await import("./firebase-auth.js");await f.authReady;
+    const user=await new Promise((resolve,reject)=>{const unsub=f.onAuthStateChanged(f.auth,u=>{unsub();resolve(u);},reject);});
+    if(!user){set("Sign in to verify payment","Your Stripe checkout has returned. Sign in to view your account. Do not pay again.");return;}
+    if(!user.emailVerified){set("Email verification required","Verify your email, then return to your account. Do not pay again.");return;}
+    for(let attempt=0;attempt<5;attempt++){
+      try{
+        const token=await user.getIdToken(attempt>0);
+        const res=await fetch("/api/account-billing",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
+        const data=await res.json().catch(()=>({}));
+        if(!res.ok)throw new Error(data.error||"Could not check account billing.");
+        if(mode==="subscription"&&data.planActive===true){
+          set("Subscription activated","Your KENJI subscription is active in your account.","Credits available: "+Number(data.creditBalance||0).toLocaleString("en-US"));return;
+        }
+        if(mode==="credits"){
+          set("Credits payment returned","Your checkout returned from Stripe. Verify the updated Credits balance in your account.","Current Credits: "+Number(data.creditBalance||0).toLocaleString("en-US"));return;
+        }
+        set("Payment confirmation pending","Stripe checkout returned, but the subscription is not yet marked active in this account. Do not pay again.","Checking for billing updates…");
+      }catch(e){set("Account verification pending","We could not confirm billing activation yet. Do not pay again.",e.message||"Please check your account.");}
+      if(attempt<4)await new Promise(resolve=>setTimeout(resolve,2500));
+    }
+    set("Subscription still being verified","Do not make a second payment. Check your account or contact support with your checkout details.");
+  }catch(e){set("Confirmation temporarily unavailable","Your browser could not verify the account. Do not pay again.",e.message||"Open account to review payment status.");}
+})();
+</script>
+</body>
+</html>
