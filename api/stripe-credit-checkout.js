@@ -185,7 +185,7 @@ export default async function handler(req, res) {
           },
           quantity: 1
         }],
-        success_url: `${base}/workspace/billing.html?checkout=credits-success&session_id={CHECKOUT_SESSION_ID}`,
+        success_url: `${base}/workspace/checkout-success.html?type=credits&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${base}/workspace/billing.html?checkout=cancelled`,
         metadata,
         payment_intent_data: { metadata }
