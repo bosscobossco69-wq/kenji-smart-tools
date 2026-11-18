@@ -26,9 +26,9 @@ a.primary{background:#f3d5a7;color:#261b11;border-color:#f3d5a7}footer{font-size
 <footer>Do not pay again while confirmation is pending. If you need help, contact <a href="mailto:kenjing3073@gmail.com?subject=Checkout%20confirmation">billing support</a>.</footer>
 </main>
 <script type="module">
-const heading=document.getElementById("heading"),status=document.getElementById("status"),detail=document.getElementById("detail");
+const heading=document.getElementById("heading"),status=document.getElementById("status"),detail=document.getElementById("detail"),intro=document.getElementById("intro"),footer=document.querySelector("footer");
 const params=new URLSearchParams(location.search),mode=params.get("type")==="credits"?"credits":"subscription";
-const set=(title,message,extra="")=>{heading.textContent=title;status.textContent=message;detail.textContent=extra;};
+const set=(title,message,extra="")=>{heading.textContent=title;status.textContent=message;detail.textContent=extra;if(title==="Subscription activated"){intro.textContent="Your payment and subscription have been confirmed for this signed-in account.";footer.textContent="Subscription is active. Manage your plan from your account dashboard.";}};
 (async()=>{
   try{
     const f=await import("./firebase-auth.js");await f.authReady;
