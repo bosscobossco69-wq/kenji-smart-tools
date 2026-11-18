@@ -24,6 +24,7 @@ for (const entry of manifest) {
   const billingRef = db.collection("users").doc(entry.uid).collection(billingCollection()).doc("current");
   const ledgerRef = db.collection("users").doc(entry.uid).collection("creditLedger").doc("reviewed_legacy_opening_balance");
   let customer = null, subscription = null;
+  let legacyOrderRef = null, isolatedOrderRef = null;
   if (entry.stripeCustomerId) {
     customer = await stripe.customers.retrieve(entry.stripeCustomerId);
     assertStripeObject(customer);
@@ -33,15 +34,50 @@ for (const entry of manifest) {
     subscription = await stripe.subscriptions.retrieve(entry.stripeSubscriptionId);
     assertStripeObject(subscription);
     if (!customer || subscription.customer !== customer.id || subscription.metadata?.firebaseUID !== entry.uid) throw Error("Live subscription ownership mismatch.");
+    const orderId = subscription.metadata?.orderId;
+    if (typeof orderId !== "string" || !orderId || orderId.includes("/")) throw Error("Reviewed subscription has no valid Checkout order provenance.");
+    legacyOrderRef = native.collection("billingOrders").doc(orderId);
+    isolatedOrderRef = db.collection("billingOrders").doc(orderId);
   }
   const result = await native.runTransaction(async tx => {
-    const [legacy, billing, ledger] = await Promise.all([tx.get(legacyRef), tx.get(billingRef), tx.get(ledgerRef)]);
-    if (ledger.exists) return "already imported";
+    const [legacy, billing, ledger, legacyOrder, isolatedOrder] = await Promise.all([
+      tx.get(legacyRef), tx.get(billingRef), tx.get(ledgerRef),
+      legacyOrderRef ? tx.get(legacyOrderRef) : Promise.resolve(null),
+      isolatedOrderRef ? tx.get(isolatedOrderRef) : Promise.resolve(null)
+    ]);
+    if (subscription) {
+      const source = legacyOrder?.data(), destination = isolatedOrder?.data();
+      const item = subscription.items?.data?.[0];
+      const expectedInterval = item?.price?.recurring?.interval === "year" ? "yearly" :
+        item?.price?.recurring?.interval === "month" ? "monthly" : null;
+      if (!source || !expectedInterval || source.uid !== entry.uid ||
+          source.orderId !== subscription.metadata.orderId ||
+          source.planId !== subscription.metadata.planId ||
+          source.interval !== expectedInterval || source.priceId !== item.price.id ||
+          source.currency !== "usd" ||
+          (destination && (destination.uid !== source.uid || destination.planId !== source.planId ||
+            destination.interval !== source.interval || destination.priceId !== source.priceId ||
+            destination.currency !== "usd"))) {
+        throw Error("Reviewed Live subscription order provenance missing or mismatched; do not import until manually reconciled.");
+      }
+    }
+    if (ledger.exists) {
+      if (subscription && !isolatedOrder.exists) throw Error("Prior import lacks namespaced subscription order; manual reconciliation required.");
+      return "already imported";
+    }
     if (!legacy.exists || `${legacy.updateTime.seconds}:${legacy.updateTime.nanoseconds}` !== entry.legacyUpdateTime) throw Error("Legacy record changed or was not found; review it again.");
     if (billing.data()?.stripeCustomerId && billing.data().stripeCustomerId !== customer?.id) throw Error("New Live customer differs; reconcile before importing.");
     const balance = Number(billing.data()?.creditBalance || 0);
     if (!Number.isSafeInteger(balance) || !Number.isSafeInteger(balance + entry.reviewedCreditBalance)) throw Error("Unsafe balance.");
     if (!apply) return "validated dry run";
+    if (subscription && !isolatedOrder.exists) {
+      // Only copy an exact, reviewed Live order into the isolated namespace.
+      // Never infer a Checkout order from an email or Test-mode record.
+      tx.create(isolatedOrderRef, {
+        ...legacyOrder.data(), legacyReviewReference: entry.reviewReference,
+        legacySourcePath: legacyOrderRef.path, importedAt: FieldValue.serverTimestamp()
+      });
+    }
     tx.set(billingRef, {
       creditBalance: balance + entry.reviewedCreditBalance,
       legacyReviewComplete: true, legacyReviewReference: entry.reviewReference,
