@@ -1,0 +1,34 @@
+name: Billing safety tests
+on:
+  push:
+    branches:
+      - fix/credits-launch-safety
+  pull_request:
+    paths:
+      - "api/**"
+      - "lib/**"
+      - "tests/**"
+      - "workspace/billing.html"
+      - "package.json"
+      - ".github/workflows/billing-tests.yml"
+permissions:
+  contents: read
+jobs:
+  billing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Billing regression tests
+        run: npm run test:billing
+      - name: Check API JavaScript syntax
+        run: |
+          node --check api/stripe-checkout.js
+          node --check api/stripe-credit-checkout.js
+          node --check api/stripe-webhook.js
+          node --check api/stripe-annual-credit-grant.js
+          node --check api/stripe-portal.js
+          node --check scripts/check-billing-config.mjs

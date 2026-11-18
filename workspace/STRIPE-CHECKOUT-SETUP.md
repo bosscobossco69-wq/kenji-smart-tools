@@ -1,5 +1,7 @@
 # Stripe Checkout — Preview setup
 
+> Current Credits-first release: see [RELEASE-CREDITS-CHECKLIST.md](RELEASE-CREDITS-CHECKLIST.md). New subscriptions are disabled by default; test/live data now uses isolated collections. The notes below describe the retained subscription implementation, not permission to open subscription sales.
+
 This route creates authenticated Stripe subscription Checkout Sessions for the four USD Workspace plans. Credits are issued only after a verified Stripe invoice webhook and an idempotent Firestore ledger transaction. Plan entitlement activation remains a separate integration.
 
 ## Required server-only Vercel environment variables
@@ -44,7 +46,7 @@ The route verifies the Firebase ID token and verified email, reads the Price ID 
 
 - A paid monthly subscription invoice is eligible for a Credits grant only when the subscription metadata contains the Checkout-created `orderId`, `planId`, and Firebase UID, and the invoice line Price ID matches the subscription Price ID and pending order.
 - Monthly grants are 10,000 (Lite), 30,000 (Pro), 100,000 (Pro+), and 400,000 (Ultra).
-- Each paid invoice has a deterministic per-user ledger document ID based on its Stripe invoice ID. The Firestore transaction creates the ledger entry and increments `users/{uid}.creditsBalance` atomically, preventing duplicate invoice grants.
+- Each paid invoice has a deterministic per-user ledger document ID based on its Stripe invoice ID. The Firestore transaction creates the ledger entry and increments `billing_{mode}_users/{uid}/billing_{mode}/current.creditBalance` atomically, preventing duplicate invoice grants.
 - Annual subscriptions receive one monthly Credits allocation on each paid annual invoice and then monthly scheduled allocations. They never receive a full year's Credits at once.
 - A missing/mismatched Checkout order causes invoice processing to fail and Stripe to retry. Review the event and order records before enabling Live checkout.
 

@@ -1,3 +1,4 @@
+import { billingMode, billingCollection, billingDb, assertLegacyReviewed } from "../lib/billing-environment.js";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
@@ -13,7 +14,7 @@ function getServices() {
       try { account = JSON.parse(rawAccount); } catch { throw new Error("Firebase service account is invalid."); }
       if (account.project_id !== projectId) throw new Error("Firebase project mismatch.");
       const app = getApps()[0] || initializeApp({ credential: cert(account), projectId });
-      return { auth: getAuth(app), db: getFirestore(app) };
+      return { auth: getAuth(app), db: billingDb(getFirestore(app)) };
     })();
   }
   return servicesPromise;
@@ -44,20 +45,24 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: "A verified email address is required." });
     }
 
-    const billingRef = db.collection("users").doc(user.uid).collection("billing").doc("current");
+    await assertLegacyReviewed(db, user.uid);
+    const billingRef = db.collection("users").doc(user.uid).collection(billingCollection()).doc("current");
     const snapshot = await billingRef.get();
     const billing = snapshot.exists ? snapshot.data() : {};
     const balance = Number(billing.creditBalance ?? 0);
     const subscriptionStatus = typeof billing.status === "string" ? billing.status : "inactive";
 
     return res.status(200).json({
+      creditDebt: Number.isSafeInteger(balance) && balance < 0 ? -balance : 0,
+      billingEnvironment: billingMode(),
       creditBalance: Number.isFinite(balance) && balance >= 0 ? Math.floor(balance) : 0,
       subscriptionStatus,
       planActive: ["active", "trialing"].includes(subscriptionStatus)
     });
   } catch (error) {
+    if (error?.code === "billing_legacy_review_required") return res.status(409).json({ error: error.message });
     const message = error?.message || "";
-    const unavailable = message.includes("not configured") || message.includes("project mismatch");
+    const unavailable = message.includes("not configured") || message.includes("Legacy billing review") || message.includes("project mismatch");
     return res.status(unavailable ? 503 : 500).json({
       error: unavailable ? "Account billing service is not configured." : "Could not load account billing details."
     });

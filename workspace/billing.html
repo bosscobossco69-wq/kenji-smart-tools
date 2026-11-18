@@ -61,12 +61,18 @@ a{color:var(--cyan);text-decoration:none}.shell{width:min(1160px,calc(100% - 32p
 </div>
 </div>
 <div class="plans" id="plans">
-<article class="card"><div class="plan-name">Free</div><div class="price">$0<span> / month</span></div><div class="credits">1,000 Credits / month</div><ul class="features"><li>1 member</li><li>1 channel connection</li><li>AI translation</li><li>AI reply drafts</li><li>Manual sending only</li></ul><button class="btn" disabled>Included plan</button></article>
-<article class="card"><div class="plan-name">Lite</div><div class="price" data-month="10" data-year="100">$10<span> / month</span></div><div class="credits">10,000 Credits / month</div><ul class="features"><li>1 member</li><li>2 channel connections</li><li>AI auto-reply controls</li><li>Basic knowledge base</li><li>Translation history</li></ul><button class="btn checkout-btn" type="button" data-plan="lite">Continue to secure checkout</button></article>
-<article class="card featured"><div class="tag">RECOMMENDED</div><div class="plan-name" style="margin-top:10px">Pro</div><div class="price" data-month="20" data-year="200">$20<span> / month</span></div><div class="credits">30,000 Credits / month</div><ul class="features"><li>3 members</li><li>3 channel connections</li><li>AI auto-reply + handoff</li><li>Team assignment</li><li>Usage analytics</li></ul><button class="btn checkout-btn" type="button" data-plan="pro">Continue to secure checkout</button></article>
-<article class="card"><div class="plan-name">Pro+</div><div class="price" data-month="60" data-year="600">$60<span> / month</span></div><div class="credits">100,000 Credits / month</div><ul class="features"><li>10 members</li><li>5 channel connections</li><li>Advanced knowledge base</li><li>Team management</li><li>Advanced reports</li></ul><button class="btn checkout-btn" type="button" data-plan="pro_plus">Continue to secure checkout</button></article>
-<article class="card"><div class="plan-name">Ultra</div><div class="price" data-month="200" data-year="2000">$200<span> / month</span></div><div class="credits">400,000 Credits / month</div><ul class="features"><li>30 members</li><li>10 channel connections</li><li>Advanced automation</li><li>Audit and usage controls</li><li>Priority support</li></ul><button class="btn checkout-btn" type="button" data-plan="ultra">Continue to secure checkout</button></article>
+<article class="card"><div class="plan-name">Free</div><div class="price">$0<span> / month</span></div><div class="credits">No automatic monthly Credits</div><ul class="features"><li>Free browser utilities</li><li>AI replies require purchased Credits</li><li>Channels and translation: Coming Soon</li></ul><button class="btn" disabled>Included plan</button></article>
+<article class="card"><div class="plan-name">Lite</div><div class="price" data-month="10" data-year="100">$10<span> / month</span></div><div class="credits">10,000 Credits / month</div><ul class="features"><li>1 member — Coming Soon</li><li>2 channel connections — Coming Soon</li><li>AI auto-reply controls — Coming Soon</li><li>Basic knowledge base — Coming Soon</li><li>Translation history — Coming Soon</li></ul><button class="btn checkout-btn" type="button" data-plan="lite">Continue to secure checkout</button></article>
+<article class="card featured"><div class="tag">RECOMMENDED</div><div class="plan-name" style="margin-top:10px">Pro</div><div class="price" data-month="20" data-year="200">$20<span> / month</span></div><div class="credits">30,000 Credits / month</div><ul class="features"><li>3 members — Coming Soon</li><li>3 channel connections — Coming Soon</li><li>AI auto-reply + handoff — Coming Soon</li><li>Team assignment — Coming Soon</li><li>Usage analytics — Coming Soon</li></ul><button class="btn checkout-btn" type="button" data-plan="pro">Continue to secure checkout</button></article>
+<article class="card"><div class="plan-name">Pro+</div><div class="price" data-month="60" data-year="600">$60<span> / month</span></div><div class="credits">100,000 Credits / month</div><ul class="features"><li>10 members — Coming Soon</li><li>5 channel connections — Coming Soon</li><li>Advanced knowledge base — Coming Soon</li><li>Team management — Coming Soon</li><li>Advanced reports — Coming Soon</li></ul><button class="btn checkout-btn" type="button" data-plan="pro_plus">Continue to secure checkout</button></article>
+<article class="card"><div class="plan-name">Ultra</div><div class="price" data-month="200" data-year="2000">$200<span> / month</span></div><div class="credits">400,000 Credits / month</div><ul class="features"><li>30 members — Coming Soon</li><li>10 channel connections — Coming Soon</li><li>Advanced automation — Coming Soon</li><li>Audit and usage controls — Coming Soon</li><li>Priority support — Coming Soon</li></ul><button class="btn checkout-btn" type="button" data-plan="ultra">Continue to secure checkout</button></article>
 </div>
+</section>
+<section class="section" aria-labelledby="manage-title">
+<h2 id="manage-title">Billing support</h2>
+<p class="muted">Manage or cancel an existing subscription through Stripe. If the portal is unavailable, <a href="mailto:kenjing3073@gmail.com?subject=Billing%20support">contact billing support</a>. For refunds include your receipt ID; never send card details. Refunded or disputed purchases may remove Credits, including Credits already spent. Future purchases first offset any Credits debt.</p>
+<button class="btn" type="button" id="manageBilling">Manage or cancel subscription</button>
+<p id="billingDebt" class="muted" role="status"></p>
 </section>
 <section class="section" aria-labelledby="credits-title">
 <h2 id="credits-title">Buy extra Credits</h2><p class="muted">One-time purchase. No subscription or automatic renewal.</p>
@@ -87,9 +93,9 @@ a{color:var(--cyan);text-decoration:none}.shell{width:min(1160px,calc(100% - 32p
 <article class="card"><div class="plan-name">Apple Pay &amp; Google Pay</div><p class="muted">Payment provider integration planned</p><button class="btn" type="button" disabled>Coming Soon</button></article>
 </div>
 </section>
-<div class="note" id="billingNotice" role="status" aria-live="polite"><strong style="color:#e8f3ff">Secure billing preview.</strong><br>Checkout requires a signed-in, email-verified account. Subscription plans require matching server-side Stripe Price IDs. One-time Credits packs use fixed server-side prices. Credits are added only after verified Stripe payment events.</div>
+<div class="note" id="billingNotice" role="status" aria-live="polite"><strong style="color:#e8f3ff">Secure subscriptions and one-time Credits.</strong><br>Checkout requires a signed-in, email-verified account. Monthly and yearly subscriptions require verified Stripe prices and explicit server-side activation. One-time Credits packs use fixed server-side prices. Credits are added only after verified Stripe payment events.</div>
 </main>
-<footer class="foot">KENJI AI Workspace · Billing Center · Draft interface</footer>
+<footer class="foot">KENJI AI Workspace · Billing Center</footer>
 </div>
 <script>
 const monthly=document.getElementById("monthly"),annual=document.getElementById("annual");
@@ -102,6 +108,18 @@ const nav=document.getElementById("billingNav");
 const notice=document.getElementById("billingNotice");
 const monthlyButton=document.getElementById("monthly");
 const annualButton=document.getElementById("annual");
+document.getElementById("manageBilling")?.addEventListener("click",async()=>{
+ try{
+  if(!currentUser?.emailVerified)throw new Error("Sign in and verify your email first.");
+  const token=await currentUser.getIdToken(true);
+  const response=await fetch("/api/stripe-portal",{method:"POST",headers:{Authorization:"Bearer "+token}});
+  const data=await response.json();
+  if(!response.ok)throw new Error(data.error||"Billing management unavailable.");
+  const target=new URL(data.url);
+  if(target.protocol!=="https:"||target.hostname!=="billing.stripe.com")throw new Error("Unexpected billing portal address.");
+  location.assign(target.href);
+ }catch(error){setNotice(error.message,true);}
+});
 let currentUser=null;
 let selectedPeriod=annualButton?.getAttribute("aria-pressed")==="true"?"yearly":"monthly";
 monthlyButton?.addEventListener("click",()=>{selectedPeriod="monthly";});
@@ -113,9 +131,9 @@ if(checkoutResult==="success" || checkoutResult==="credits-success"){
 }else if(checkoutResult==="cancelled"){
  setNotice("Checkout was cancelled. No Credits were added.");
 }
-function refreshCheckoutButtons(){document.querySelectorAll(".checkout-btn,.credit-pack-btn").forEach(button=>{button.disabled=!currentUser || !currentUser.emailVerified || button.dataset.loading==="true";button.style.cursor=button.disabled?"not-allowed":"pointer";button.style.opacity=button.disabled?".65":"1";});}
+function refreshCheckoutButtons(){document.querySelectorAll(".checkout-btn,.credit-pack-btn").forEach(button=>{button.disabled=button.dataset.loading==="true";button.style.cursor=button.disabled?"not-allowed":"pointer";button.style.opacity=button.disabled?".65":"1";});}
 document.querySelectorAll(".checkout-btn").forEach(button=>button.addEventListener("click",async()=>{
- if(!currentUser || !currentUser.emailVerified){setNotice("Please sign in and verify your email before checkout.",true);return;}
+ if(!currentUser){location.assign("/workspace/login.html");return;}if(!currentUser.emailVerified){setNotice("Please verify your email address before checkout. Open your account to finish verification.",true);notice?.scrollIntoView({behavior:"smooth",block:"center"});return;}
  const requestedPeriod=selectedPeriod;
  button.dataset.loading="true";button.textContent="Creating secure checkout…";refreshCheckoutButtons();
  try{
@@ -128,7 +146,7 @@ document.querySelectorAll(".checkout-btn").forEach(button=>button.addEventListen
  }catch(error){setNotice(error.message||"Unable to start checkout. Please try again.",true);button.dataset.loading="false";button.textContent="Continue to secure checkout";refreshCheckoutButtons();}
 }));
 document.querySelectorAll(".credit-pack-btn").forEach(button=>button.addEventListener("click",async()=>{
- if(!currentUser || !currentUser.emailVerified){setNotice("Please sign in and verify your email before purchasing Credits.",true);return;}
+ if(!currentUser){location.assign("/workspace/login.html");return;}if(!currentUser.emailVerified){setNotice("Please verify your email address before buying Credits. Open your account to finish verification.",true);notice?.scrollIntoView({behavior:"smooth",block:"center"});return;}
  button.dataset.loading="true";button.textContent="Creating secure checkout…";refreshCheckoutButtons();
  try{
   const idToken=await currentUser.getIdToken(true);

@@ -1,3 +1,4 @@
+import { billingCollection, billingDb, assertStripeKey, assertStripeObject, assertLegacyReviewed } from "../lib/billing-environment.js";
 import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
@@ -16,21 +17,15 @@ function getServices() {
   if (!servicesPromise) {
     servicesPromise = (async () => {
       const stripeKey = process.env.STRIPE_SECRET_KEY;
+      assertStripeKey(stripeKey, true);
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const rawAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
       if (!stripeKey || !projectId || !rawAccount) throw new Error("Billing service is not configured.");
-      if (process.env.VERCEL_ENV === "production") {
-        if (!stripeKey.startsWith("sk_live_") || process.env.STRIPE_LIVE_CHECKOUT_ENABLED !== "true") {
-          throw new Error("Live Stripe checkout is disabled.");
-        }
-      } else if (!stripeKey.startsWith("sk_test_")) {
-        throw new Error("Preview checkout requires a Stripe Test Mode key.");
-      }
       let account;
       try { account = JSON.parse(rawAccount); } catch { throw new Error("Firebase service account is invalid."); }
       if (account.project_id !== projectId) throw new Error("Firebase project mismatch.");
       const app = getApps()[0] || initializeApp({ credential: cert(account), projectId });
-      return { stripe: new Stripe(stripeKey), auth: getAuth(app), db: getFirestore(app) };
+      return { stripe: new Stripe(stripeKey), auth: getAuth(app), db: billingDb(getFirestore(app)) };
     })();
   }
   return servicesPromise;
@@ -52,6 +47,68 @@ function siteBase(req) {
   const allowed = (process.env.ALLOWED_CHECKOUT_HOSTS || "").split(",").map(v => v.trim()).filter(Boolean);
   if (!allowed.includes(host)) throw new Error("Checkout host is not allowlisted.");
   return `https://${host}`;
+}
+
+async function verifiedCreditCustomerId(stripe, customerId, uid) {
+  if (customerId == null) return null;
+  if (typeof customerId !== "string" || !customerId.startsWith("cus_")) {
+    throw new Error("Stripe customer ownership review is required.");
+  }
+  const customer = await stripe.customers.retrieve(customerId);
+  assertStripeObject(customer);
+  if (customer.deleted || customer.metadata?.firebaseUID !== uid) {
+    throw new Error("Stripe customer ownership review is required.");
+  }
+  return customer.id;
+}
+
+// Use the same verified Firebase UID ownership policy as subscription Checkout.
+// A first-time Credits buyer must also get a linked Stripe customer, otherwise
+// a later subscription could be blocked by an email-only historical customer.
+async function ensureCreditCustomer({ stripe, billingRef, billingData, user }) {
+  const storedId = billingData?.stripeCustomerId ?? null;
+  if (storedId != null) {
+    return verifiedCreditCustomerId(stripe, storedId, user.uid);
+  }
+  let customer = null;
+  let sawUnownedMatch = false;
+  let startingAfter;
+  while (true) {
+    const page = await stripe.customers.list({
+      email: user.email,
+      limit: 100,
+      ...(startingAfter ? { starting_after: startingAfter } : {})
+    });
+    for (const candidate of page.data) {
+      assertStripeObject(candidate);
+      if (candidate.deleted) continue;
+      if (candidate.metadata?.firebaseUID === user.uid) {
+        customer = candidate;
+        break;
+      }
+      sawUnownedMatch = true;
+    }
+    if (customer || !page.has_more || !page.data.length) break;
+    startingAfter = page.data[page.data.length - 1].id;
+  }
+  if (!customer && sawUnownedMatch) {
+    throw new Error("Stripe customer ownership review is required.");
+  }
+  if (!customer) {
+    customer = await stripe.customers.create({
+      email: user.email,
+      metadata: { firebaseUID: user.uid }
+    }, { idempotencyKey: `kenji-customer-${user.uid}` });
+  }
+  assertStripeObject(customer);
+  if (customer.deleted || customer.metadata?.firebaseUID !== user.uid) {
+    throw new Error("Stripe customer ownership review is required.");
+  }
+  await billingRef.set({
+    stripeCustomerId: customer.id,
+    updatedAt: FieldValue.serverTimestamp()
+  }, { merge: true });
+  return customer.id;
 }
 
 export default async function handler(req, res) {
@@ -76,17 +133,21 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: "A verified email address is required." });
     }
 
+    await assertLegacyReviewed(db, user.uid);
+
     const body = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
     const packId = typeof body.packId === "string" ? body.packId : "";
-    const pack = PACKS[packId];
+    const pack = Object.hasOwn(PACKS, packId) ? PACKS[packId] : null;
     if (!pack) return res.status(400).json({ error: "Choose a valid Credits pack." });
 
     const base = siteBase(req);
     const orderId = randomUUID();
     const orderRef = db.collection("billingOrders").doc(orderId);
-    const billingRef = db.collection("users").doc(user.uid).collection("billing").doc("current");
+    const billingRef = db.collection("users").doc(user.uid).collection(billingCollection()).doc("current");
     const billingSnap = await billingRef.get();
-    const customerId = billingSnap.exists ? billingSnap.data()?.stripeCustomerId : null;
+    const customerId = await ensureCreditCustomer({
+      stripe, billingRef, billingData: billingSnap.exists ? billingSnap.data() : {}, user
+    });
     const metadata = {
       firebaseUID: user.uid,
       orderId,
@@ -111,8 +172,7 @@ export default async function handler(req, res) {
     try {
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
-        customer: typeof customerId === "string" ? customerId : undefined,
-        customer_email: typeof customerId === "string" ? undefined : user.email,
+        customer: customerId,
         client_reference_id: user.uid,
         line_items: [{
           price_data: {
@@ -125,12 +185,13 @@ export default async function handler(req, res) {
           },
           quantity: 1
         }],
-        success_url: `${base}/workspace/billing.html?checkout=credits-success&session_id={CHECKOUT_SESSION_ID}`,
+        success_url: `${base}/workspace/checkout-success.html?type=credits&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${base}/workspace/billing.html?checkout=cancelled`,
         metadata,
         payment_intent_data: { metadata }
       }, { idempotencyKey: `kenji-credit-pack-${orderId}` });
 
+      assertStripeObject(session);
       await orderRef.set({
         stripeCheckoutSessionId: session.id,
         status: "checkout_created",
@@ -146,6 +207,10 @@ export default async function handler(req, res) {
       throw error;
     }
   } catch (error) {
+    if (error?.code === "billing_legacy_review_required") return res.status(409).json({ error: error.message });
+    if (error?.message === "Stripe customer ownership review is required.") {
+      return res.status(409).json({ error: "Billing account ownership needs review. Contact billing support before checkout." });
+    }
     const message = error?.message || "";
     const status = message.includes("not configured") || message.includes("disabled") ||
       message.includes("requires a Stripe Test Mode") || message.includes("not allowlisted") ? 503 : 500;

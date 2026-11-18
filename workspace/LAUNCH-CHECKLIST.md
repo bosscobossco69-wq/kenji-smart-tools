@@ -1,5 +1,7 @@
 # KENJI AI Workspace — Free-first launch checklist
 
+> Historical foundation checklist. For the current release, use [RELEASE-CREDITS-CHECKLIST.md](RELEASE-CREDITS-CHECKLIST.md); it supersedes the feature-status and branch notes below.
+
 This document is an internal release checklist. It does not enable authentication, payments, subscriptions, Credits, or data collection.
 
 ## Current deployment boundaries

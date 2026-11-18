@@ -1,3 +1,4 @@
+import { billingCollection, billingDb, assertStripeKey, assertStripeObject, assertLegacyReviewed } from "../lib/billing-environment.js";
 import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
@@ -29,21 +30,15 @@ function getServices() {
   if (!servicesPromise) {
     servicesPromise = (async () => {
       const stripeKey = process.env.STRIPE_SECRET_KEY;
+      assertStripeKey(stripeKey, true);
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const rawAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
       if (!stripeKey || !projectId || !rawAccount) throw new Error("Billing service is not configured.");
-      if (process.env.VERCEL_ENV === "production") {
-        if (!stripeKey.startsWith("sk_live_") || process.env.STRIPE_LIVE_CHECKOUT_ENABLED !== "true") {
-          throw new Error("Live Stripe checkout is disabled.");
-        }
-      } else if (!stripeKey.startsWith("sk_test_")) {
-        throw new Error("Preview checkout requires a Stripe Test Mode key.");
-      }
       let account;
       try { account = JSON.parse(rawAccount); } catch { throw new Error("Firebase service account is invalid."); }
       if (account.project_id !== projectId) throw new Error("Firebase project mismatch.");
       const app = getApps()[0] || initializeApp({ credential: cert(account), projectId });
-      return { stripe: new Stripe(stripeKey), auth: getAuth(app), db: getFirestore(app) };
+      return { stripe: new Stripe(stripeKey), auth: getAuth(app), db: billingDb(getFirestore(app)) };
     })();
   }
   return servicesPromise;
@@ -53,7 +48,10 @@ function siteBase(req) {
   const configured = process.env.SITE_URL;
   if (configured) {
     const url = new URL(configured);
-    if (url.protocol !== "https:") throw new Error("SITE_URL must use HTTPS.");
+    if (url.protocol !== "https:" || url.username || url.password || url.port ||
+        url.search || url.hash || url.pathname !== "/") {
+      throw new Error("SITE_URL must be a valid HTTPS origin.");
+    }
     return url.origin;
   }
   const host = req.headers["x-forwarded-host"];
@@ -97,9 +95,10 @@ async function ensureStripeCustomer({ stripe, billingRef, billingData, user }) {
       if (!page.has_more || page.data.length === 0) break;
       startingAfter = page.data[page.data.length - 1].id;
     }
-    if (!customer && matches.length === 1) customer = matches[0];
-    if (!customer && matches.length > 1) {
-      throw new Error("Multiple Stripe customers match this account; manual billing review is required.");
+    if (!customer && matches.length > 0) {
+      // Email alone is not proof of Stripe account ownership. Never claim an
+      // existing customer (and its subscriptions or payment methods) by email.
+      throw new Error("Existing Stripe customer requires manual billing ownership review.");
     }
   }
 
@@ -115,9 +114,7 @@ async function ensureStripeCustomer({ stripe, billingRef, billingData, user }) {
     throw new Error("The Stripe customer is linked to another account.");
   }
   if (!linkedUid) {
-    customer = await stripe.customers.update(customer.id, {
-      metadata: { ...(customer.metadata || {}), firebaseUID: user.uid }
-    });
+    throw new Error("Stripe customer ownership metadata is missing; manual billing review is required.");
   }
 
   await billingRef.set({
@@ -142,6 +139,23 @@ async function findActiveSubscription(stripe, customerId) {
     );
     if (active) return active;
     if (!page.has_more || page.data.length === 0) return null;
+    startingAfter = page.data[page.data.length - 1].id;
+  }
+}
+
+// A returning customer cannot silently receive another free trial after cancellation.
+async function customerHasUsedTrial(stripe, customerId) {
+  let startingAfter;
+  while (true) {
+    const page = await stripe.subscriptions.list({
+      customer: customerId,
+      status: "all",
+      limit: 100,
+      ...(startingAfter ? { starting_after: startingAfter } : {})
+    });
+    if (page.data.some(subscription => subscription.trial_start != null ||
+      subscription.trial_end != null)) return true;
+    if (!page.has_more || page.data.length === 0) return false;
     startingAfter = page.data[page.data.length - 1].id;
   }
 }
@@ -171,6 +185,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed." });
   }
 
+  if (process.env.STRIPE_SUBSCRIPTIONS_ENABLED !== "true") {
+    return res.status(503).json({ error: "New subscriptions are not available. One-time Credits packs remain available." });
+  }
+
   try {
     const authorization = req.headers.authorization;
     if (typeof authorization !== "string" || !authorization.startsWith("Bearer ")) {
@@ -184,6 +202,8 @@ export default async function handler(req, res) {
     if (!user.email || user.email_verified !== true) {
       return res.status(403).json({ error: "A verified email address is required." });
     }
+
+    await assertLegacyReviewed(db, user.uid);
 
     const body = req.body && typeof req.body === "object" ? req.body : {};
     const planId = typeof body.planId === "string" ? body.planId : "";
@@ -199,6 +219,7 @@ export default async function handler(req, res) {
     }
 
     const price = await stripe.prices.retrieve(priceId);
+    assertStripeObject(price);
     const expectedInterval = interval === "yearly" ? "year" : "month";
     const expectedAmount = PLAN_PRICE_AMOUNTS[planId][interval];
     if (!price.active || price.currency !== "usd" || price.type !== "recurring" ||
@@ -208,7 +229,7 @@ export default async function handler(req, res) {
     }
 
     const base = siteBase(req);
-    const billingRef = db.collection("users").doc(user.uid).collection("billing").doc("current");
+    const billingRef = db.collection("users").doc(user.uid).collection(billingCollection()).doc("current");
     const billingSnap = await billingRef.get();
     const billingData = billingSnap.exists ? billingSnap.data() : {};
     const customerId = await ensureStripeCustomer({ stripe, billingRef, billingData, user });
@@ -451,16 +472,26 @@ export default async function handler(req, res) {
 
       try {
         const createAttempt = reservation.stripeCreateAttempt;
+        const trialEnabled = process.env.STRIPE_SUBSCRIPTION_TRIAL_ENABLED === "true" &&
+          !(await customerHasUsedTrial(stripe, freshCustomerId));
+        const subscriptionData = {
+          metadata: { firebaseUID: user.uid, orderId: reservation.orderId, planId, interval },
+          ...(trialEnabled ? {
+            trial_period_days: 3,
+            trial_settings: { end_behavior: { missing_payment_method: "cancel" } }
+          } : {})
+        };
         const session = await stripe.checkout.sessions.create({
           mode: "subscription",
+          ...(trialEnabled ? { payment_method_collection: "always" } : {}),
           customer: freshCustomerId,
           client_reference_id: user.uid,
           line_items: [{ price: priceId, quantity: 1 }],
           expires_at: reservation.stripeExpiresAt,
-          success_url: `${base}/workspace/billing.html?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+          success_url: `${base}/workspace/checkout-success.html?type=subscription&session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${base}/workspace/billing.html?checkout=cancelled`,
           metadata: { firebaseUID: user.uid, orderId: reservation.orderId, planId, interval },
-          subscription_data: { metadata: { firebaseUID: user.uid, orderId: reservation.orderId, planId, interval } }
+          subscription_data: subscriptionData
         }, { idempotencyKey: `kenji-checkout-${reservation.orderId}-${createAttempt}` });
 
         await db.runTransaction(async transaction => {
@@ -559,6 +590,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
+    if (error?.code === "billing_legacy_review_required") return res.status(409).json({ error: error.message });
     const message = error?.message || "";
     const configurationError = /not configured|disabled|requires a Stripe Test Mode|not allowlisted|secure site origin/i.test(message);
     const status = configurationError || error?.statusCode === 503 ? 503 : 500;

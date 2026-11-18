@@ -1,3 +1,4 @@
+import { billingMode, billingDb, assertStripeKey, assertStripeObject } from "../lib/billing-environment.js";
 import Stripe from "stripe";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
@@ -9,6 +10,7 @@ function getServices() {
   if (!servicesPromise) {
     servicesPromise = (async () => {
       const stripeKey = process.env.STRIPE_SECRET_KEY;
+      assertStripeKey(stripeKey);
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const rawAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
       if (!stripeKey || !projectId || !rawAccount) throw new Error("Billing service is not configured.");
@@ -16,7 +18,7 @@ function getServices() {
       try { account = JSON.parse(rawAccount); } catch { throw new Error("Firebase service account is invalid."); }
       if (account.project_id !== projectId) throw new Error("Firebase project mismatch.");
       const app = getApps()[0] || initializeApp({ credential: cert(account), projectId });
-      return { stripe: new Stripe(stripeKey), db: getFirestore(app) };
+      return { stripe: new Stripe(stripeKey), db: billingDb(getFirestore(app)) };
     })();
   }
   return servicesPromise;
@@ -82,6 +84,7 @@ export default async function handler(req, res) {
       lastDoc = snapshot.docs[snapshot.docs.length - 1];
 
       for (const doc of snapshot.docs) {
+        if (!doc.ref.path.startsWith("billing_" + billingMode() + "_users/")) { skipped++; continue; }
         const data = doc.data();
         const dueAt = asDate(data.nextCreditGrantAt);
         const periodEnd = asDate(data.currentPeriodEnd);
@@ -103,6 +106,7 @@ export default async function handler(req, res) {
 
         try {
           const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          assertStripeObject(subscription);
           const livePeriodStart = stripePeriodStart(subscription);
           if (!["active", "trialing"].includes(subscription.status) ||
               !livePeriodStart || livePeriodStart.getTime() !== grantPeriodStart.getTime() ||
@@ -137,7 +141,7 @@ export default async function handler(req, res) {
                 currentDue > new Date() || !currentEnd || currentDue >= currentEnd) return;
 
             const balance = Number(current.creditBalance ?? 0);
-            if (!Number.isSafeInteger(balance) || balance < 0) throw new Error("Invalid Credits balance.");
+            if (!Number.isSafeInteger(balance)) throw new Error("Invalid Credits balance.");
 
             tx.create(ledgerRef, {
               type: "annual_subscription_monthly_grant",
