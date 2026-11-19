@@ -48,8 +48,17 @@ function validateLegacy(legacy, ledger, orders) {
   assert(usage.every(d=>d.data().credits === -1 && ["refunded","completed"].includes(d.data().status)), "AI_USAGE_UNEXPECTED");
   assert(orders.length <= 50 && orders.every(d => {
     const o=d.data();const m=mode(o.stripeCheckoutSessionId);
-    return o.uid===legacy.ref.parent.parent.id &&
-      m!=="live" && ["checkout_created","checkout_pending","checkout_creation_failed","cancelled","expired","failed"].includes(o.status);
+    // A completed Stripe Test-mode order becomes "paid" after its signed
+    // webhook is processed. The former allowlist omitted "paid", incorrectly
+    // blocking the owner's reviewed zero-Live migration. Only accept a paid
+    // order if its Checkout session is explicitly Test-mode AND the sole
+    // historical credit purchase ledger matches this precise order.
+    const paidTestPurchase = o.status === "paid" && m === "test" &&
+      purchases.some(p => p.data().orderId === d.id &&
+        p.data().stripeCheckoutSessionId === o.stripeCheckoutSessionId);
+    const pendingOrFailed = ["checkout_created","checkout_pending","checkout_creation_failed","cancelled","expired","failed"].includes(o.status);
+    return o.uid === legacy.ref.parent.parent.id &&
+      (paidTestPurchase || (m !== "live" && pendingOrFailed));
   }), "LEGACY_ORDER_REQUIRES_REVIEW");
   return {legacyUpdateTime:legacy.updateTime.seconds+":"+legacy.updateTime.nanoseconds,ledgerHash:digest(ledger),ordersHash:ordersDigest(orders)};
 }
