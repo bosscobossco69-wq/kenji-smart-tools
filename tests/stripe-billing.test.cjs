@@ -6,7 +6,7 @@ const { randomUUID, createHash } = require('node:crypto');
 
 // Run the actual route code with isolated Firebase/Stripe boundaries, without credentials.
 function load(file, env = {}) {
-  const context = vm.createContext({ Buffer, Date, URL, console, randomUUID, createHash, process: { env },
+  const context = vm.createContext({ Buffer, Date, URL, AbortSignal, console, randomUUID, createHash, process: { env },
     FieldValue: { increment: n => ({ increment: n }), serverTimestamp: () => 'timestamp', delete: () => null } });
   const helper = fs.readFileSync('lib/billing-environment.js', 'utf8').replace(/^export /gm, '');
   vm.runInContext(helper, context);
@@ -810,4 +810,94 @@ test('AI reply retries preserve an ID only for the same input and bound the upst
   assert.match(page, /requestId\}\)/);
   assert.match(api, /signal: AbortSignal\.timeout\(45_000\)/);
   assert.ok(45_000 < 5 * 60 * 1000, 'provider timeout must expire before Credits reservation lease');
+});
+
+
+function aiReplyRouteFixture({ balance = 2, providerResponse, providerError } = {}) {
+  const c = load('api/generate-reply.js', { GROQ_API_KEY: 'test-only-groq-key' });
+  const db = store({ [billing]: { creditBalance: balance } });
+  c.mockServices = { db, auth: { verifyIdToken: async () => ({
+    uid: 'u', email: 'verified@example.invalid', email_verified: true
+  }) } };
+  vm.runInContext('servicesPromise = Promise.resolve(mockServices)', c);
+  let requests = 0;
+  c.fetch = async () => {
+    requests++;
+    if (providerError) throw providerError;
+    return providerResponse ?? { ok: true, json: async () => ({
+      choices: [{ message: { content: 'A suitable customer response.' } }]
+    }) };
+  };
+  const req = requestId => ({ method: 'POST',
+    headers: { authorization: 'Bearer test-only-token' },
+    body: { message: 'Could you clarify the order?', scenario: 'service',
+      tone: 'professional', requestId }
+  });
+  return { c, db, req, getRequests: () => requests };
+}
+
+test('AI route succeeds, debits once, and replays the cached reply without a second provider call', async () => {
+  const f = aiReplyRouteFixture();
+  const requestId = 'b84e12c0-119a-4d2f-b142-4abf793de140';
+  const first = response();
+  await f.c.handler(f.req(requestId), first);
+  assert.equal(first.code, 200);
+  assert.equal(first.body.reply, 'A suitable customer response.');
+  assert.equal(f.db.read(billing).creditBalance, 1);
+  assert.equal(f.db.read('users/u/creditLedger/' + requestId).status, 'completed');
+  const again = response();
+  await f.c.handler(f.req(requestId), again);
+  assert.equal(again.code, 200);
+  assert.equal(again.body.cached, true);
+  assert.equal(f.db.read(billing).creditBalance, 1);
+  assert.equal(f.getRequests(), 1);
+});
+
+for (const failure of ['network', '429', 'empty']) {
+  test('AI route refunds a failed provider response exactly once: ' + failure, async () => {
+    const f = aiReplyRouteFixture({
+      providerError: failure === 'network' ? new Error('provider unavailable') : null,
+      providerResponse: failure === '429'
+        ? { ok: false, status: 429, json: async () => ({}) }
+        : { ok: true, json: async () => ({ choices: [] }) }
+    });
+    const requestId = 'a9330bfc-ff70-40e0-abaf-d785422f2294';
+    const result = response();
+    await f.c.handler(f.req(requestId), result);
+    assert.equal(result.code, failure === '429' ? 503 : 502);
+    assert.equal(f.db.read(billing).creditBalance, 2);
+    const ledger = f.db.read('users/u/creditLedger/' + requestId);
+    assert.equal(ledger.status, 'refunded');
+    assert.equal(ledger.credits, -1);
+    assert.equal(await f.c.refundCredits(f.db, 'u', requestId, 'duplicate', 'old-token'), false);
+    assert.equal(f.db.read(billing).creditBalance, 2);
+  });
+}
+
+test('AI route with zero Credits returns 402 without calling the provider or writing an AI ledger entry', async () => {
+  const f = aiReplyRouteFixture({ balance: 0 });
+  const requestId = '60a5cae6-b334-4275-a260-6eb6435b576d';
+  const result = response();
+  await f.c.handler(f.req(requestId), result);
+  assert.equal(result.code, 402);
+  assert.equal(f.getRequests(), 0);
+  assert.equal(f.db.read(billing).creditBalance, 0);
+  assert.equal(f.db.read('users/u/creditLedger/' + requestId), undefined);
+});
+
+test('AI reservation recovery preserves the original single Credit debit and rejects stale refunds', async () => {
+  const c = load('api/generate-reply.js');
+  const requestId = 'a081a511-02d2-44bf-a49b-f0229ef263cb';
+  const db = store({ [billing]: { creditBalance: 2 } });
+  const first = await c.reserveCredits(db, 'u', requestId, 'same-hash');
+  assert.equal(db.read(billing).creditBalance, 1);
+  await db.collection('users').doc('u').collection('creditLedger').doc(requestId).set({
+    leaseExpiresAtMs: Date.now() - 1
+  }, { merge: true });
+  const recovered = await c.reserveCredits(db, 'u', requestId, 'same-hash');
+  assert.equal(recovered.recovered, true);
+  assert.equal(db.read(billing).creditBalance, 1);
+  assert.equal(await c.refundCredits(db, 'u', requestId, 'stale', first.leaseToken), false);
+  assert.equal(await c.refundCredits(db, 'u', requestId, 'new', recovered.leaseToken), true);
+  assert.equal(db.read(billing).creditBalance, 2);
 });
