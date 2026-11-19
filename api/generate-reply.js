@@ -265,6 +265,7 @@ export default async function handler(req, res) {
     try {
       response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
+        signal: AbortSignal.timeout(45_000),
         headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
