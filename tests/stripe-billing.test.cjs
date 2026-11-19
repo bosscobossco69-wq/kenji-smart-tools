@@ -801,3 +801,13 @@ test('paid Credits session recovers safely when Firestore did not save the Check
   }), /does not match/);
   assert.equal(conflict.read(billing), undefined);
 });
+
+test('AI reply retries preserve an ID only for the same input and bound the upstream wait', () => {
+  const page = fs.readFileSync('ai-customer-reply.html', 'utf8');
+  const api = fs.readFileSync('api/generate-reply.js', 'utf8');
+  assert.match(page, /activeRequestKey!==requestKey/);
+  assert.match(page, /JSON\.stringify\(\[message,scenario,tone\]\)/);
+  assert.match(page, /requestId\}\)/);
+  assert.match(api, /signal: AbortSignal\.timeout\(45_000\)/);
+  assert.ok(45_000 < 5 * 60 * 1000, 'provider timeout must expire before Credits reservation lease');
+});
