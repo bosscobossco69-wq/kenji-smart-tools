@@ -58,9 +58,26 @@ function checkedOrigin(req) {
   const origin=req.headers.origin,host=req.headers.host;
   assert(typeof origin==="string" && typeof host==="string" && new URL(origin).origin==="https://"+host, "ORIGIN_INVALID");
 }
+// These two exact Live Price objects were verified through the authorized Stripe
+// account acct_1UKcnJLpz7LOZhY6 before this change. Stripe object IDs are global;
+// fetching BOTH with the Production restricted key proves that the key can access
+// the expected Stripe account without requiring GET /v1/account (Connect scope).
+// Fail closed on any changed Price, mode, pricing or Vercel configuration.
+const STRIPE_ACCOUNT_PRICE_PROOFS = [
+  {env:"STRIPE_PRICE_LITE_YEARLY",id:"price_1UccVhLpz7LOZhY6R5FbZy3Q",lookup:"lite_yearly",amount:10000,interval:"year"},
+  {env:"STRIPE_PRICE_PRO_MONTHLY",id:"price_1UaVW7Lpz7LOZhY6kLdUwNEe",lookup:"pro_monthly",amount:2000,interval:"month"}
+];
 async function stripePreflight(stripe) {
-  const account=await stripe.accounts.retrieve();
-  assert(account.id===EXPECTED_STRIPE_ACCOUNT, "STRIPE_ACCOUNT_MISMATCH");
+  assert(EXPECTED_STRIPE_ACCOUNT==="acct_1UKcnJLpz7LOZhY6","STRIPE_ACCOUNT_CONFIGURATION_CHANGED");
+  for (const proof of STRIPE_ACCOUNT_PRICE_PROOFS) {
+    assert(process.env[proof.env]===proof.id,"LIVE_PRICE_ENV_MISMATCH");
+    const price=await stripe.prices.retrieve(proof.id);
+    assert(price?.id===proof.id && price?.livemode===true &&
+      price.active===true && price.currency==="usd" &&
+      price.lookup_key===proof.lookup && price.unit_amount===proof.amount &&
+      price.recurring?.interval===proof.interval,
+      "STRIPE_ACCOUNT_PRICE_PROOF_FAILED");
+  }
   const [payments,sessions,customers,subscriptions]=await Promise.all([
     stripe.paymentIntents.list({limit:1}), stripe.checkout.sessions.list({limit:1}),
     stripe.customers.list({limit:1}), stripe.subscriptions.list({limit:1})
