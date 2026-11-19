@@ -45,13 +45,14 @@ const set=(title,message,extra="")=>{heading.textContent=title;status.textConten
           set("Subscription activated","Your KENJI subscription is active in your account.","Credits available: "+Number(data.creditBalance||0).toLocaleString("en-US"));return;
         }
         if(mode==="credits"){
-          set("Credits payment returned","Your checkout returned from Stripe. Verify the updated Credits balance in your account.","Current Credits: "+Number(data.creditBalance||0).toLocaleString("en-US"));return;
+          set("Credits payment verification pending","Stripe Checkout returned, but this page cannot independently confirm the payment or the exact Credits grant. Check your account balance and receipt; do not pay again.","Current account Credits: "+Number(data.creditBalance||0).toLocaleString("en-US"));
+        } else {
+          set("Payment confirmation pending","Stripe checkout returned, but the subscription is not yet marked active in this account. Do not pay again.","Checking for billing updates…");
         }
-        set("Payment confirmation pending","Stripe checkout returned, but the subscription is not yet marked active in this account. Do not pay again.","Checking for billing updates…");
       }catch(e){set("Account verification pending","We could not confirm billing activation yet. Do not pay again.",e.message||"Please check your account.");}
       if(attempt<4)await new Promise(resolve=>setTimeout(resolve,2500));
     }
-    set("Subscription still being verified","Do not make a second payment. Check your account or contact support with your checkout details.");
+    set(mode==="credits"?"Credits payment not yet verified":"Subscription still being verified","Do not make a second payment. Check your account or contact support with your checkout details.");
   }catch(e){set("Confirmation temporarily unavailable","Your browser could not verify the account. Do not pay again.",e.message||"Open account to review payment status.");}
 })();
 </script>
