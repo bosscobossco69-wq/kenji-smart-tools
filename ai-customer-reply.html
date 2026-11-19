@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Create professional, friendly and concise customer replies with AI.">
+<meta name="description" content="Write AI customer service replies for price questions, discounts, delayed orders and follow-ups. Choose a tone, then generate using purchased AI Credits.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://kenji-smart-tools.vercel.app/ai-customer-reply.html">
 <meta property="og:title" content="AI Customer Reply Generator | KENJI Smart Tools">
-<meta property="og:description" content="Create professional, friendly and concise customer replies with AI.">
+<meta property="og:description" content="Draft professional, friendly or direct customer replies for common business questions with AI Credits.">
 <meta property="og:url" content="https://kenji-smart-tools.vercel.app/ai-customer-reply.html">
 <meta name="theme-color" content="#17120e">
 <title>AI Customer Reply Generator | KENJI Smart Tools</title>
@@ -92,7 +92,9 @@ body.ai-reply-page{min-height:100vh;margin:0;background:#17120e;color:#f4efe6;fo
 <div class="actions" style="margin-top:14px"><button class="primary" id="copy" type="button" disabled>Copy reply</button><button class="secondary" id="again" type="button">Regenerate</button></div>
 <div id="status" class="status" role="status" aria-live="polite"></div>
 </div>
-</section></main>
+</section>
+<section aria-labelledby="reply-use-cases" style="padding:0 0 44px"><h2 id="reply-use-cases" style="margin:0 0 12px">What can you write with this AI reply generator?</h2><p class="sub">Choose the customer situation and a reply tone before generating. Common uses include answering a price objection without inventing a discount, responding politely when an order is delayed, and following up with a customer who has not replied.</p><p class="sub">The tool creates a draft, not an automatic customer message. Review the answer for accuracy before sending it. A successful generation uses 1 AI Credit; <a href="/workspace/billing.html" style="color:#d6b88c;text-decoration:underline">check Credits pack pricing</a>.</p><p class="sub">Need a browser-based utility instead? Try the <a href="/word-counter.html" style="color:#d6b88c;text-decoration:underline">free Word Counter</a> or browse <a href="/#tools" style="color:#d6b88c;text-decoration:underline">all tools</a>.</p></section>
+</main>
 <script type="module">
 import {auth,authReady,onAuthStateChanged} from "./workspace/firebase-auth.js";
 let tone="professional",reply="",activeRequestId=null,activeRequestKey=null,currentUser=null;
