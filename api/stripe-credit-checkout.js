@@ -214,8 +214,35 @@ export default async function handler(req, res) {
     const message = error?.message || "";
     const status = message.includes("not configured") || message.includes("disabled") ||
       message.includes("requires a Stripe Test Mode") || message.includes("not allowlisted") ? 503 : 500;
-    return res.status(status).json({
-      error: status === 503 ? message : "Could not create a secure Credits checkout session."
+    // Stripe's original message may contain sensitive operational details.
+    // Return only a fixed diagnostic category; never return tokens or API responses.
+    const stripeType = typeof error?.type === "string" ? error.type : "";
+    const stripeStatus = Number(error?.statusCode || error?.raw?.statusCode || 0);
+    const kind = stripeType === "StripeAuthenticationError" || stripeStatus === 401 ? "STRIPE_KEY_REJECTED"
+      : stripeType === "StripePermissionError" || stripeStatus === 403 ? "STRIPE_KEY_PERMISSION"
+      : stripeType === "StripeInvalidRequestError" ? "STRIPE_REQUEST_INVALID"
+      : stripeType === "StripeRateLimitError" || stripeStatus === 429 ? "STRIPE_RATE_LIMIT"
+      : status === 503 ? "BILLING_CONFIGURATION"
+      : error?.code === "permission-denied" || error?.code === 7 ? "FIREBASE_PERMISSION"
+      : "CHECKOUT_SERVER_ERROR";
+    console.error("[stripe-credit-checkout]", {
+      category: kind,
+      stripeType: stripeType || undefined,
+      stripeStatus: stripeStatus || undefined,
+      stripeCode: typeof error?.code === "string" && /^([a-z_]{1,64})$/.test(error.code) ? error.code : undefined
     });
+    const publicError = kind === "STRIPE_KEY_REJECTED"
+      ? "Stripe rejected the server API key. Check the Production Stripe credential."
+      : kind === "STRIPE_KEY_PERMISSION"
+      ? "The Stripe API key lacks permission for this checkout operation."
+      : kind === "STRIPE_REQUEST_INVALID"
+      ? "Stripe rejected the checkout request. The website operator must review its configuration."
+      : kind === "STRIPE_RATE_LIMIT"
+      ? "Stripe is temporarily limiting requests. Try later."
+      : kind === "FIREBASE_PERMISSION"
+      ? "The billing database denied access. Contact billing support."
+      : status === 503 ? message
+      : "Could not create a secure Credits checkout session.";
+    return res.status(status).json({ error: publicError, diagnosticCode: kind });
   }
 }
