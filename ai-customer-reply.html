@@ -84,6 +84,7 @@ body.ai-reply-page{min-height:100vh;margin:0;background:#17120e;color:#f4efe6;fo
 <label for="message">Customer's message</label><textarea id="message" maxlength="1200" required placeholder="Paste or type the customer's message here..."></textarea>
 <span class="label">Reply tone</span><div class="tones" role="group" aria-label="Reply tone"><button class="tone" data-tone="professional" aria-pressed="true" type="button">Professional</button><button class="tone" data-tone="friendly" aria-pressed="false" type="button">Friendly</button><button class="tone" data-tone="direct" aria-pressed="false" type="button">Short &amp; Direct</button></div>
 <div class="actions" style="margin-top:20px"><button class="primary" id="generate" type="button">Generate reply</button><button class="secondary" id="clear" type="button">Clear</button></div>
+<p id="credit-balance" class="notice" aria-live="polite">Sign in to check your available AI Credits.</p>
 <p class="notice">Sign in with a verified email to generate AI replies. Each successful reply uses 1 AI Credit. <a href="/workspace/signup.html" style="color:#d6b88c;text-decoration:underline">Create account</a> · <a href="/workspace/login.html" style="color:#d6b88c;text-decoration:underline">Sign in</a> · <a href="/workspace/billing.html" style="color:#d6b88c;text-decoration:underline">View Credits packs</a></p><p class="notice">Do not include passwords, payment details or sensitive personal information.</p>
 </div>
 <div class="tool-card">
@@ -100,8 +101,27 @@ import {auth,authReady,onAuthStateChanged} from "./workspace/firebase-auth.js";
 let tone="professional",reply="",activeRequestId=null,activeRequestKey=null,currentUser=null;
 const $=id=>document.getElementById(id);
 const setStatus=(message,isError=false)=>{$("status").textContent=message;$("status").style.color=isError?"#ff9b9b":"#d6b88c"};
+async function refreshCreditBalance(user){
+ const label=$("credit-balance");
+ if(!user || !user.emailVerified){label.textContent="Sign in with a verified email to check your AI Credits.";return;}
+ label.textContent="Checking available AI Credits...";
+ try{
+  const token=await user.getIdToken();
+  const response=await fetch("/api/account-billing",{headers:{"Authorization":"Bearer "+token},cache:"no-store"});
+  const data=await response.json();
+  if(auth.currentUser?.uid!==user.uid)return;
+  if(!response.ok)throw new Error(data.error||"Balance unavailable.");
+  const balance=Number(data.creditBalance);
+  label.textContent=Number.isSafeInteger(balance) && balance>=0
+   ? "Available AI Credits: "+balance.toLocaleString("en-US")+(balance===0?" · Purchase a Credits pack to generate replies.":"")
+   : "Credit balance unavailable. Check your account billing page.";
+ }catch{
+  if(auth.currentUser?.uid===user.uid)label.textContent="Unable to refresh Credits balance. See your account billing page.";
+ }
+}
 await authReady;
 onAuthStateChanged(auth,user=>{
+ void refreshCreditBalance(user);
  currentUser=user;
  if(!user || !user.emailVerified){$("generate").disabled=true;$("again").disabled=true;setStatus("Please sign in with a verified email address to use AI Credits.",true);return}
  $("generate").disabled=false;$("again").disabled=false;setStatus("Signed in. Each successful reply uses 1 AI Credit.");
@@ -123,7 +143,7 @@ async function generate(){
   reply=data.reply;$("result").textContent=reply;$("result").classList.remove("empty");$("copy").disabled=false;
   setStatus("Reply ready. "+(data.creditCost||1)+" AI Credit used.");if(activeRequestId===requestId){activeRequestId=null;activeRequestKey=null;}
  }catch(error){reply="";$("result").textContent="Your generated reply will appear here.";$("result").classList.add("empty");setStatus(error.message||"Something went wrong. Please try again.",true)}
- finally{button.disabled=!currentUser||!currentUser.emailVerified;$("again").disabled=!currentUser||!currentUser.emailVerified;button.textContent="Generate reply"}
+ finally{button.disabled=!currentUser||!currentUser.emailVerified;$("again").disabled=!currentUser||!currentUser.emailVerified;button.textContent="Generate reply";if(currentUser)void refreshCreditBalance(currentUser)}
 }
 document.querySelectorAll(".tone").forEach(button=>button.addEventListener("click",()=>{tone=button.dataset.tone;document.querySelectorAll(".tone").forEach(item=>item.setAttribute("aria-pressed",String(item===button)))}));
 $("generate").addEventListener("click",generate);$("again").addEventListener("click",generate);
