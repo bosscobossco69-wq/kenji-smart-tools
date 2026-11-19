@@ -119,6 +119,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed." });
   }
 
+  let stage = "authorization";
   try {
     const authorization = req.headers.authorization;
     if (typeof authorization !== "string" || !authorization.startsWith("Bearer ")) {
@@ -127,12 +128,15 @@ export default async function handler(req, res) {
     const token = authorization.slice(7);
     if (!token || token.length > 8192) return res.status(401).json({ error: "Invalid authentication token." });
 
+    stage = "service_initialization";
     const { stripe, auth, db } = await getServices();
+    stage = "identity_verification";
     const user = await auth.verifyIdToken(token, true);
     if (!user.email || user.email_verified !== true) {
       return res.status(403).json({ error: "A verified email address is required." });
     }
 
+    stage = "legacy_billing_review";
     await assertLegacyReviewed(db, user.uid);
 
     const body = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
@@ -144,7 +148,9 @@ export default async function handler(req, res) {
     const orderId = randomUUID();
     const orderRef = db.collection("billingOrders").doc(orderId);
     const billingRef = db.collection("users").doc(user.uid).collection(billingCollection()).doc("current");
+    stage = "billing_record_read";
     const billingSnap = await billingRef.get();
+    stage = "stripe_customer_link";
     const customerId = await ensureCreditCustomer({
       stripe, billingRef, billingData: billingSnap.exists ? billingSnap.data() : {}, user
     });
@@ -156,6 +162,7 @@ export default async function handler(req, res) {
       credits: String(pack.credits)
     };
 
+    stage = "billing_order_create";
     await orderRef.create({
       orderId,
       uid: user.uid,
@@ -170,6 +177,7 @@ export default async function handler(req, res) {
     });
 
     try {
+      stage = "stripe_session_create";
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         customer: customerId,
@@ -191,7 +199,9 @@ export default async function handler(req, res) {
         payment_intent_data: { metadata }
       }, { idempotencyKey: `kenji-credit-pack-${orderId}` });
 
+      stage = "stripe_session_verify";
       assertStripeObject(session);
+      stage = "billing_order_finalize";
       await orderRef.set({
         stripeCheckoutSessionId: session.id,
         status: "checkout_created",
@@ -227,6 +237,7 @@ export default async function handler(req, res) {
       : "CHECKOUT_SERVER_ERROR";
     console.error("[stripe-credit-checkout]", {
       category: kind,
+      stage,
       stripeType: stripeType || undefined,
       stripeStatus: stripeStatus || undefined,
       stripeCode: typeof error?.code === "string" && /^([a-z_]{1,64})$/.test(error.code) ? error.code : undefined
