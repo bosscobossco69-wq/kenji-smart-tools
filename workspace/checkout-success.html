@@ -46,10 +46,9 @@ const set=(title,message,extra="")=>{heading.textContent=title;status.textConten
         }
         if(mode==="credits"){
           set("Credits payment verification pending","Stripe Checkout returned, but this page cannot independently confirm the payment or the exact Credits grant. Check your account balance and receipt; do not pay again.","Current account Credits: "+Number(data.creditBalance||0).toLocaleString("en-US"));
-          if(attempt<4)continue;
-          return;
+        } else {
+          set("Payment confirmation pending","Stripe checkout returned, but the subscription is not yet marked active in this account. Do not pay again.","Checking for billing updates…");
         }
-        set("Payment confirmation pending","Stripe checkout returned, but the subscription is not yet marked active in this account. Do not pay again.","Checking for billing updates…");
       }catch(e){set("Account verification pending","We could not confirm billing activation yet. Do not pay again.",e.message||"Please check your account.");}
       if(attempt<4)await new Promise(resolve=>setTimeout(resolve,2500));
     }
