@@ -16,16 +16,31 @@ let servicesPromise;
 function getServices() {
   if (!servicesPromise) {
     servicesPromise = (async () => {
-      const stripeKey = process.env.STRIPE_SECRET_KEY;
-      assertStripeKey(stripeKey, true);
-      const projectId = process.env.FIREBASE_PROJECT_ID;
-      const rawAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-      if (!stripeKey || !projectId || !rawAccount) throw new Error("Billing service is not configured.");
-      let account;
-      try { account = JSON.parse(rawAccount); } catch { throw new Error("Firebase service account is invalid."); }
-      if (account.project_id !== projectId) throw new Error("Firebase project mismatch.");
-      const app = getApps()[0] || initializeApp({ credential: cert(account), projectId });
-      return { stripe: new Stripe(stripeKey), auth: getAuth(app), db: billingDb(getFirestore(app)) };
+      let initStep = "stripe_key_check";
+      try {
+        const stripeKey = process.env.STRIPE_SECRET_KEY;
+        assertStripeKey(stripeKey, true);
+        initStep = "firebase_config_presence";
+        const projectId = process.env.FIREBASE_PROJECT_ID;
+        const rawAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+        if (!stripeKey || !projectId || !rawAccount) throw new Error("Billing service is not configured.");
+        initStep = "firebase_json_parse";
+        let account;
+        try { account = JSON.parse(rawAccount); } catch { throw new Error("Firebase service account is invalid."); }
+        initStep = "firebase_project_match";
+        if (account.project_id !== projectId) throw new Error("Firebase project mismatch.");
+        initStep = "firebase_cert_init";
+        const app = getApps()[0] || initializeApp({ credential: cert(account), projectId });
+        initStep = "firebase_services_init";
+        const auth = getAuth(app), db = billingDb(getFirestore(app));
+        initStep = "stripe_client_init";
+        const stripe = new Stripe(stripeKey);
+        return { stripe, auth, db };
+      } catch (error) {
+        // Report the fixed step name only. Never log credentials or service account contents.
+        console.error("[stripe-credit-initialization]", { step: initStep });
+        throw error;
+      }
     })();
   }
   return servicesPromise;
