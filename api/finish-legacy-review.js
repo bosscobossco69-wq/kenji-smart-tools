@@ -58,9 +58,17 @@ function checkedOrigin(req) {
   const origin=req.headers.origin,host=req.headers.host;
   assert(typeof origin==="string" && typeof host==="string" && new URL(origin).origin==="https://"+host, "ORIGIN_INVALID");
 }
+// This price was independently verified in the expected Stripe Live account.
+// A Stripe Price ID is account-scoped and cannot be retrieved by credentials from
+// another standalone account. Prefer this proof over GET /v1/account, which is
+// commonly denied to restricted keys. Keep all existing zero-activity checks.
+const EXPECTED_LIVE_PRICE_ID = "price_1UaVW7Lpz7LOZhY6kLdUwNEe";
 async function stripePreflight(stripe) {
-  const account=await stripe.accounts.retrieve();
-  assert(account.id===EXPECTED_STRIPE_ACCOUNT, "STRIPE_ACCOUNT_MISMATCH");
+  const price = await stripe.prices.retrieve(EXPECTED_LIVE_PRICE_ID);
+  assert(price?.id===EXPECTED_LIVE_PRICE_ID &&
+    price.livemode===true && price.currency==="usd" &&
+    price.unit_amount===2000 && price.recurring?.interval==="month" &&
+    price.lookup_key==="pro_monthly", "STRIPE_ACCOUNT_MISMATCH");
   const [payments,sessions,customers,subscriptions]=await Promise.all([
     stripe.paymentIntents.list({limit:1}), stripe.checkout.sessions.list({limit:1}),
     stripe.customers.list({limit:1}), stripe.subscriptions.list({limit:1})
