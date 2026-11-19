@@ -125,6 +125,21 @@ let selectedPeriod=annualButton?.getAttribute("aria-pressed")==="true"?"yearly":
 monthlyButton?.addEventListener("click",()=>{selectedPeriod="monthly";});
 annualButton?.addEventListener("click",()=>{selectedPeriod="yearly";});
 function setNotice(message,isError=false){if(!notice)return;notice.textContent=message;notice.style.borderColor=isError?"rgba(255,120,120,.55)":"var(--line)";}
+function setCheckoutFeedback(button,message,isError=false){
+ let feedback=button.nextElementSibling;
+ if(!feedback || !feedback.classList.contains("checkout-feedback")){
+  feedback=document.createElement("p");
+  feedback.className="checkout-feedback";
+  feedback.setAttribute("role","status");
+  feedback.setAttribute("aria-live","polite");
+  feedback.style.cssText="margin:12px 0 0;font-size:14px;line-height:1.5;overflow-wrap:anywhere;";
+  button.insertAdjacentElement("afterend",feedback);
+ }
+ feedback.textContent=message;
+ feedback.style.color=isError?"#ffb8ad":"#e5c798";
+ if(isError)feedback.scrollIntoView({block:"nearest",behavior:"smooth"});
+}
+function showCheckoutError(button,message){setNotice(message,true);setCheckoutFeedback(button,message,true);}
 const checkoutResult=new URLSearchParams(location.search).get("checkout");
 if(checkoutResult==="success" || checkoutResult==="credits-success"){
  setNotice("You returned from Stripe Checkout. Payment confirmation and Credits are processed securely by the Stripe webhook; check your account for the confirmed balance.");
@@ -133,9 +148,9 @@ if(checkoutResult==="success" || checkoutResult==="credits-success"){
 }
 function refreshCheckoutButtons(){document.querySelectorAll(".checkout-btn,.credit-pack-btn").forEach(button=>{button.disabled=button.dataset.loading==="true";button.style.cursor=button.disabled?"not-allowed":"pointer";button.style.opacity=button.disabled?".65":"1";});}
 document.querySelectorAll(".checkout-btn").forEach(button=>button.addEventListener("click",async()=>{
- if(!currentUser){location.assign("/workspace/login.html");return;}if(!currentUser.emailVerified){setNotice("Please verify your email address before checkout. Open your account to finish verification.",true);notice?.scrollIntoView({behavior:"smooth",block:"center"});return;}
+ if(!currentUser){location.assign("/workspace/login.html");return;}if(!currentUser.emailVerified){showCheckoutError(button,"Please verify your email address before checkout. Open your account to finish verification.");return;}
  const requestedPeriod=selectedPeriod;
- button.dataset.loading="true";button.textContent="Creating secure checkout…";refreshCheckoutButtons();
+ button.dataset.loading="true";button.textContent="Creating secure checkout…";setCheckoutFeedback(button,"Connecting securely to Stripe…");refreshCheckoutButtons();
  try{
   const idToken=await currentUser.getIdToken(true);
   const response=await fetch("/api/stripe-checkout",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${idToken}`},body:JSON.stringify({planId:button.dataset.plan,interval:requestedPeriod})});
@@ -143,11 +158,11 @@ document.querySelectorAll(".checkout-btn").forEach(button=>button.addEventListen
   if(!response.ok || typeof result.url!=="string")throw new Error(result.error||"Checkout is not configured for this plan yet.");
   if(!result.url.startsWith("https://checkout.stripe.com/"))throw new Error("Stripe returned an unexpected checkout address.");
   window.location.assign(result.url);
- }catch(error){setNotice(error.message||"Unable to start checkout. Please try again.",true);button.dataset.loading="false";button.textContent="Continue to secure checkout";refreshCheckoutButtons();}
+ }catch(error){showCheckoutError(button,error.message||"Unable to start checkout. Please try again.");button.dataset.loading="false";button.textContent="Continue to secure checkout";refreshCheckoutButtons();}
 }));
 document.querySelectorAll(".credit-pack-btn").forEach(button=>button.addEventListener("click",async()=>{
- if(!currentUser){location.assign("/workspace/login.html");return;}if(!currentUser.emailVerified){setNotice("Please verify your email address before buying Credits. Open your account to finish verification.",true);notice?.scrollIntoView({behavior:"smooth",block:"center"});return;}
- button.dataset.loading="true";button.textContent="Creating secure checkout…";refreshCheckoutButtons();
+ if(!currentUser){location.assign("/workspace/login.html");return;}if(!currentUser.emailVerified){showCheckoutError(button,"Please verify your email address before buying Credits. Open your account to finish verification.");return;}
+ button.dataset.loading="true";button.textContent="Creating secure checkout…";setCheckoutFeedback(button,"Connecting securely to Stripe…");refreshCheckoutButtons();
  try{
   const idToken=await currentUser.getIdToken(true);
   const response=await fetch("/api/stripe-credit-checkout",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${idToken}`},body:JSON.stringify({packId:button.dataset.pack})});
@@ -155,7 +170,7 @@ document.querySelectorAll(".credit-pack-btn").forEach(button=>button.addEventLis
   if(!response.ok || typeof result.url!=="string")throw new Error(result.error||"Credits checkout is not configured yet.");
   if(!result.url.startsWith("https://checkout.stripe.com/"))throw new Error("Stripe returned an unexpected checkout address.");
   window.location.assign(result.url);
- }catch(error){setNotice(error.message||"Unable to start Credits checkout. Please try again.",true);button.dataset.loading="false";button.textContent="Buy Credits securely";refreshCheckoutButtons();}
+ }catch(error){showCheckoutError(button,error.message||"Unable to start Credits checkout. Please try again.");button.dataset.loading="false";button.textContent="Buy Credits securely";refreshCheckoutButtons();}
 }));
 await authReady;
 onAuthStateChanged(auth,user=>{
