@@ -25,7 +25,13 @@ async function request(method,body){
    Authorization:"Bearer "+token,...(body?{"Content-Type":"application/json"}:{})
  },...(body?{body:JSON.stringify(body)}:{})});
  const d=await r.json().catch(()=>({error:"Unexpected server response."}));
- if(!r.ok)throw new Error((d.error||"Migration failed.")+" "+(d.check||""));
+ if(!r.ok){
+   const details=d.reviewDiagnostics;
+   const reviewInfo=details && Array.isArray(details.rejected)
+     ? "\\nHistorical order review (read-only, no IDs): "+JSON.stringify(details)
+     : "";
+   throw new Error((d.error||"Migration failed.")+" "+(d.check||"")+reviewInfo);
+ }
  return d;
 }
 button.addEventListener("click",async()=>{
