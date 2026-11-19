@@ -72,6 +72,7 @@ export default async function handler(req,res) {
   res.setHeader("Vary","Authorization");
   res.setHeader("X-Content-Type-Options","nosniff");
   if(!["GET","POST"].includes(req.method)) return res.status(405).json({error:"Unsupported method."});
+  let stage="initial";
   try {
     assert(process.env.VERCEL_ENV==="production","PRODUCTION_ONLY");
     checkedOrigin(req);
@@ -79,12 +80,16 @@ export default async function handler(req,res) {
     assert(typeof bearer==="string" && bearer.startsWith("Bearer ") && bearer.length < 8200,"AUTH_REQUIRED");
     const account=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON||"{}");
     assert(account.project_id==="kenji-ai-workspace" && process.env.FIREBASE_PROJECT_ID===account.project_id,"FIREBASE_PROJECT_MISMATCH");
+    stage="firebase_init";
     const app=getApps()[0]||initializeApp({credential:cert(account),projectId:account.project_id});
+    stage="auth_verify";
     const user=await getAuth(app).verifyIdToken(bearer.slice(7),true);
     assert(user.uid===OWNER_UID && user.email_verified===true && user.email?.toLowerCase()===OWNER_EMAIL,"OWNER_ONLY");
     assertStripeKey(process.env.STRIPE_SECRET_KEY);
+    stage="stripe_initialize";
     const stripe=new Stripe(process.env.STRIPE_SECRET_KEY);
     // Check actual Production Stripe credentials, not an unrelated connected account.
+    stage="stripe_live_preflight";
     await stripePreflight(stripe);
     const db=getFirestore(app);
     const oldUser=db.collection("users").doc(user.uid);
@@ -94,6 +99,7 @@ export default async function handler(req,res) {
     const markerRef=liveUser.collection("creditLedger").doc(OPENING_LEDGER_ID);
     const ledgerQuery=oldUser.collection("creditLedger").limit(51);
     const orderQuery=db.collection("billingOrders").where("uid","==",user.uid).limit(51);
+    stage="firestore_read";
     const [legacy,live,marker,ledgers,orders]=await Promise.all([
       oldRef.get(),liveRef.get(),markerRef.get(),ledgerQuery.get(),orderQuery.get()
     ]);
@@ -102,6 +108,7 @@ export default async function handler(req,res) {
         return res.status(200).json({status:"already_complete",liveCredits:live.data().creditBalance??0});
       assert(false,"LIVE_RECORD_ALREADY_EXISTS");
     }
+    stage="history_validation";
     const snapshot=validateLegacy(legacy,ledgers.docs,orders.docs);
     const proof=createHash("sha256").update(JSON.stringify(snapshot)).digest("hex");
     if(req.method==="GET") return res.status(200).json({
@@ -111,6 +118,7 @@ export default async function handler(req,res) {
     });
     assert(req.body?.approval==="START_LIVE_AT_ZERO" && req.body?.proof===proof,"APPROVAL_OR_PROOF_INVALID");
     // Re-read all historical and destination records inside the transaction, before writing anything.
+    stage="migration_transaction";
     const result=await db.runTransaction(async tx=>{
       const [oldNow,liveNow,markerNow,ledgerNow,ordersNow]=await Promise.all([
         tx.get(oldRef),tx.get(liveRef),tx.get(markerRef),tx.get(ledgerQuery),tx.get(orderQuery)
@@ -134,13 +142,16 @@ export default async function handler(req,res) {
       });
       return "migration_complete";
     },{maxAttempts:3});
+    stage="post_write_verify";
     const [after,markerAfter]=await Promise.all([liveRef.get(),markerRef.get()]);
     assert(after.data()?.legacyReviewComplete===true && after.data()?.creditBalance===0 && markerAfter.exists,"POST_WRITE_VERIFICATION_FAILED");
     return res.status(200).json({status:result,liveCredits:0,legacyPreserved:true,reviewReference:REFERENCE});
   } catch(e) {
     const code=typeof e.auditCode==="string" ? e.auditCode : "PREFLIGHT_FAILED";
-    console.error("[zero-live-migration]",{code});
+    const className=typeof e?.type==="string" && /^Stripe[A-Za-z]{2,40}$/.test(e.type)?e.type:undefined;
+    const firestoreCode=typeof e?.code==="string" && /^(permission-denied|failed-precondition|unavailable|not-found|unauthenticated)$/.test(e.code)?e.code:undefined;
+    console.error("[zero-live-migration]",{code,stage,stripeErrorType:className,firestoreCode});
     const status=["OWNER_ONLY","AUTH_REQUIRED"].includes(code)?403:code==="LIVE_RECORD_ALREADY_EXISTS"?409:code==="PRODUCTION_ONLY"?503:code==="ORIGIN_INVALID"?403:422;
-    return res.status(status).json({error:"Migration blocked by safety check.",check:code});
+    return res.status(status).json({error:"Migration blocked by safety check.",check:code,stage,reason:className||firestoreCode||null});
   }
 }
