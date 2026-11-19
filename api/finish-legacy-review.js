@@ -56,14 +56,24 @@ function validateLegacy(legacy, ledger, orders) {
       p.data().stripeCheckoutSessionId === o.stripeCheckoutSessionId);
     const paidTestPurchase = o.status === "paid" &&
       checkoutMode === "test" && ledgerMatches;
+    // A second Test-mode paid order can exist without an entry in the
+    // historical credit ledger. It is NOT proof of entitlement or a Live
+    // payment. Record it as an excluded historical exception only if there
+    // is exactly one such order, its owner matches, and its Checkout is
+    // explicitly cs_test_. Never manufacture a ledger entry or grant credits.
+    const paidTestUnledgered = o.status === "paid" &&
+      checkoutMode === "test" && !ledgerMatches;
     const pendingOrFailed = ["checkout_created","checkout_pending","checkout_creation_failed","cancelled","expired","failed"].includes(o.status);
     const allowed = ownerMatches &&
-      (paidTestPurchase || (checkoutMode !== "live" && pendingOrFailed));
-    return {allowed, ownerMatches, checkoutMode,
-      ledgerMatches, status: typeof o.status === "string" &&
+      (paidTestPurchase || paidTestUnledgered || (checkoutMode !== "live" && pendingOrFailed));
+    return {allowed, ownerMatches, checkoutMode, ledgerMatches,
+      paidTestUnledgered: ownerMatches && paidTestUnledgered,
+      status: typeof o.status === "string" &&
         /^[a-z_]{1,40}$/.test(o.status) ? o.status : "other"};
   });
-  if (orders.length > 50 || reviewRows.some(row => !row.allowed)) {
+  const unmatchedPaidTests = reviewRows.filter(row => row.paidTestUnledgered);
+  if (orders.length > 50 || unmatchedPaidTests.length !== 1 ||
+      reviewRows.some(row => !row.allowed)) {
     const error = new Error("LEGACY_ORDER_REQUIRES_REVIEW");
     error.auditCode = "LEGACY_ORDER_REQUIRES_REVIEW";
     error.reviewDiagnostics = {
@@ -75,7 +85,9 @@ function validateLegacy(legacy, ledger, orders) {
     };
     throw error;
   }
-  return {legacyUpdateTime:legacy.updateTime.seconds+":"+legacy.updateTime.nanoseconds,ledgerHash:digest(ledger),ordersHash:ordersDigest(orders)};
+  return {legacyUpdateTime:legacy.updateTime.seconds+":"+legacy.updateTime.nanoseconds,
+    ledgerHash:digest(ledger),ordersHash:ordersDigest(orders),
+    excludedUnledgeredPaidTestOrders:unmatchedPaidTests.length};
 }
 function checkedOrigin(req) {
   if (req.method!=="POST") return;
@@ -154,7 +166,9 @@ export default async function handler(req,res) {
     const proof=createHash("sha256").update(JSON.stringify(snapshot)).digest("hex");
     if(req.method==="GET") return res.status(200).json({
       status:"ready",oldCreditsPreserved:legacy.data().creditBalance,liveOpeningCredits:0,
-      historicalLedgerRecords:ledgers.size,historicalOrders:orders.size,stripeLiveAccountVerified:true,
+      historicalLedgerRecords:ledgers.size,historicalOrders:orders.size,
+      excludedUnledgeredPaidTestOrders:snapshot.excludedUnledgeredPaidTestOrders,
+      stripeLiveAccountVerified:true,
       reviewReference:REFERENCE,proof
     });
     assert(req.body?.approval==="START_LIVE_AT_ZERO" && req.body?.proof===proof,"APPROVAL_OR_PROOF_INVALID");
@@ -179,6 +193,8 @@ export default async function handler(req,res) {
         legacyPath:oldRef.path,legacyUpdateTime:snapshot.legacyUpdateTime,
         historicalLedgerDigest:snapshot.ledgerHash,
         historicalOrdersDigest:snapshot.ordersHash,
+        excludedUnledgeredPaidTestOrders:snapshot.excludedUnledgeredPaidTestOrders,
+        reviewedException:"one_paid_test_checkout_without_matching_credit_ledger_no_live_entitlement",
         createdAt:FieldValue.serverTimestamp()
       });
       return "migration_complete";
