@@ -458,6 +458,24 @@ test('billing UI offers all four subscriptions alongside four one-time Credits p
   assert.match(html, /\/api\/stripe-credit-checkout/);
 });
 
+test('scoped Stripe keys preserve the billing mode and live checkout gate', () => {
+  const check = (environment, key, gate) => {
+    const c = load('api/stripe-credit-checkout.js', {
+      VERCEL_ENV: environment, STRIPE_LIVE_CHECKOUT_ENABLED: gate
+    });
+    try { c.assertStripeKey(key, true); return "ok"; }
+    catch (error) { return error.message; }
+  };
+  assert.equal(check('production', 'rk_live_restricted_fixture', 'true'), 'ok');
+  assert.equal(check('production', 'sk_live_secret_fixture', 'true'), 'ok');
+  assert.match(check('production', 'rk_live_restricted_fixture', 'false'), /disabled/);
+  assert.match(check('production', 'rk_test_fixture', 'true'), /not configured/);
+  assert.match(check('production', 'sk_test_fixture', 'true'), /not configured/);
+  assert.equal(check('preview', 'rk_test_restricted_fixture'), 'ok');
+  assert.match(check('preview', 'rk_live_fixture'), /Test Mode/);
+  assert.match(check('preview', 'sk_live_fixture'), /Test Mode/);
+});
+
 test('subscription and live payment gates remain explicit before deployment', () => {
   const subscription = fs.readFileSync('api/stripe-checkout.js', 'utf8');
   const credit = fs.readFileSync('api/stripe-credit-checkout.js', 'utf8');
