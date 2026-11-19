@@ -48,7 +48,8 @@ function allowedOrigin(origin) {
     const parsed = new URL(origin);
     const host = parsed.hostname;
     return parsed.protocol === "https:" && !parsed.port && !parsed.username && !parsed.password &&
-      (host === "kenji-smart-tools.vercel.app" ||
+      (host === "kenjismarttools.com" || host === "www.kenjismarttools.com" ||
+       host === "kenji-smart-tools.vercel.app" ||
        (host.startsWith("kenji-smart-tools-") && host.endsWith(".vercel.app")));
   } catch { return false; }
 }
