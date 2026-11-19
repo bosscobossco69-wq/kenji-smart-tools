@@ -46,20 +46,35 @@ function validateLegacy(legacy, ledger, orders) {
   assert(purchases.length === 1 && usage.length === 5, "LEDGER_TYPES_UNKNOWN");
   assert(purchases[0].data().credits === 10000 && mode(purchases[0].data().stripeCheckoutSessionId) === "test", "PURCHASE_NOT_TEST");
   assert(usage.every(d=>d.data().credits === -1 && ["refunded","completed"].includes(d.data().status)), "AI_USAGE_UNEXPECTED");
-  assert(orders.length <= 50 && orders.every(d => {
-    const o=d.data();const m=mode(o.stripeCheckoutSessionId);
-    // A completed Stripe Test-mode order becomes "paid" after its signed
-    // webhook is processed. The former allowlist omitted "paid", incorrectly
-    // blocking the owner's reviewed zero-Live migration. Only accept a paid
-    // order if its Checkout session is explicitly Test-mode AND the sole
-    // historical credit purchase ledger matches this precise order.
-    const paidTestPurchase = o.status === "paid" && m === "test" &&
-      purchases.some(p => p.data().orderId === d.id &&
-        p.data().stripeCheckoutSessionId === o.stripeCheckoutSessionId);
+  // Owner-visible diagnostic only: never return document IDs, Checkout IDs,
+  // customer data or other credentials. Keep all existing fail-closed rules.
+  const reviewRows = orders.map(d => {
+    const o = d.data(), checkoutMode = mode(o.stripeCheckoutSessionId);
+    const ownerMatches = o.uid === legacy.ref.parent.parent.id;
+    const ledgerMatches = purchases.some(p =>
+      p.data().orderId === d.id &&
+      p.data().stripeCheckoutSessionId === o.stripeCheckoutSessionId);
+    const paidTestPurchase = o.status === "paid" &&
+      checkoutMode === "test" && ledgerMatches;
     const pendingOrFailed = ["checkout_created","checkout_pending","checkout_creation_failed","cancelled","expired","failed"].includes(o.status);
-    return o.uid === legacy.ref.parent.parent.id &&
-      (paidTestPurchase || (m !== "live" && pendingOrFailed));
-  }), "LEGACY_ORDER_REQUIRES_REVIEW");
+    const allowed = ownerMatches &&
+      (paidTestPurchase || (checkoutMode !== "live" && pendingOrFailed));
+    return {allowed, ownerMatches, checkoutMode,
+      ledgerMatches, status: typeof o.status === "string" &&
+        /^[a-z_]{1,40}$/.test(o.status) ? o.status : "other"};
+  });
+  if (orders.length > 50 || reviewRows.some(row => !row.allowed)) {
+    const error = new Error("LEGACY_ORDER_REQUIRES_REVIEW");
+    error.auditCode = "LEGACY_ORDER_REQUIRES_REVIEW";
+    error.reviewDiagnostics = {
+      totalOrders: orders.length,
+      truncated: orders.length > 50,
+      rejected: reviewRows.filter(row => !row.allowed)
+        .map(({ownerMatches,checkoutMode,ledgerMatches,status}) =>
+          ({ownerMatches,checkoutMode,ledgerMatches,status}))
+    };
+    throw error;
+  }
   return {legacyUpdateTime:legacy.updateTime.seconds+":"+legacy.updateTime.nanoseconds,ledgerHash:digest(ledger),ordersHash:ordersDigest(orders)};
 }
 function checkedOrigin(req) {
@@ -178,6 +193,7 @@ export default async function handler(req,res) {
     const firestoreCode=typeof e?.code==="string" && /^(permission-denied|failed-precondition|unavailable|not-found|unauthenticated)$/.test(e.code)?e.code:undefined;
     console.error("[zero-live-migration]",{code,stage,stripeErrorType:className,firestoreCode});
     const status=["OWNER_ONLY","AUTH_REQUIRED"].includes(code)?403:code==="LIVE_RECORD_ALREADY_EXISTS"?409:code==="PRODUCTION_ONLY"?503:code==="ORIGIN_INVALID"?403:422;
-    return res.status(status).json({error:"Migration blocked by safety check.",check:code,stage,reason:className||firestoreCode||null});
+    return res.status(status).json({error:"Migration blocked by safety check.",check:code,stage,reason:className||firestoreCode||null,
+      ...(code==="LEGACY_ORDER_REQUIRES_REVIEW" && e.reviewDiagnostics ? {reviewDiagnostics:e.reviewDiagnostics} : {})});
   }
 }
