@@ -206,13 +206,30 @@
     .feedback-consent input{width:auto;flex:0 0 auto;margin-top:3px}
     @media (max-width: 850px) { .hero { grid-template-columns: 1fr; padding-top: 80px; gap:24px; } .hero-orbit { min-height: 300px; } .tools-grid, .about-grid { grid-template-columns: 1fr; } .more-tools-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     @media (max-width: 560px) { .shell { width: min(100% - 24px, 1180px); } .nav-links { display: none; } .nav-inner { gap:8px; padding:11px; } .brand { gap:7px; font-size:.74rem; letter-spacing:.04em; } .brand-mark { flex:0 0 28px; width:28px; height:28px; } .nav-cta { padding:8px 9px; font-size:.75rem; } h1 { font-size:clamp(2.8rem,13vw,3.6rem); } .hero { padding-top:60px; } .hero-orbit { min-height:250px; } .section-head { display: block; } .form-row, .principles { grid-template-columns: 1fr; } .tool-card { padding: 19px; } .file-picker { min-height: 56px; } .file-button { min-height: 42px; padding-inline: 13px; } .more-tools-grid { grid-template-columns:1fr; } .hero-actions .btn { text-align:center; } input,select,textarea { min-width:0; font-size:16px; } }
+
+    /* Paid web design services: keep free utilities accessible below. */
+    .service-offer{padding-top:34px;padding-bottom:64px;scroll-margin-top:100px}
+    .service-head{max-width:740px;margin-bottom:24px}
+    .service-head h2{margin:8px 0 14px}
+    .service-head p{color:var(--muted);line-height:1.7}
+    .service-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+    .service-plan{display:flex;flex-direction:column;gap:14px;padding:27px;border:1px solid rgba(214,184,140,.28);border-radius:22px;background:rgba(45,36,29,.85)}
+    .service-plan.featured{border-color:#d6b88c;box-shadow:0 0 0 1px rgba(214,184,140,.3)}
+    .service-plan h3{margin:0;font-size:1.45rem}
+    .service-plan .service-price{font-size:2.5rem;line-height:1.2;font-weight:800;color:#e4c596}
+    .service-plan .service-price small{font-size:.85rem;font-weight:600;color:var(--muted)}
+    .service-plan p{color:var(--muted);line-height:1.6;margin:0}
+    .service-plan ul{color:var(--text);padding-left:21px;line-height:1.85;margin:0 0 12px}
+    .service-plan .btn{display:block;text-align:center;margin-top:auto}
+    .service-note{color:var(--muted);font-size:.84rem;line-height:1.7;margin-top:20px}
+    @media(max-width:850px){.service-grid{grid-template-columns:1fr}.service-plan{padding:22px}.service-offer{padding-top:20px}}
   </style>
   <link rel="stylesheet" href="/assets/kenji-brand-system.css">
 </head>
 <body>
   <header class="nav shell"><div class="nav-inner">
     <a class="brand" href="#home"><span class="brand-mark"></span><span>KENJI / SMART TOOLS</span></a>
-    <nav class="nav-links" id="mobileNavLinks"><a href="#tools">Tools</a><a href="#integrations">Integrations</a><a href="#feedback">Feedback</a><a href="#about">About</a><a href="#privacy">Privacy</a><a href="#contact">Contact</a></nav><button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" aria-controls="mobileNavLinks" aria-expanded="false">Menu ☰</button>
+    <nav class="nav-links" id="mobileNavLinks"><a href="#web-services">Website Services</a><a href="#tools">Tools</a><a href="#integrations">Integrations</a><a href="#feedback">Feedback</a><a href="#about">About</a><a href="#privacy">Privacy</a><a href="#contact">Contact</a></nav><button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" aria-controls="mobileNavLinks" aria-expanded="false">Menu ☰</button>
     <div class="nav-actions"><a class="nav-cta" href="#tools">Open tools ↗</a><div class="login-cta" id="mainAuthNav"><a href="/workspace/login.html">Log in</a></div></div>
   </div></header>
 
@@ -222,9 +239,41 @@
         <span class="eyebrow"><i></i> browser-first utilities</span>
         <h1>Simple tools.<br><span class="gradient-text">Sharper work.</span></h1>
         <p class="hero-copy">A focused toolkit for freelancers, creators, and small businesses. Fast, private, and designed to help you move from idea to action without unnecessary friction.</p>
-        <div class="hero-actions"><a class="btn" href="#tools">Explore free tools</a><a class="btn secondary" href="/ai-customer-reply.html">Try AI Customer Reply</a></div>
+        <div class="hero-actions"><a class="btn" href="#web-services">Website services from US$99</a><a class="btn secondary" href="#tools">Explore free tools</a><a class="btn secondary" href="/ai-customer-reply.html">Try AI Customer Reply</a></div>
       </div>
       <div class="hero-orbit" aria-hidden="true"><div class="orbital"><div class="core"><span>K</span></div><b class="orbit-dot dot-1"></b><b class="orbit-dot dot-2"></b><b class="orbit-dot dot-3"></b></div></div>
+    </section>
+
+    <section class="section shell service-offer" id="web-services" aria-labelledby="web-services-title">
+      <div class="service-head">
+        <div class="section-kicker">Professional services / KENJI Web &amp; Digital</div>
+        <h2 id="web-services-title">Need a website for your business?</h2>
+        <p>Choose a website package below and request a quote. These are <strong>paid website-building services</strong>; our browser utilities remain available separately for free.</p>
+      </div>
+      <div class="service-grid">
+        <article class="service-plan">
+          <h3>Basic</h3>
+          <div class="service-price">US$99 <small>starting price</small></div>
+          <p>A clear online home for your business.</p>
+          <ul><li>1 responsive business page</li><li>Contact or WhatsApp button</li><li>Basic on-page SEO</li><li>Deployment assistance</li></ul>
+          <a class="btn secondary" href="mailto:kenjing3073@gmail.com?subject=Website%20Basic%20package%20enquiry%20%E2%80%94%20US%2499&amp;body=Hello%20KENJI%20Web%20%26%20Digital%2C%0A%0AI%20am%20interested%20in%20the%20Basic%20website%20package%20advertised%20from%20US%2499.%0A%0ABusiness%20name%3A%0AWebsite%20requirements%3A%0APreferred%20contact%20method%3A%0A%0APlease%20confirm%20the%20scope%2C%20final%20quote%20and%20delivery%20details%20before%20payment.">Request Basic quote</a>
+        </article>
+        <article class="service-plan featured">
+          <h3>Professional</h3>
+          <div class="service-price">US$249 <small>starting price</small></div>
+          <p>A fuller site for a growing business.</p>
+          <ul><li>Up to 5 responsive pages</li><li>Contact form or enquiry link</li><li>Basic on-page SEO</li><li>Mobile-friendly layout and deployment assistance</li></ul>
+          <a class="btn" href="mailto:kenjing3073@gmail.com?subject=Website%20Professional%20package%20enquiry%20%E2%80%94%20US%24249&amp;body=Hello%20KENJI%20Web%20%26%20Digital%2C%0A%0AI%20am%20interested%20in%20the%20Professional%20website%20package%20advertised%20from%20US%24249.%0A%0ABusiness%20name%3A%0AWebsite%20requirements%3A%0APreferred%20contact%20method%3A%0A%0APlease%20confirm%20the%20scope%2C%20final%20quote%20and%20delivery%20details%20before%20payment.">Request Professional quote</a>
+        </article>
+        <article class="service-plan">
+          <h3>Premium</h3>
+          <div class="service-price">US$499 <small>starting price</small></div>
+          <p>A larger custom business website.</p>
+          <ul><li>Up to 10 responsive pages</li><li>Custom visual layout</li><li>Basic on-page SEO</li><li>Deployment assistance and launch checks</li></ul>
+          <a class="btn secondary" href="mailto:kenjing3073@gmail.com?subject=Website%20Premium%20package%20enquiry%20%E2%80%94%20US%24499&amp;body=Hello%20KENJI%20Web%20%26%20Digital%2C%0A%0AI%20am%20interested%20in%20the%20Premium%20website%20package%20advertised%20from%20US%24499.%0A%0ABusiness%20name%3A%0AWebsite%20requirements%3A%0APreferred%20contact%20method%3A%0A%0APlease%20confirm%20the%20scope%2C%20final%20quote%20and%20delivery%20details%20before%20payment.">Request Premium quote</a>
+        </article>
+      </div>
+      <p class="service-note">Prices are in USD and start at the amounts shown. Final scope, delivery, revisions and payment terms are confirmed with you before any charge. Domain registration, paid hosting and third-party subscriptions are not included. Selecting a package opens an email enquiry; it does not charge your card. <a href="#tools" style="text-decoration:underline">Looking for free tools? Browse them here.</a></p>
     </section>
 
     <section class="section shell" id="all-tools" aria-label="All 13 tools">
