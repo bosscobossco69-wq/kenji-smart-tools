@@ -3,16 +3,20 @@
 <meta name="robots" content="noindex,nofollow"><title>Website Orders | KENJI Admin</title>
 <style>
 :root{color-scheme:dark;font:16px/1.5 system-ui,-apple-system,sans-serif;color:#f2e8d8;background:#17120e}*{box-sizing:border-box}body{margin:0}.shell{width:min(1160px,calc(100% - 28px));margin:auto}header{border-bottom:1px solid #6a5845;padding:18px 0;display:flex;align-items:center;justify-content:space-between;gap:12px}a{color:#f1ce99}h1{font-size:clamp(1.7rem,4vw,2.4rem)}p{color:#cfc1ae}button,select,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:9px;background:#dfbc87;color:#251b13;padding:11px 16px;font-weight:750}button:disabled{opacity:.55;cursor:wait}.muted{color:#cfc1ae}.bar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:12px 0 24px}.card{border:1px solid #75644d;border-radius:17px;padding:18px;background:#302922;margin-bottom:16px}.top{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;flex-wrap:wrap}h2{margin:0;font-size:1.2rem}.pill{border:1px solid #ad8f66;border-radius:999px;padding:4px 9px;font-size:.8rem}.small{font-size:.85rem}.details{white-space:pre-wrap;overflow-wrap:anywhere;background:#201b17;padding:12px;border-radius:10px}label{display:block;margin:10px 0 4px}select,textarea{width:100%;padding:10px;border-radius:8px;background:#1e1915;color:#f2e8d8;border:1px solid #786854}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:650px){.grid{grid-template-columns:1fr}}.message{padding:12px;background:#403427;border-radius:10px;margin:20px 0} .hidden{display:none}.order-meta{overflow-wrap:anywhere}.stack{display:grid;gap:4px}
-</style></head><body><main class="shell">
+ .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0 22px}.stat{background:#32291f;border:1px solid #776045;border-radius:12px;padding:13px}.stat strong{display:block;font-size:1.65rem;color:#f1cf9c}.stat span{color:#dacbb8;font-size:.83rem}.alert{border:1px solid #b18c51;padding:13px 16px;background:#44331e;border-radius:12px;margin-bottom:18px}.filter{background:#2c241d;color:#f4dfbf;padding:10px;border:1px solid #907955;border-radius:9px}.card.priority{border-color:#c89f61} .card .next-action{color:#f6d7a4;font-weight:700}.mini-notice{font-size:.86rem;margin:0 0 12px}@media(max-width:550px){.stats{grid-template-columns:1fr 1fr}.stat:last-child{grid-column:span 2}}</style></head><body><main class="shell">
 <header><strong>KENJI / ORDERS</strong><a href="/">Main site</a></header>
 <h1>Website service orders</h1>
 <p>Administrator-only dashboard · Real Stripe payment status, customer project requirements and delivery workflow. Never mark unpaid orders as paid manually.</p>
 <div class="bar"><button type="button" id="reload">Refresh orders</button><span id="count" class="muted"></span><span id="signedin" class="muted"></span></div>
+<div class="stats" aria-label="Order overview"><div class="stat"><strong id="paidCount">0</strong><span>Confirmed paid</span></div><div class="stat"><strong id="needsCount">0</strong><span>Needs action</span></div><div class="stat"><strong id="pendingCount">0</strong><span>Not paid yet</span></div></div>
+<div class="bar"><label for="orderFilter">Show orders</label><select class="filter" id="orderFilter"><option value="action">Need action first</option><option value="all">All orders</option><option value="paid">Paid orders only</option><option value="unpaid">Unpaid / awaiting payment</option></select></div>
+<div id="newAlert" class="alert hidden" role="status" aria-live="polite"></div>
+<p class="muted mini-notice">Auto-refreshes every 60 seconds while this page is open. Browser notifications are optional and work only while the dashboard is open. For alerts when the page is closed, an external notification service must be connected.</p>
 <div id="message" class="message" role="status" aria-live="polite">Verifying administrator login…</div><div id="orders"></div>
 </main><script type="module">
 import {auth,authReady,onAuthStateChanged} from "/workspace/firebase-auth.js";
 const el=id=>document.getElementById(id),message=el("message"),container=el("orders");
-let user=null,loading=false;
+let user=null,loading=false,hasLoaded=false,previousPaid=new Set(),previousIntake=new Set();
 function say(s){message.textContent=s;}
 const money=c=>Number.isInteger(c)?"US$"+(c/100).toFixed(2):"Unknown";
 const date=v=>v?new Date(v).toLocaleString():"—";
@@ -28,13 +32,42 @@ async function refresh(){
  if(!user?.emailVerified){say("Sign in with your verified administrator Firebase account first.");return;}
  if(loading)return;loading=true;el("reload").disabled=true;say("Loading orders…");
  try{const data=await request();container.replaceChildren();el("count").textContent=data.count+" recent orders (max 60)";
-   if(!data.orders.length)say("No website orders yet.");else say("Orders loaded. Only verified Stripe payments should be fulfilled.");
-   for(const o of data.orders){
-    const card=document.createElement("article");card.className="card";
+   if(!data.orders.length)say("No website orders yet.");else say("Orders loaded. Confirmed payments and new client requirements appear below.");
+   const paid=data.orders.filter(o=>o.paymentStatus==="paid");
+   const pending=data.orders.filter(o=>o.paymentStatus!=="paid");
+   const needs=paid.filter(o=>o.workflowStatus!=="delivered"&&(o.workflowStatus==="new"||!o.onboardingSubmittedAt));
+   el("paidCount").textContent=String(paid.length);
+   el("needsCount").textContent=String(needs.length);
+   el("pendingCount").textContent=String(pending.length);
+   const newPaid=paid.filter(o=>!previousPaid.has(o.orderId));
+   const submitted=paid.filter(o=>o.onboardingSubmittedAt&&!previousIntake.has(o.orderId));
+   const alert=el("newAlert");
+   if(hasLoaded&&(newPaid.length||submitted.length)){
+     alert.classList.remove("hidden");
+     alert.textContent=(newPaid.length?newPaid.length+" newly confirmed payment(s). ":"")+(submitted.length?submitted.length+" new project requirements received.":"");
+   }else if(!hasLoaded&&needs.length){
+     alert.classList.remove("hidden");alert.textContent=needs.length+" paid order(s) need your attention.";
+   }else if(!hasLoaded){alert.classList.add("hidden");}
+   previousPaid=new Set(paid.map(o=>o.orderId));
+   previousIntake=new Set(paid.filter(o=>o.onboardingSubmittedAt).map(o=>o.orderId));
+   hasLoaded=true;
+   const filter=el("orderFilter").value;
+   const filtered=[...data.orders].filter(o=>filter==="all"||filter==="paid"&&o.paymentStatus==="paid"||filter==="unpaid"&&o.paymentStatus!=="paid"||filter==="action").sort((a,b)=>{
+     if(filter!=="action")return 0;
+     const rank=o=>o.paymentStatus==="paid"&&o.workflowStatus!=="delivered"&&o.workflowStatus!=="on_hold"?(o.onboardingSubmittedAt?0:1):o.paymentStatus==="paid"?2:3;
+     return rank(a)-rank(b);
+   });
+   for(const o of filtered){
+    const card=document.createElement("article");card.className="card"+(o.paymentStatus==="paid"&&o.workflowStatus!=="delivered"?" priority":"");
     const top=document.createElement("div");top.className="top";
     const title=document.createElement("h2");title.textContent=(o.packageId||"Website")+" · "+money(o.amount);
     const badge=document.createElement("span");badge.className="pill";badge.textContent="Payment: "+o.paymentStatus;
     top.append(title,badge);card.append(top);
+    if(o.paymentStatus==="paid"&&o.workflowStatus!=="delivered"){
+      const action=document.createElement("p");action.className="next-action";
+      action.textContent=o.onboardingSubmittedAt?"Action: Review requirements and begin the website project.":"Action: Await customer requirements; contact customer if needed.";
+      card.append(action);
+    }
     const meta=document.createElement("div");meta.className="order-meta small";
     line(meta,"Order ID:",o.orderId);line(meta,"Purchased:",date(o.createdAt));line(meta,"Paid:",date(o.paidAt));line(meta,"Stripe email:",o.customerEmail);
     card.append(meta);
@@ -72,6 +105,9 @@ async function refresh(){
  finally{loading=false;el("reload").disabled=false;}
 }
 el("reload").addEventListener("click",refresh);
+el("orderFilter").addEventListener("change",refresh);
+window.setInterval(()=>{if(!document.hidden&&user?.emailVerified)refresh();},60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&user?.emailVerified)refresh();});
 await authReady;
 onAuthStateChanged(auth,u=>{user=u;el("signedin").textContent=u?.email||"Not signed in";refresh();});
 </script></body></html>
