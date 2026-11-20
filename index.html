@@ -256,24 +256,24 @@
           <div class="service-price">US$99 <small>starting price</small></div>
           <p>A clear online home for your business.</p>
           <ul><li>1 responsive business page</li><li>Contact or WhatsApp button</li><li>Basic on-page SEO</li><li>Deployment assistance</li></ul>
-          <a class="btn secondary" href="mailto:kenjing3073@gmail.com?subject=Website%20Basic%20package%20enquiry%20%E2%80%94%20US%2499&amp;body=Hello%20KENJI%20Web%20%26%20Digital%2C%0A%0AI%20am%20interested%20in%20the%20Basic%20website%20package%20advertised%20from%20US%2499.%0A%0ABusiness%20name%3A%0AWebsite%20requirements%3A%0APreferred%20contact%20method%3A%0A%0APlease%20confirm%20the%20scope%2C%20final%20quote%20and%20delivery%20details%20before%20payment.">Request Basic quote</a>
+          <button class="btn website-pay-btn" type="button" data-package="basic">Pay securely · Get Basic package</button>
         </article>
         <article class="service-plan featured">
           <h3>Professional</h3>
           <div class="service-price">US$249 <small>starting price</small></div>
           <p>A fuller site for a growing business.</p>
           <ul><li>Up to 5 responsive pages</li><li>Contact form or enquiry link</li><li>Basic on-page SEO</li><li>Mobile-friendly layout and deployment assistance</li></ul>
-          <a class="btn" href="mailto:kenjing3073@gmail.com?subject=Website%20Professional%20package%20enquiry%20%E2%80%94%20US%24249&amp;body=Hello%20KENJI%20Web%20%26%20Digital%2C%0A%0AI%20am%20interested%20in%20the%20Professional%20website%20package%20advertised%20from%20US%24249.%0A%0ABusiness%20name%3A%0AWebsite%20requirements%3A%0APreferred%20contact%20method%3A%0A%0APlease%20confirm%20the%20scope%2C%20final%20quote%20and%20delivery%20details%20before%20payment.">Request Professional quote</a>
+          <button class="btn website-pay-btn" type="button" data-package="professional">Pay securely · Get Professional package</button>
         </article>
         <article class="service-plan">
           <h3>Premium</h3>
           <div class="service-price">US$499 <small>starting price</small></div>
           <p>A larger custom business website.</p>
           <ul><li>Up to 10 responsive pages</li><li>Custom visual layout</li><li>Basic on-page SEO</li><li>Deployment assistance and launch checks</li></ul>
-          <a class="btn secondary" href="mailto:kenjing3073@gmail.com?subject=Website%20Premium%20package%20enquiry%20%E2%80%94%20US%24499&amp;body=Hello%20KENJI%20Web%20%26%20Digital%2C%0A%0AI%20am%20interested%20in%20the%20Premium%20website%20package%20advertised%20from%20US%24499.%0A%0ABusiness%20name%3A%0AWebsite%20requirements%3A%0APreferred%20contact%20method%3A%0A%0APlease%20confirm%20the%20scope%2C%20final%20quote%20and%20delivery%20details%20before%20payment.">Request Premium quote</a>
+          <button class="btn website-pay-btn" type="button" data-package="premium">Pay securely · Get Premium package</button>
         </article>
       </div>
-      <p class="service-note">Prices are in USD and start at the amounts shown. Final scope, delivery, revisions and payment terms are confirmed with you before any charge. Domain registration, paid hosting and third-party subscriptions are not included. Selecting a package opens an email enquiry; it does not charge your card. <a href="#tools" style="text-decoration:underline">Looking for free tools? Browse them here.</a></p>
+      <p class="service-note">Prices are in USD and start at the amounts shown. Listed package prices are charged at checkout. Final requirements, delivery timelines and revision scope will be agreed during onboarding. Domain registration, paid hosting and third-party subscriptions are not included. Selecting a package opens secure Stripe Checkout for a one-time payment. After confirmed payment, your package is activated and you can submit project requirements immediately. A completed custom website is delivered later after scope and timing are agreed. <a href="#tools" style="text-decoration:underline">Looking for free tools? Browse them here.</a></p>
     </section>
 
     <section class="section shell" id="all-tools" aria-label="All 13 tools">
@@ -484,6 +484,27 @@
       menu.querySelectorAll("a").forEach(link=>link.addEventListener("click",close));
       document.addEventListener("keydown",event=>{if(event.key==="Escape")close();});
     })();
+  </script>
+  <script>
+    // These one-time website service checkouts do not alter AI Credits or subscriptions.
+    document.querySelectorAll(".website-pay-btn").forEach(button=>button.addEventListener("click",async()=>{
+      if(button.disabled)return;
+      const original=button.textContent;
+      button.disabled=true;button.textContent="Opening secure Stripe Checkout…";
+      try {
+        const response=await fetch("/api/website-checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({packageId:button.dataset.package})});
+        const data=await response.json();
+        if(!response.ok || typeof data.url!=="string")throw Error(data.error||"Checkout is unavailable.");
+        const url=new URL(data.url);
+        if(url.protocol!=="https:"||url.hostname!=="checkout.stripe.com")throw Error("Unexpected payment destination.");
+        location.assign(data.url);
+      }catch(error){
+        button.textContent=original;button.disabled=false;
+        let note=button.nextElementSibling;
+        if(!note||!note.classList.contains("website-checkout-notice")){note=document.createElement("p");note.className="website-checkout-notice";note.setAttribute("role","alert");button.insertAdjacentElement("afterend",note);}
+        note.textContent=error.message||"Unable to open checkout. Please try again.";
+      }
+    }));
   </script>
   <script type="module">
     import {auth,authReady,onAuthStateChanged,signOut} from "./workspace/firebase-auth.js";
