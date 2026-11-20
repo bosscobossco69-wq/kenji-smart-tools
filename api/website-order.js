@@ -56,7 +56,7 @@ export default async function handler(req, res) {
       const { businessName, projectDetails, contactEmail } = req.body || {};
       if (typeof businessName !== "string" || businessName.trim().length < 2 || businessName.length > 150 ||
           typeof projectDetails !== "string" || projectDetails.trim().length < 10 || projectDetails.length > 5000 ||
-          typeof contactEmail !== "string" || contactEmail.length > 254 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(contactEmail)) {
+          typeof contactEmail !== "string" || contactEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
         return res.status(400).json({ error: "Provide business name, a valid email and project requirements." });
       }
       await ref.set({ onboarding: { businessName: businessName.trim(), projectDetails: projectDetails.trim(),
