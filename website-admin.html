@@ -11,7 +11,7 @@
 <div class="stats" aria-label="Order overview"><div class="stat"><strong id="paidCount">0</strong><span>Confirmed paid</span></div><div class="stat"><strong id="needsCount">0</strong><span>Needs action</span></div><div class="stat"><strong id="pendingCount">0</strong><span>Not paid yet</span></div></div>
 <div class="bar"><label for="orderFilter">Show orders</label><select class="filter" id="orderFilter"><option value="action">Need action first</option><option value="all">All orders</option><option value="paid">Paid orders only</option><option value="unpaid">Unpaid / awaiting payment</option></select></div>
 <div id="newAlert" class="alert hidden" role="status" aria-live="polite"></div>
-<p class="muted mini-notice">Auto-refreshes every 60 seconds while this page is open. Browser notifications are optional and work only while the dashboard is open. For alerts when the page is closed, an external notification service must be connected.</p>
+<p class="muted mini-notice">Auto-refreshes every 60 seconds while this page is open. In-page alerts work only while the dashboard is open. For email or phone alerts when the page is closed, an external notification service must be connected.</p>
 <div id="message" class="message" role="status" aria-live="polite">Verifying administrator login…</div><div id="orders"></div>
 </main><script type="module">
 import {auth,authReady,onAuthStateChanged} from "/workspace/firebase-auth.js";
