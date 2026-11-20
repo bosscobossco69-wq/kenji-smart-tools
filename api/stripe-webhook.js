@@ -427,6 +427,53 @@ export default async function handler(req, res) {
       object = await services.stripe.checkout.sessions.retrieve(object.id);
       assertStripeObject(object);
     }
+    // Website services are independent one-time purchases, not AI Credits or subscriptions.
+    // Process them before the general Firebase-linked billing path.
+    if (isCheckoutEvent && object?.metadata?.purchaseType === "website_service") {
+      const orderId = object.metadata.websiteOrderId;
+      const packageId = object.metadata.websitePackageId;
+      const servicePrices = { basic: 9900, professional: 24900, premium: 49900 };
+      const price = Object.hasOwn(servicePrices, packageId) ? servicePrices[packageId] : null;
+      if (!orderId || !price || object.mode !== "payment" || object.currency !== "usd" || object.amount_total !== price) {
+        throw new Error("Website service Stripe payment mismatch.");
+      }
+      const websiteOrderRef = services.db.collection("websiteOrders").doc(orderId);
+      await services.db.runTransaction(async transaction => {
+        const current = await transaction.get(websiteOrderRef);
+        const data = current.data();
+        if (!current.exists || data.packageId !== packageId || data.amount !== price ||
+            (data.stripeCheckoutSessionId && data.stripeCheckoutSessionId !== object.id)) {
+          throw new Error("Website order was not issued by this server.");
+        }
+        // Do not grant access for unpaid, failed, or incomplete Checkout.
+        if (object.payment_status === "paid") {
+          if (data.status !== "paid") transaction.set(websiteOrderRef, {
+            status: "paid",
+            stripeCheckoutSessionId: object.id,
+            stripePaymentIntentId: object.payment_intent || null,
+            buyerEmail: object.customer_details?.email || null,
+            paidAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+        } else if (event.type === "checkout.session.async_payment_failed" && data.status !== "paid") {
+          transaction.set(websiteOrderRef, {
+            status: "payment_failed", updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+        }
+      });
+      await services.db.runTransaction(async transaction => {
+        const claimedEvent = await transaction.get(eventRef);
+        if (claimedEvent.data()?.processingToken !== processingToken) throw new Error("Webhook lease lost.");
+        transaction.set(eventRef, {
+          processed: true, processingStatus: "processed",
+          processingToken: FieldValue.delete(),
+          processingLeaseUntilMs: FieldValue.delete(),
+          websiteOrderId: orderId,
+          processedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+      });
+      return res.status(200).json({ received: true, websiteService: true });
+    }
     let snapshotSequence = null;
     let latestInvoiceSnapshot = null;
     let relatedSubscription = null;
