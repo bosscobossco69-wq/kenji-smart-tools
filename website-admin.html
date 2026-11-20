@@ -1,0 +1,77 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Website Orders | KENJI Admin</title>
+<style>
+:root{color-scheme:dark;font:16px/1.5 system-ui,-apple-system,sans-serif;color:#f2e8d8;background:#17120e}*{box-sizing:border-box}body{margin:0}.shell{width:min(1160px,calc(100% - 28px));margin:auto}header{border-bottom:1px solid #6a5845;padding:18px 0;display:flex;align-items:center;justify-content:space-between;gap:12px}a{color:#f1ce99}h1{font-size:clamp(1.7rem,4vw,2.4rem)}p{color:#cfc1ae}button,select,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:9px;background:#dfbc87;color:#251b13;padding:11px 16px;font-weight:750}button:disabled{opacity:.55;cursor:wait}.muted{color:#cfc1ae}.bar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:12px 0 24px}.card{border:1px solid #75644d;border-radius:17px;padding:18px;background:#302922;margin-bottom:16px}.top{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;flex-wrap:wrap}h2{margin:0;font-size:1.2rem}.pill{border:1px solid #ad8f66;border-radius:999px;padding:4px 9px;font-size:.8rem}.small{font-size:.85rem}.details{white-space:pre-wrap;overflow-wrap:anywhere;background:#201b17;padding:12px;border-radius:10px}label{display:block;margin:10px 0 4px}select,textarea{width:100%;padding:10px;border-radius:8px;background:#1e1915;color:#f2e8d8;border:1px solid #786854}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:650px){.grid{grid-template-columns:1fr}}.message{padding:12px;background:#403427;border-radius:10px;margin:20px 0} .hidden{display:none}.order-meta{overflow-wrap:anywhere}.stack{display:grid;gap:4px}
+</style></head><body><main class="shell">
+<header><strong>KENJI / ORDERS</strong><a href="/">Main site</a></header>
+<h1>Website service orders</h1>
+<p>Administrator-only dashboard · Real Stripe payment status, customer project requirements and delivery workflow. Never mark unpaid orders as paid manually.</p>
+<div class="bar"><button type="button" id="reload">Refresh orders</button><span id="count" class="muted"></span><span id="signedin" class="muted"></span></div>
+<div id="message" class="message" role="status" aria-live="polite">Verifying administrator login…</div><div id="orders"></div>
+</main><script type="module">
+import {auth,authReady,onAuthStateChanged} from "/workspace/firebase-auth.js";
+const el=id=>document.getElementById(id),message=el("message"),container=el("orders");
+let user=null,loading=false;
+function say(s){message.textContent=s;}
+const money=c=>Number.isInteger(c)?"US$"+(c/100).toFixed(2):"Unknown";
+const date=v=>v?new Date(v).toLocaleString():"—";
+const line=(parent,label,value)=>{const p=document.createElement("p");const b=document.createElement("strong");b.textContent=label+" ";p.append(b,document.createTextNode(value||"—"));parent.append(p);};
+async function request(method="GET",data){
+ const token=await user.getIdToken(true);
+ const r=await fetch("/api/website-orders-admin",{method,headers:{Authorization:"Bearer "+token,...(data?{"Content-Type":"application/json"}:{})},...(data?{body:JSON.stringify(data)}:{}) ,cache:"no-store"});
+ const payload=await r.json().catch(()=>({}));
+ if(!r.ok)throw Error(payload.error||"Request failed");
+ return payload;
+}
+async function refresh(){
+ if(!user?.emailVerified){say("Sign in with your verified administrator Firebase account first.");return;}
+ if(loading)return;loading=true;el("reload").disabled=true;say("Loading orders…");
+ try{const data=await request();container.replaceChildren();el("count").textContent=data.count+" recent orders (max 60)";
+   if(!data.orders.length)say("No website orders yet.");else say("Orders loaded. Only verified Stripe payments should be fulfilled.");
+   for(const o of data.orders){
+    const card=document.createElement("article");card.className="card";
+    const top=document.createElement("div");top.className="top";
+    const title=document.createElement("h2");title.textContent=(o.packageId||"Website")+" · "+money(o.amount);
+    const badge=document.createElement("span");badge.className="pill";badge.textContent="Payment: "+o.paymentStatus;
+    top.append(title,badge);card.append(top);
+    const meta=document.createElement("div");meta.className="order-meta small";
+    line(meta,"Order ID:",o.orderId);line(meta,"Purchased:",date(o.createdAt));line(meta,"Paid:",date(o.paidAt));line(meta,"Stripe email:",o.customerEmail);
+    card.append(meta);
+    const intake=document.createElement("div");intake.className="stack";
+    const sub=document.createElement("strong");sub.textContent="Customer requirements";intake.append(sub);
+    if(o.onboarding){
+      line(intake,"Business:",o.onboarding.businessName);line(intake,"Reply email:",o.onboarding.contactEmail);
+      const label=document.createElement("span");label.textContent="Project description:";const description=document.createElement("div");
+      description.className="details";description.textContent=o.onboarding.projectDetails;intake.append(label,description);
+    }else{const p=document.createElement("p");p.textContent="Not submitted yet.";intake.append(p);}
+    card.append(intake);
+    if(o.paymentStatus==="paid"){
+      const form=document.createElement("form");const grid=document.createElement("div");grid.className="grid";
+      const st=document.createElement("div"),nt=document.createElement("div");
+      const sl=document.createElement("label");sl.textContent="Delivery status";
+      const select=document.createElement("select");
+      for(const [key,label] of [["new","New / to review"],["in_progress","In progress"],["on_hold","On hold"],["delivered","Delivered"]]){
+        const opt=document.createElement("option");opt.value=key;opt.textContent=label;select.append(opt);
+      }
+      select.value=o.workflowStatus||"new";st.append(sl,select);
+      const nl=document.createElement("label");nl.textContent="Internal notes (not shown to customer)";
+      const notes=document.createElement("textarea");notes.rows=3;notes.maxLength=1500;notes.value=o.adminNote||"";
+      nt.append(nl,notes);grid.append(st,nt);
+      const save=document.createElement("button");save.type="submit";save.textContent="Save delivery status";
+      const reply=document.createElement("p");reply.className="small";reply.setAttribute("role","status");
+      form.append(grid,save,reply);
+      form.addEventListener("submit",async e=>{e.preventDefault();save.disabled=true;reply.textContent="Saving…";
+        try{await request("POST",{orderId:o.orderId,workflowStatus:select.value,adminNote:notes.value});reply.textContent="Saved successfully.";}
+        catch(err){reply.textContent=err.message;}finally{save.disabled=false;}
+      });card.append(form);
+    }
+    container.append(card);
+   }
+ }catch(err){container.replaceChildren();say(err.message);}
+ finally{loading=false;el("reload").disabled=false;}
+}
+el("reload").addEventListener("click",refresh);
+await authReady;
+onAuthStateChanged(auth,u=>{user=u;el("signedin").textContent=u?.email||"Not signed in";refresh();});
+</script></body></html>
