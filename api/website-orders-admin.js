@@ -75,8 +75,8 @@ export default async function handler(req,res){
       const users=usersPage.users.map(u=>({
         uid:u.uid,email:u.email||null,name:u.displayName||null,
         emailVerified:u.emailVerified===true,
-        createdAt:u.metadata.creationTime||null,
-        lastSignInAt:u.metadata.lastSignInTime||null,
+        createdAt:u.metadata.creationTime?new Date(u.metadata.creationTime).toISOString():null,
+        lastSignInAt:u.metadata.lastSignInTime?new Date(u.metadata.lastSignInTime).toISOString():null,
         disabled:u.disabled===true
       }));
       const userMap=new Map(users.map(u=>[u.uid,u]));
