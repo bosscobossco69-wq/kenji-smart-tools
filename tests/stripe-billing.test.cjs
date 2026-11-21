@@ -7,6 +7,7 @@ const { randomUUID, createHash } = require('node:crypto');
 // Run the actual route code with isolated Firebase/Stripe boundaries, without credentials.
 function load(file, env = {}) {
   const context = vm.createContext({ Buffer, Date, URL, AbortSignal, console, randomUUID, createHash, process: { env },
+    notifyAdminSafely: async () => {}, errorAlertReference: (source, stage) => source + ':' + stage,
     FieldValue: { increment: n => ({ increment: n }), serverTimestamp: () => 'timestamp', delete: () => null } });
   const helper = fs.readFileSync('lib/billing-environment.js', 'utf8').replace(/^export /gm, '');
   vm.runInContext(helper, context);
