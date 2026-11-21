@@ -1,3 +1,4 @@
+import { notifyAdminSafely, errorAlertReference } from "../lib/admin-email-alerts.js";
 import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
@@ -29,10 +30,12 @@ export default async function handler(req, res) {
   const selected = Object.hasOwn(PACKAGES, packageId) ? PACKAGES[packageId] : null;
   if (!selected) return res.status(400).json({ error: "Choose a valid website package." });
   let orderRef;
+  let alertDb;
   try {
     const base = new URL(process.env.SITE_URL || "");
     if (base.protocol !== "https:" || base.host !== "kenjismarttools.com") throw new Error("Checkout origin unavailable");
     const { stripe, db } = await getServices();
+    alertDb = db;
     const orderId = randomUUID();
     orderRef = db.collection("websiteOrders").doc(orderId);
     await orderRef.create({ orderId, packageId, amount: selected.amount, currency: "usd", pages: selected.pages,
@@ -57,6 +60,9 @@ export default async function handler(req, res) {
   } catch (e) {
     if (orderRef) await orderRef.set({ status: "checkout_creation_failed", updatedAt: FieldValue.serverTimestamp() }, { merge: true }).catch(() => {});
     console.error("[website-checkout]", { category: "checkout_failed", code: typeof e?.code === "string" ? e.code : "unknown" });
+    if (alertDb) await notifyAdminSafely(alertDb, "billing_failure", errorAlertReference("website_checkout", "create"), {
+      source: "website_checkout", stage: "create", category: "checkout_failed", environment: process.env.VERCEL_ENV === "production" ? "live" : "test"
+    });
     return res.status(503).json({ error: "Secure website checkout is temporarily unavailable. Please contact support." });
   }
 }
