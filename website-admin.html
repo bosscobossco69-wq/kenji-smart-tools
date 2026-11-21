@@ -7,11 +7,11 @@
 <header><strong>KENJI / ORDERS</strong><a href="/">Main site</a></header>
 <h1>Website service orders</h1>
 <p>Administrator-only dashboard · Real Stripe payment status, customer project requirements and delivery workflow. Never mark unpaid orders as paid manually.</p>
-<div class="bar"><button type="button" id="reload">Refresh orders</button><span id="count" class="muted"></span><span id="signedin" class="muted"></span></div>
+<div class="bar"><button type="button" id="reload">Refresh orders</button><button type="button" id="emailtest" disabled>Send test admin email</button><span id="emailresult" class="muted" role="status" aria-live="polite"></span><span id="count" class="muted"></span><span id="signedin" class="muted"></span></div>
 <div class="stats" aria-label="Order overview"><div class="stat"><strong id="paidCount">0</strong><span>Confirmed paid</span></div><div class="stat"><strong id="needsCount">0</strong><span>Needs action</span></div><div class="stat"><strong id="pendingCount">0</strong><span>Not paid yet</span></div></div>
 <div class="bar"><label for="orderFilter">Show orders</label><select class="filter" id="orderFilter"><option value="action">Need action first</option><option value="all">All orders</option><option value="paid">Paid orders only</option><option value="unpaid">Unpaid / awaiting payment</option></select></div>
 <div id="newAlert" class="alert hidden" role="status" aria-live="polite"></div>
-<p class="muted mini-notice">Auto-refreshes every 60 seconds while this page is open. In-page alerts work only while the dashboard is open. For email or phone alerts when the page is closed, an external notification service must be connected.</p>
+<p class="muted mini-notice">Auto-refreshes every 60 seconds while this page is open. In-page alerts work only while the dashboard is open. Transactional admin email alerts use Resend. The test button sends at most one notification per UTC day; inbox delivery must be checked separately.</p>
 <div id="message" class="message" role="status" aria-live="polite">Verifying administrator login…</div><div id="orders"></div>
 </main><script type="module">
 import {auth,authReady,onAuthStateChanged} from "/workspace/firebase-auth.js";
@@ -105,10 +105,24 @@ async function refresh(){
  finally{loading=false;el("reload").disabled=false;}
 }
 el("reload").addEventListener("click",refresh);
+el("emailtest").addEventListener("click",async()=>{
+ const btn=el("emailtest"),out=el("emailresult");
+ if(!user?.emailVerified)return;
+ btn.disabled=true;out.textContent="Sending authenticated test…";
+ try{
+   const token=await user.getIdToken(true);
+   const response=await fetch("/api/admin-email-test",{
+     method:"POST",headers:{Authorization:"Bearer "+token},cache:"no-store"
+   });
+   const payload=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(payload.error||"Test failed");
+   out.textContent=payload.message||("Test status: "+payload.status);
+ }catch(e){out.textContent=e.message||"Test unavailable";}finally{btn.disabled=!user?.emailVerified;}
+});
 el("orderFilter").addEventListener("change",refresh);
 window.setInterval(()=>{if(!document.hidden&&user?.emailVerified)refresh();},60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&user?.emailVerified)refresh();});
 await authReady;
-onAuthStateChanged(auth,u=>{user=u;el("signedin").textContent=u?.email||"Not signed in";refresh();});
+onAuthStateChanged(auth,u=>{user=u;el("signedin").textContent=u?.email||"Not signed in";el("emailtest").disabled=!u?.emailVerified;refresh();});
 </script><script defer src="/_vercel/insights/script.js"></script>
 </body></html>
