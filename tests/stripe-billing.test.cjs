@@ -607,13 +607,12 @@ test('published billing prices and Credits match server checkout and webhook gra
   const webhook = load('api/stripe-webhook.js');
   const cards = html.split('<article').slice(1).map(piece =>
     '<article' + piece.split('</article>')[0] + '</article>');
-  // Waitlist credits are a future proposal; server grants remain the historic values
-  // until subscriptions reopen and the billing backend is explicitly migrated.
+  // Waitlist disclosure must match actual credits granted by the server.
   const planAmounts = {
-    lite: { label: 'Lite', monthly: 1000, yearly: 10000, plannedCredits: 25000, currentCredits: 10000 },
-    pro: { label: 'Pro', monthly: 2000, yearly: 20000, plannedCredits: 60000, currentCredits: 30000 },
-    pro_plus: { label: 'Pro+', monthly: 6000, yearly: 60000, plannedCredits: 200000, currentCredits: 100000 },
-    ultra: { label: 'Ultra', monthly: 20000, yearly: 200000, plannedCredits: 800000, currentCredits: 400000 }
+    lite: { label: 'Lite', monthly: 1000, yearly: 10000, currentCredits: 10000 },
+    pro: { label: 'Pro', monthly: 2000, yearly: 20000, currentCredits: 30000 },
+    pro_plus: { label: 'Pro+', monthly: 6000, yearly: 60000, currentCredits: 100000 },
+    ultra: { label: 'Ultra', monthly: 20000, yearly: 200000, currentCredits: 400000 }
   };
   const checkoutPlans = vm.runInContext('PLAN_PRICE_AMOUNTS', subscriptions);
   const webhookPlans = vm.runInContext('PLAN_CREDITS', webhook);
@@ -622,7 +621,7 @@ test('published billing prices and Credits match server checkout and webhook gra
     assert.ok(card, 'waitlist plan ' + id + ' missing');
     assert.ok(card.includes('data-month="' + expected.monthly / 100 + '"'));
     assert.ok(card.includes('data-year="' + expected.yearly / 100 + '"'));
-    assert.ok(card.includes(expected.plannedCredits.toLocaleString('en-US') + ' Credits'));
+    assert.ok(card.includes(expected.currentCredits.toLocaleString('en-US') + ' Credits'));
     assert.equal(checkoutPlans[id].monthly, expected.monthly);
     assert.equal(checkoutPlans[id].yearly, expected.yearly);
     assert.equal(webhookPlans[id], expected.currentCredits);
