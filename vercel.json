@@ -27,10 +27,6 @@
     {
       "path": "/api/stripe-annual-credit-grant",
       "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/admin-alert-retry",
-      "schedule": "0 4 * * *"
     }
   ]
 }
