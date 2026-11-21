@@ -22,4 +22,5 @@ form.addEventListener("submit",async event=>{
  try{const r=await fetch("/api/website-order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId,businessName:document.getElementById("businessName").value,contactEmail:document.getElementById("contactEmail").value,projectDetails:document.getElementById("projectDetails").value})});const d=await r.json();if(!r.ok)throw Error(d.error||"Submission failed");form.style.display="none";status.textContent="Payment confirmed. Project details submitted successfully. We will contact you to confirm the delivery scope.";}catch(e){status.textContent=e.message;button.disabled=false;}
 });
 init();
-</script></body></html>
+</script><script defer src="/_vercel/insights/script.js"></script>
+</body></html>
