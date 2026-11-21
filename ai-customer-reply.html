@@ -151,4 +151,5 @@ $("clear").addEventListener("click",()=>{$("message").value="";$("scenario").sel
 $("copy").addEventListener("click",async()=>{if(!reply)return;try{await navigator.clipboard.writeText(reply);setStatus("Copied to clipboard.")}catch{setStatus("Copy unavailable. Select and copy the reply manually.",true)}});
 </script>
 <script src="/assets/kenji-motion.js" defer></script>
+<script defer src="/_vercel/insights/script.js"></script>
 </body></html>
