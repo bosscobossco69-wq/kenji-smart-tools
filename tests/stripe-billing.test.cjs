@@ -8,6 +8,7 @@ const { randomUUID, createHash } = require('node:crypto');
 function load(file, env = {}) {
   const context = vm.createContext({ Buffer, Date, URL, AbortSignal, console, randomUUID, createHash, process: { env },
     notifyAdminSafely: async () => {}, errorAlertReference: (source, stage) => source + ':' + stage,
+    adminEmailConfigured: () => false, deliverAdminAlert: async () => ({ status: 'skipped' }),
     FieldValue: { increment: n => ({ increment: n }), serverTimestamp: () => 'timestamp', delete: () => null } });
   const helper = fs.readFileSync('lib/billing-environment.js', 'utf8').replace(/^export /gm, '');
   vm.runInContext(helper, context);
