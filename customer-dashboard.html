@@ -1,0 +1,64 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Customer & Revenue Overview | KENJI Admin</title>
+<style>
+:root{color-scheme:dark;background:#17120e;color:#f3e6d2;font:15px/1.5 system-ui,-apple-system,sans-serif}*{box-sizing:border-box}body{margin:0}
+main{max-width:1200px;margin:auto;padding:16px 14px 90px}a{color:#eac18a}header{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #65513c;padding:10px 0 18px;flex-wrap:wrap}h1{font-size:clamp(1.5rem,5vw,2.25rem);margin:27px 0 6px}h2{font-size:1.1rem}p,.muted{color:#cfc0aa}.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:18px 0}button,select{font:inherit;border-radius:9px;border:1px solid #9c7b50;padding:10px 13px;background:#dfbc87;color:#251b13;font-weight:700}button{cursor:pointer}select{background:#2d241d;color:#f3e6d2}button:disabled{opacity:.65}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}.stat{border:1px solid #655039;border-radius:14px;background:#30261f;padding:16px;min-width:0}.stat strong{display:block;font-size:clamp(1.35rem,4vw,2rem);overflow-wrap:anywhere;color:#f2c88e}.stat small{color:#d3c2aa}.surface{background:#241d17;border:1px solid #66513a;border-radius:15px;padding:15px;margin-top:16px;overflow:hidden}
+.scroller{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:640px;text-align:left}th,td{padding:12px 9px;border-bottom:1px solid #574636;vertical-align:top}th{color:#dfbf91;font-size:.82rem}td{overflow-wrap:anywhere}small{font-size:.79rem}.tag{display:inline-block;padding:3px 8px;border-radius:999px;border:1px solid #80684a;font-size:.8rem}.tag.paid{border-color:#619b76;color:#b4ebc3}.tag.failed{border-color:#ba716e;color:#ffb2ad}.tag.pending{color:#efd9a5}.notice{padding:12px;border:1px solid #b89560;border-radius:10px;background:#403323;margin:14px 0;white-space:pre-wrap}
+.section-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}.empty{padding:16px;color:#cdbda7}
+@media(max-width:600px){.stats{grid-template-columns:1fr 1fr}.stat:last-child{grid-column:span 2}}
+</style></head>
+<body><main><header><strong>KENJI / ADMIN</strong><nav><a href="/website-admin.html">Service orders</a> · <a href="/">Main site</a></nav></header>
+<h1>Customer & revenue overview</h1>
+<p>One secure dashboard for real Firebase accounts, verified payments, failed attempts and recent activity. Live and Sandbox data are never combined.</p>
+<div class="toolbar"><button id="reload" type="button">Refresh real data</button><span id="who" class="muted"></span><span id="updated" class="muted"></span></div>
+<div id="message" class="notice" role="status" aria-live="polite">Checking administrator login…</div>
+<div class="stats" aria-label="Verified source statistics">
+<div class="stat"><strong id="registered">—</strong><small>Registered accounts (sample)</small></div>
+<div class="stat"><strong id="verified">—</strong><small>Verified email accounts</small></div>
+<div class="stat"><strong id="paid">—</strong><small>Paid orders (sample)</small></div>
+<div class="stat"><strong id="income">—</strong><small>Paid order value (USD, sample)</small></div>
+<div class="stat"><strong id="failed">—</strong><small>Explicit failed orders</small></div>
+<div class="stat"><strong id="pending">—</strong><small>Checkout pending / unpaid</small></div>
+</div>
+<div id="scope" class="notice" hidden></div>
+<section class="surface"><div class="section-head"><h2>Orders & payment status</h2><select id="orderFilter" aria-label="Filter orders"><option value="all">All recent orders</option><option value="paid">Paid</option><option value="failed">Failed only</option><option value="pending">Pending / unpaid</option></select></div>
+<p class="muted">Paid is confirmed by server records; pending does not mean Stripe declined a card. This view shows recent sampled orders, not full historical revenue.</p>
+<div class="scroller"><table><thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Amount</th><th>Payment</th></tr></thead><tbody id="orderRows"></tbody></table></div></section>
+<section class="surface"><h2>Real customer activity</h2><p class="muted">Server-observed registration, checkout and payment events. Website page visits are not tracked here.</p>
+<div class="scroller"><table><thead><tr><th>Date</th><th>Event</th><th>Customer</th><th>Detail</th></tr></thead><tbody id="activityRows"></tbody></table></div></section>
+<section class="surface"><h2>Registered customers</h2><p class="muted">Firebase Authentication accounts. Only the verified administrator can view this information.</p>
+<div class="scroller"><table><thead><tr><th>Registered</th><th>Email</th><th>Verified</th><th>Last sign-in</th></tr></thead><tbody id="customerRows"></tbody></table></div></section>
+</main><script type="module">
+import {auth,authReady,onAuthStateChanged} from "/workspace/firebase-auth.js";
+const el=id=>document.getElementById(id);let user=null,data=null,busy=false;
+const dt=v=>v?new Date(v).toLocaleString():"—";
+const dollars=n=>Number.isSafeInteger(n)?"US$"+(n/100).toFixed(2):"—";
+function cell(tr,text){const td=document.createElement("td");td.textContent=text===null||text===undefined?"—":String(text);tr.append(td);return td;}
+function clearRows(id){el(id).replaceChildren();}
+function state(s){return s==="paid"?"paid":["failed","payment_failed"].includes(s)?"failed":"pending";}
+function addEmpty(tbody,message){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=5;td.className="empty";td.textContent=message;tr.append(td);tbody.append(tr);}
+function render(){
+if(!data)return;const s=data.summary;el("registered").textContent=s.registrations;el("verified").textContent=s.verifiedUsers;el("paid").textContent=s.paid;el("income").textContent=dollars(s.paidUsdCents);el("failed").textContent=s.failed;el("pending").textContent=s.pending;
+const sc=data.scope;const partial=sc.usersTruncated||sc.websiteOrdersTruncated||sc.billingOrdersTruncated;
+const scope=el("scope");scope.hidden=false;
+scope.textContent=(data.environment==="live"?"LIVE / PRODUCTION":"PREVIEW / TEST")+" · "+(partial?"Partial results; limits reached.":"Recent records only.")+" Firebase accounts sampled: "+sc.firebaseUsers+"; website orders: "+sc.websiteOrders+"; billing orders: "+sc.billingOrders+". Stripe failed-invoice webhook events in recent sample: "+s.invoiceFailureEvents+". These events are not added to the failed-order count to avoid double counting.";
+el("updated").textContent="Updated "+dt(data.generatedAt);
+el("orderRows").replaceChildren();const filter=el("orderFilter").value;
+let orders=data.orders.filter(o=>filter==="all"||filter===state(o.status));
+for(const o of orders){const tr=document.createElement("tr");cell(tr,dt(o.createdAt));cell(tr,o.email||"Not linked to an email");cell(tr,o.kind+" · "+o.product);cell(tr,o.currency==="usd"?dollars(o.amount):(o.amount==null?"—":String(o.amount)+" "+o.currency.toUpperCase()));const td=cell(tr,o.status);td.className="tag "+state(o.status);el("orderRows").append(tr);}
+if(!orders.length)addEmpty(el("orderRows"),"No matching recent orders.");
+clearRows("activityRows");for(const a of data.activity){const tr=document.createElement("tr");cell(tr,dt(a.time));cell(tr,a.kind.replaceAll("_"," "));cell(tr,a.email||"Not linked");cell(tr,a.detail);el("activityRows").append(tr);}
+if(!data.activity.length)addEmpty(el("activityRows"),"No recorded events in the sampled window.");
+clearRows("customerRows");for(const u of data.users){const tr=document.createElement("tr");cell(tr,dt(u.createdAt));cell(tr,u.email||"No email");cell(tr,u.emailVerified?"Yes":"No");cell(tr,dt(u.lastSignInAt));el("customerRows").append(tr);}
+if(!data.users.length)addEmpty(el("customerRows"),"No accounts in sample.");
+}
+async function refresh(){
+if(!user?.emailVerified){el("message").textContent="Sign in with the verified administrator account first.";return;}
+if(busy)return;busy=true;el("reload").disabled=true;el("message").textContent="Reading real account and payment records…";
+try{const token=await user.getIdToken(true);const r=await fetch("/api/website-orders-admin?view=customer_overview",{headers:{Authorization:"Bearer "+token},cache:"no-store"});const v=await r.json().catch(()=>({}));if(!r.ok)throw Error(v.error||"Unable to load overview.");data=v;render();el("message").textContent="Authenticated read-only overview loaded. No test payments included in Production.";}
+catch(e){el("message").textContent=e.message||"Overview unavailable.";}finally{busy=false;el("reload").disabled=false;}
+}
+el("reload").addEventListener("click",refresh);el("orderFilter").addEventListener("change",render);
+await authReady;onAuthStateChanged(auth,u=>{user=u;el("who").textContent=u?.email||"Not signed in";refresh();});
+</script></body></html>
