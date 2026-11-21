@@ -8,7 +8,7 @@ Create a free Resend account and verify a domain or subdomain for sending. In Ve
 - RESEND_API_KEY: Resend sending API key. Store as sensitive.
 - RESEND_FROM_EMAIL: plain verified sender address, e.g. alerts@yourdomain.example (no display-name prefix).
 - ADMIN_ALERT_EMAIL: recipient inbox; if absent the existing WEBSITE_ADMIN_EMAIL is used.
-- CRON_SECRET: already used by Vercel cron; must be at least 20 characters.
+- Existing CRON_SECRET protects the existing daily billing Cron; no additional cron route or function is introduced.
 
 Preview needs its own scoped sender/recipient/key if you want TEST alerts. Without those values the code records pending alerts but sends no mail. Redeploy after adding environment variables. Do not commit keys.
 
@@ -16,7 +16,7 @@ Preview needs its own scoped sender/recipient/key if you want TEST alerts. Witho
 
 - Live events attempt immediate send after the business transaction commits. Alert failures do not cancel a successful payment or Credits grant.
 - The Firestore outbox is namespaced: billing_live_adminEmailAlerts or billing_test_adminEmailAlerts. A unique SHA-256 key, transaction lease and provider Idempotency-Key prevent routine duplicate notifications.
-- Unsent alerts remain pending; a private CRON_SECRET-gated retry runs daily at 04:00 UTC, up to eight items per run. Immediate retries are not guaranteed after outages, especially on Hobby.
+- Unsent alerts remain pending; the existing CRON_SECRET-gated annual Credits Cron additionally retries pending alerts daily at 03:00 UTC, up to eight items per run. Immediate retries are not guaranteed after outages, especially on Hobby.
 - Sender configuration and domain verification must be completed before mail actually flows.
 - API acceptance is not proof of inbox delivery; check Resend delivery logs and your inbox/spam folder.
 - Existing historical orders are not backfilled. No new real payment is needed just to test the feature.
