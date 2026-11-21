@@ -52,6 +52,12 @@ export default async function handler(req, res) {
           buyerEmail: session.customer_details?.email || null, paidAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       }
     });
+    // Also notify when this verification endpoint confirms payment before a webhook arrives.
+    // Same order ID guarantees deduplication with the Stripe webhook notification.
+    if (paid) await notifyAdminSafely(db, "website_paid", orderId, {
+      orderId, package: packageId, amountUsd: selected.amount / 100,
+      environment: process.env.VERCEL_ENV === "production" ? "live" : "test"
+    });
     if (req.method === "POST") {
       if (!paid) return res.status(409).json({ error: "Payment has not been confirmed." });
       const { businessName, projectDetails, contactEmail } = req.body || {};
