@@ -110,4 +110,5 @@ window.setInterval(()=>{if(!document.hidden&&user?.emailVerified)refresh();},600
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&user?.emailVerified)refresh();});
 await authReady;
 onAuthStateChanged(auth,u=>{user=u;el("signedin").textContent=u?.email||"Not signed in";refresh();});
-</script></body></html>
+</script><script defer src="/_vercel/insights/script.js"></script>
+</body></html>
