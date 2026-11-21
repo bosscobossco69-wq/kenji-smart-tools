@@ -482,10 +482,13 @@ test('annual Credits Cron grants two overdue months once, then stops before next
     nextCreditGrantAt: firstDue
   } });
   const ref = { path, parent: { parent: { id: 'annual-user' } } };
+  let pageNumber = 0;
   native.collectionGroup = name => {
     assert.equal(name, 'billing_test');
     const query = { where: () => query, limit: () => query, startAfter: () => query,
-      get: async () => ({ empty: false, size: 1, docs: [{ ref, data: () => native.read(path) }] }) };
+      get: async () => ++pageNumber === 1
+        ? { empty: false, size: 1, docs: [{ ref, data: () => native.read(path) }] }
+        : { empty: true, size: 0, docs: [] } };
     return query;
   };
   let status = 'active';
@@ -496,6 +499,7 @@ test('annual Credits Cron grants two overdue months once, then stops before next
   } } };
   vm.runInContext('servicesPromise = Promise.resolve(mockServices)', c);
   const run = async () => {
+    pageNumber = 0;
     const res = response();
     await c.handler({ method: 'GET', headers: { authorization: 'Bearer cron-test' } }, res);
     assert.equal(res.code, 200);
