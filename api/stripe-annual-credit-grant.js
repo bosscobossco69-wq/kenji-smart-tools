@@ -1,3 +1,4 @@
+import { adminEmailConfigured, deliverAdminAlert } from "../lib/admin-email-alerts.js";
 import { billingMode, billingDb, assertStripeKey, assertStripeObject } from "../lib/billing-environment.js";
 import Stripe from "stripe";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
@@ -169,7 +170,21 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ ok: true, scanned, granted, skipped, failed });
+    // Reuse this existing daily Cron so the Hobby plan function count stays unchanged.
+    // Email failures must never roll back annual Credit grants.
+    let retriedAlerts = 0;
+    if (adminEmailConfigured()) {
+      try {
+        const pending = await db.collection("adminEmailAlerts").where("status", "==", "pending").limit(8).get();
+        for (const alert of pending.docs) {
+          try {
+            const result = await deliverAdminAlert(db, alert.id);
+            if (result.status === "sent") retriedAlerts++;
+          } catch { console.warn("[kenji-admin-alert] Pending email retry failed."); }
+        }
+      } catch { console.warn("[kenji-admin-alert] Unable to read pending email alerts."); }
+    }
+    return res.status(200).json({ ok: true, scanned, granted, skipped, failed, retriedAlerts });
   } catch {
     return res.status(500).json({ error: "Annual Credits grant job failed." });
   }
