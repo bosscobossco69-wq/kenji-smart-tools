@@ -447,16 +447,19 @@ test('annual Cron skips foreign roots and refuses cross-mode subscriptions witho
   assert.equal(native.paths().length, 0);
 });
 
-test('billing UI offers all four subscriptions alongside four one-time Credits packs', () => {
+test('billing UI keeps subscriptions on waitlist and offers four purchasable Credits packs', () => {
   const html = fs.readFileSync('workspace/billing.html', 'utf8');
-  for (const plan of ['lite', 'pro', 'pro_plus', 'ultra']) {
-    assert.match(html, new RegExp('<button[^>]*class="btn checkout-btn"[^>]*data-plan="' + plan + '"'));
+  const cards = html.split('<article').slice(1).map(piece =>
+    '<article' + piece.split('</article>')[0] + '</article>');
+  for (const label of ['Lite', 'Pro', 'Pro+', 'Ultra']) {
+    const card = cards.find(piece => piece.includes('>' + label + '</div>') && piece.includes('Join waitlist'));
+    assert.ok(card, 'waitlist plan ' + label + ' missing');
+    assert.match(card, /href="mailto:/);
+    assert.doesNotMatch(card, /checkout-btn/);
   }
   for (const pack of ['mini', 'basic', 'pro', 'business']) {
     assert.match(html, new RegExp('<button[^>]*class="btn credit-pack-btn"[^>]*data-pack="' + pack + '"'));
   }
-  assert.match(html, /selectedPeriod/);
-  assert.match(html, /\/api\/stripe-checkout/);
   assert.match(html, /\/api\/stripe-credit-checkout/);
 });
 
@@ -604,23 +607,25 @@ test('published billing prices and Credits match server checkout and webhook gra
   const webhook = load('api/stripe-webhook.js');
   const cards = html.split('<article').slice(1).map(piece =>
     '<article' + piece.split('</article>')[0] + '</article>');
+  // Waitlist credits are a future proposal; server grants remain the historic values
+  // until subscriptions reopen and the billing backend is explicitly migrated.
   const planAmounts = {
-    lite: { monthly: 1000, yearly: 10000, credits: 10000 },
-    pro: { monthly: 2000, yearly: 20000, credits: 30000 },
-    pro_plus: { monthly: 6000, yearly: 60000, credits: 100000 },
-    ultra: { monthly: 20000, yearly: 200000, credits: 400000 }
+    lite: { label: 'Lite', monthly: 1000, yearly: 10000, plannedCredits: 25000, currentCredits: 10000 },
+    pro: { label: 'Pro', monthly: 2000, yearly: 20000, plannedCredits: 60000, currentCredits: 30000 },
+    pro_plus: { label: 'Pro+', monthly: 6000, yearly: 60000, plannedCredits: 200000, currentCredits: 100000 },
+    ultra: { label: 'Ultra', monthly: 20000, yearly: 200000, plannedCredits: 800000, currentCredits: 400000 }
   };
   const checkoutPlans = vm.runInContext('PLAN_PRICE_AMOUNTS', subscriptions);
   const webhookPlans = vm.runInContext('PLAN_CREDITS', webhook);
   for (const [id, expected] of Object.entries(planAmounts)) {
-    const card = cards.find(piece => piece.includes('data-plan="' + id + '"'));
-    assert.ok(card, 'plan ' + id + ' missing');
+    const card = cards.find(piece => piece.includes('>' + expected.label + '</div>') && piece.includes('Join waitlist'));
+    assert.ok(card, 'waitlist plan ' + id + ' missing');
     assert.ok(card.includes('data-month="' + expected.monthly / 100 + '"'));
     assert.ok(card.includes('data-year="' + expected.yearly / 100 + '"'));
-    assert.ok(card.includes(expected.credits.toLocaleString('en-US') + ' Credits'));
+    assert.ok(card.includes(expected.plannedCredits.toLocaleString('en-US') + ' Credits'));
     assert.equal(checkoutPlans[id].monthly, expected.monthly);
     assert.equal(checkoutPlans[id].yearly, expected.yearly);
-    assert.equal(webhookPlans[id], expected.credits);
+    assert.equal(webhookPlans[id], expected.currentCredits);
   }
   const packs = {
     mini: { amount: 500, credits: 10000 },
