@@ -43,6 +43,25 @@ export default async function handler(req,res){
     if(!identity.email_verified||identity.email?.toLowerCase()!==configuredEmail) return res.status(403).json({error:"Administrator account required."});
     const currentUser=await auth.getUser(identity.uid);
     if(currentUser.disabled||!currentUser.emailVerified||currentUser.email?.toLowerCase()!==configuredEmail)return res.status(403).json({error:"Administrator verification failed."});
+    // Read-only diagnostics: only the verified administrator may inspect isolated Test webhook processing.
+    // Never return Firebase UIDs, Stripe customers, payment details or secrets.
+    if(req.method==="GET" && req.query?.view==="sandbox_webhook"){
+      const snapshot=await db.legacyDb.collection("billing_test_stripeWebhookEvents")
+        .orderBy("receivedAt","desc").limit(12).get();
+      return res.status(200).json({
+        environment:"sandbox",count:snapshot.size,
+        events:snapshot.docs.map(doc=>{
+          const d=doc.data();
+          return {
+            id:doc.id,type:typeof d.type==="string"?d.type:null,
+            processingStatus:typeof d.processingStatus==="string"?d.processingStatus:"unknown",
+            processed:d.processed===true,
+            attempts:Number.isSafeInteger(d.attempts)?d.attempts:0,
+            receivedAt:toISO(d.receivedAt),processedAt:toISO(d.processedAt)
+          };
+        })
+      });
+    }
     // Use the existing protected administrator endpoint: no extra Vercel function.
     if(req.method==="POST" && req.body?.action==="test_email"){
       if(Object.keys(req.body).length!==1) return res.status(400).json({error:"Invalid test request."});
