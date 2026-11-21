@@ -513,8 +513,8 @@ test('annual Credits Cron grants two overdue months once, then stops before next
   assert.equal(native.read(path).nextCreditGrantAt.toISOString(), '2026-11-30T00:00:00.000Z');
   assert.equal((await run()).granted, 0);
   assert.equal(native.read(path).creditBalance, 30000);
-  assert.equal(native.read('users/annual-user/creditLedger/annual_sub_annual_2026-09').credits, 10000);
-  assert.equal(native.read('users/annual-user/creditLedger/annual_sub_annual_2026-10').credits, 10000);
+  assert.equal(native.read('billing_test_users/annual-user/creditLedger/annual_sub_annual_2026-09').credits, 10000);
+  assert.equal(native.read('billing_test_users/annual-user/creditLedger/annual_sub_annual_2026-10').credits, 10000);
   // The same due month cannot grant after the Stripe subscription is canceled.
   native.read(path).nextCreditGrantAt = new Date(Date.UTC(2026, 10, 1));
   status = 'canceled';
