@@ -11,6 +11,7 @@
   },
   "scripts": {
     "test:billing": "node --experimental-vm-modules tests/stripe-billing.test.cjs",
-    "check:billing-config": "node scripts/check-billing-config.mjs"
+    "check:billing-config": "node scripts/check-billing-config.mjs",
+    "test:notifications": "node --test tests/admin-email-alerts.test.cjs"
   }
 }
