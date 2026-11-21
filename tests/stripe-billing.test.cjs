@@ -468,6 +468,61 @@ test('annual Cron skips foreign roots and refuses cross-mode subscriptions witho
   assert.equal(native.paths().length, 0);
 });
 
+test('annual Credits Cron grants two overdue months once, then stops before next month', async () => {
+  const c = load('api/stripe-annual-credit-grant.js', { CRON_SECRET: 'cron-test' });
+  const start = new Date(Date.UTC(2026, 0, 31));
+  const firstDue = new Date(Date.UTC(2026, 8, 30));
+  const end = new Date(Date.UTC(2027, 0, 31));
+  const path = 'billing_test_users/annual-user/billing_test/current';
+  const native = store({ [path]: {
+    active: true, status: 'active', interval: 'year', planId: 'lite', creditBalance: 10000,
+    stripeSubscriptionId: 'sub_annual', annualCreditGrantSubscriptionId: 'sub_annual',
+    annualCreditGrantPlanId: 'lite', annualCreditGrantAnchorDay: 31,
+    currentPeriodStart: start, currentPeriodEnd: end, annualCreditGrantPeriodStart: start,
+    nextCreditGrantAt: firstDue
+  } });
+  const ref = { path, parent: { parent: { id: 'annual-user' } } };
+  native.collectionGroup = name => {
+    assert.equal(name, 'billing_test');
+    const query = { where: () => query, limit: () => query, startAfter: () => query,
+      get: async () => ({ empty: false, size: 1, docs: [{ ref, data: () => native.read(path) }] }) };
+    return query;
+  };
+  let status = 'active';
+  let periodStart = start.getTime() / 1000;
+  c.mockServices = { db: c.billingDb(native), stripe: { subscriptions: {
+    retrieve: async () => ({ livemode: false, status, cancel_at_period_end: false,
+      items: { data: [{ current_period_start: periodStart }] } })
+  } } };
+  vm.runInContext('servicesPromise = Promise.resolve(mockServices)', c);
+  const run = async () => {
+    const res = response();
+    await c.handler({ method: 'GET', headers: { authorization: 'Bearer cron-test' } }, res);
+    assert.equal(res.code, 200);
+    return res.body;
+  };
+  assert.equal((await run()).granted, 1);
+  assert.equal(native.read(path).creditBalance, 20000);
+  assert.equal(native.read(path).nextCreditGrantAt.toISOString(), '2026-10-31T00:00:00.000Z');
+  assert.equal((await run()).granted, 1);
+  assert.equal(native.read(path).creditBalance, 30000);
+  assert.equal(native.read(path).nextCreditGrantAt.toISOString(), '2026-11-30T00:00:00.000Z');
+  assert.equal((await run()).granted, 0);
+  assert.equal(native.read(path).creditBalance, 30000);
+  assert.equal(native.read('users/annual-user/creditLedger/annual_sub_annual_2026-09').credits, 10000);
+  assert.equal(native.read('users/annual-user/creditLedger/annual_sub_annual_2026-10').credits, 10000);
+  // The same due month cannot grant after the Stripe subscription is canceled.
+  native.read(path).nextCreditGrantAt = new Date(Date.UTC(2026, 10, 1));
+  status = 'canceled';
+  assert.equal((await run()).granted, 0);
+  assert.equal(native.read(path).creditBalance, 30000);
+  // A renewed Stripe period cannot consume the previous year's stale grant schedule.
+  status = 'active';
+  periodStart = Date.UTC(2027, 0, 31) / 1000;
+  assert.equal((await run()).granted, 0);
+  assert.equal(native.read(path).creditBalance, 30000);
+});
+
 test('billing UI keeps subscriptions on waitlist and offers four purchasable Credits packs', () => {
   const html = fs.readFileSync('workspace/billing.html', 'utf8');
   const cards = html.split('<article').slice(1).map(piece =>
