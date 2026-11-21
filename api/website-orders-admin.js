@@ -62,6 +62,79 @@ export default async function handler(req,res){
         })
       });
     }
+    // Unified live overview. Read-only; sampled limits are disclosed in the response.
+    // Never count unfinished Checkout as a declined payment or test traffic as revenue.
+    if(req.method==="GET" && req.query?.view==="customer_overview"){
+      const isLive=process.env.VERCEL_ENV==="production";
+      const [usersPage,websitePage,billingPage,webhookPage]=await Promise.all([
+        auth.listUsers(1000),
+        db.collection("websiteOrders").orderBy("createdAt","desc").limit(100).get(),
+        db.collection("billingOrders").orderBy("createdAt","desc").limit(100).get(),
+        db.collection("stripeWebhookEvents").orderBy("receivedAt","desc").limit(80).get()
+      ]);
+      const users=usersPage.users.map(u=>({
+        uid:u.uid,email:u.email||null,name:u.displayName||null,
+        emailVerified:u.emailVerified===true,
+        createdAt:u.metadata.creationTime?new Date(u.metadata.creationTime).toISOString():null,
+        lastSignInAt:u.metadata.lastSignInTime?new Date(u.metadata.lastSignInTime).toISOString():null,
+        disabled:u.disabled===true
+      }));
+      const userMap=new Map(users.map(u=>[u.uid,u]));
+      const website=websitePage.docs.map(d=>{
+        const x=d.data();return {
+          id:d.id,kind:"Website service",product:x.packageId||"Website service",
+          email:x.buyerEmail||x.onboarding?.contactEmail||null,
+          amount:Number.isSafeInteger(x.amount)?x.amount:null,currency:x.currency||"usd",
+          status:x.status||"unknown",
+          createdAt:toISO(x.createdAt),paidAt:toISO(x.paidAt),
+          workflowStatus:x.workflowStatus||"new"
+        };
+      });
+      const billing=billingPage.docs.map(d=>{
+        const x=d.data();return {
+          id:d.id,kind:x.type==="credit_pack"?"Credits": "Subscription",
+          product:x.packId||x.planId||"Checkout",
+          email:userMap.get(x.uid)?.email||null,
+          amount:Number.isSafeInteger(x.amount)?x.amount:null,currency:x.currency||"usd",
+          status:x.status||"unknown",
+          createdAt:toISO(x.createdAt),paidAt:toISO(x.paidAt),
+          workflowStatus:null
+        };
+      });
+      const orders=[...website,...billing].sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+      const isPaid=s=>s==="paid";
+      // 'pending' does not mean Stripe declined a charge. Only explicit failed states qualify.
+      const isFailed=s=>["payment_failed","failed"].includes(s);
+      const totals=orders.reduce((out,o)=>{
+        if(isPaid(o.status)){out.paid++;if(o.currency==="usd"&&o.amount!==null)out.paidUsdCents+=o.amount;}
+        else if(isFailed(o.status))out.failed++;
+        else out.pending++;
+        return out;
+      },{paid:0,failed:0,pending:0,paidUsdCents:0});
+      const webhookFailures=webhookPage.docs.filter(d=>d.data().type==="invoice.payment_failed")
+        .map(d=>({eventId:d.id,receivedAt:toISO(d.data().receivedAt),
+          processed:d.data().processed===true}));
+      const activity=[
+        ...users.map(u=>({kind:"registration",email:u.email,time:u.createdAt,detail:u.emailVerified?"Email verified":"Email unverified"})),
+        ...orders.map(o=>({kind:isPaid(o.status)?"payment_success":isFailed(o.status)?"payment_failed":"checkout_created",
+          email:o.email,time:isPaid(o.status)?o.paidAt||o.createdAt:o.createdAt,
+          detail:o.kind+" · "+o.product+" · "+o.status})),
+        ...webhookFailures.map(e=>({kind:"invoice_payment_failed",email:null,time:e.receivedAt,
+          detail:"Stripe invoice payment failed; webhook "+(e.processed?"processed":"not confirmed")}))
+      ].filter(x=>x.time).sort((a,b)=>b.time.localeCompare(a.time)).slice(0,60);
+      return res.status(200).json({
+        environment:isLive?"live":"preview_test",
+        generatedAt:new Date().toISOString(),
+        scope:{firebaseUsers:users.length,usersTruncated:Boolean(usersPage.pageToken),
+          websiteOrders:website.length,websiteOrdersTruncated:websitePage.size===100,
+          billingOrders:billing.length,billingOrdersTruncated:billingPage.size===100,
+          webhookEventsSampled:webhookPage.size},
+        summary:{registrations:users.length,verifiedUsers:users.filter(u=>u.emailVerified).length,
+          ...totals,invoiceFailureEvents:webhookFailures.length},
+        users:users.sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||"")).slice(0,75),
+        orders:orders.slice(0,100),activity
+      });
+    }
     // Use the existing protected administrator endpoint: no extra Vercel function.
     if(req.method==="POST" && req.body?.action==="test_email"){
       if(Object.keys(req.body).length!==1) return res.status(400).json({error:"Invalid test request."});
