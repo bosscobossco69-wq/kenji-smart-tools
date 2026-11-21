@@ -89,6 +89,27 @@ for (const interval of ['month', 'year']) test(`${interval} subscription grants 
   await assert.rejects(c.grantSubscriptionInvoice({ db, invoice: { ...invoice, lines: { data: [] } }, subscription, uid: 'u' }), /supported/);
   assert.equal(db.read(billing).creditBalance, 10000);
 });
+test('two successful monthly renewals grant once per unique invoice without changing earlier ledger', async () => {
+  const c = load('api/stripe-webhook.js');
+  const db = store({ 'billingOrders/renewal-order': {
+    uid: 'renewal-user', planId: 'lite', interval: 'monthly', priceId: 'price_lite_month', currency: 'usd'
+  } });
+  const subscription = {
+    id: 'sub_renewal', metadata: { orderId: 'renewal-order', planId: 'lite' },
+    items: { data: [{ current_period_start: 1769817600, price: { id: 'price_lite_month', recurring: { interval: 'month' } } }] }
+  };
+  const invoice = (id) => ({
+    id, status: 'paid', amount_paid: 1000, currency: 'usd',
+    billing_reason: 'subscription_cycle', lines: { data: [{ price: { id: 'price_lite_month' } }] }
+  });
+  await c.grantSubscriptionInvoice({ db, invoice: invoice('in_cycle_1'), subscription, uid: 'renewal-user' });
+  await c.grantSubscriptionInvoice({ db, invoice: invoice('in_cycle_2'), subscription, uid: 'renewal-user' });
+  await c.grantSubscriptionInvoice({ db, invoice: invoice('in_cycle_2'), subscription, uid: 'renewal-user' });
+  assert.equal(db.read('users/renewal-user/billing_test/current').creditBalance, 20000);
+  assert.equal(db.read('users/renewal-user/creditLedger/stripe_invoice_in_cycle_1').credits, 10000);
+  assert.equal(db.read('users/renewal-user/creditLedger/stripe_invoice_in_cycle_2').credits, 10000);
+});
+
 for (const file of ['api/stripe-checkout.js', 'api/stripe-credit-checkout.js']) {
   for (const [env, key, flag] of [['preview', 'sk_live_dummy', undefined], ['production', 'sk_live_dummy', undefined], ['production', 'sk_test_dummy', 'true']]) {
     test(`${file} fails closed for ${env}/${key}/${flag}`, async () => {
