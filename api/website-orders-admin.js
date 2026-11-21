@@ -2,6 +2,7 @@ import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { billingDb } from "../lib/billing-environment.js";
+import { adminEmailConfigured, notifyAdmin } from "../lib/admin-email-alerts.js";
 
 const allowedStatuses = new Set(["new", "in_progress", "delivered", "on_hold"]);
 let services;
@@ -42,6 +43,23 @@ export default async function handler(req,res){
     if(!identity.email_verified||identity.email?.toLowerCase()!==configuredEmail) return res.status(403).json({error:"Administrator account required."});
     const currentUser=await auth.getUser(identity.uid);
     if(currentUser.disabled||!currentUser.emailVerified||currentUser.email?.toLowerCase()!==configuredEmail)return res.status(403).json({error:"Administrator verification failed."});
+    // Use the existing protected administrator endpoint: no extra Vercel function.
+    if(req.method==="POST" && req.body?.action==="test_email"){
+      if(Object.keys(req.body).length!==1) return res.status(400).json({error:"Invalid test request."});
+      if(!adminEmailConfigured()) return res.status(503).json({error:"Admin email is not configured."});
+      const day=new Date().toISOString().slice(0,10);
+      try{
+        const result=await notifyAdmin(db,"admin_test","smoke:"+day,{
+          source:"admin_dashboard",environment:process.env.VERCEL_ENV==="production"?"live":"test"
+        });
+        return res.status(200).json({status:result.status,message:result.status==="sent"
+          ?"Test email accepted by Resend. Check delivery logs and inbox."
+          :"Test already processed or currently sending. Check logs and inbox."});
+      }catch(error){
+        console.warn("[website-orders-admin] Email test not confirmed.",{code:typeof error?.code==="string"?error.code:"failed"});
+        return res.status(503).json({error:"Test send not confirmed. Check Resend and Firestore before retrying."});
+      }
+    }
     const collection=db.collection("websiteOrders");
     if(req.method==="GET"){
       const snapshot=await collection.orderBy("createdAt","desc").limit(60).get();

@@ -88,3 +88,15 @@ test("unsafe type, blank and oversized alert references are refused", () => {
   assert.throws(() => f.context.alertId("credit_paid", ""));
   assert.throws(() => f.context.alertId("credit_paid", "x".repeat(201)));
 });
+
+test("administrator smoke-test email is separate from payments and deduplicates", async () => {
+  const f = fixture();
+  const key = "smoke:2026-11-22";
+  await f.context.notifyAdmin(f.db, "admin_test", key, { source: "admin_dashboard", environment: "live" });
+  await f.context.notifyAdmin(f.db, "admin_test", key, { source: "admin_dashboard", environment: "live" });
+  assert.equal(f.sent.length, 1);
+  const request = JSON.parse(f.sent[0].options.body);
+  assert.match(request.subject, /Administrator email delivery test/);
+  assert.doesNotMatch(request.subject, /payment received|invoice paid/i);
+  assert.equal(f.records.get(f.context.alertId("admin_test", key)).status, "sent");
+});
