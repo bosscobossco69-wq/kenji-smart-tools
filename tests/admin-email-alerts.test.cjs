@@ -100,3 +100,15 @@ test("administrator smoke-test email is separate from payments and deduplicates"
   assert.doesNotMatch(request.subject, /payment received|invoice paid/i);
   assert.equal(f.records.get(f.context.alertId("admin_test", key)).status, "sent");
 });
+
+test("Sandbox webhook diagnostics require verified admin and return only bounded metadata", () => {
+  const route = fs.readFileSync("api/website-orders-admin.js", "utf8");
+  const ui = fs.readFileSync("website-admin.html", "utf8");
+  assert.ok(route.indexOf('identity.email_verified') < route.indexOf('req.query?.view==="sandbox_webhook"'));
+  assert.match(route, /collection\("billing_test_stripeWebhookEvents"\)/);
+  assert.match(route, /orderBy\("receivedAt","desc"\)\.limit\(12\)/);
+  assert.match(route, /processed:d\.processed===true/);
+  assert.doesNotMatch(route.slice(route.indexOf('req.query?.view==="sandbox_webhook"'),route.indexOf("// Use the existing protected administrator endpoint")), /firebaseUid|customerEmail|paymentMethod|secretKey/);
+  assert.match(ui, /id="webhookcheck"/);
+  assert.match(ui, /view=sandbox_webhook/);
+});
