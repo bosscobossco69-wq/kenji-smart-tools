@@ -1,3 +1,4 @@
+import { notifyAdminSafely } from "../lib/admin-email-alerts.js";
 import { ADJUSTMENT_EVENTS, reconcileAdjustment } from "../lib/stripe-adjustments.js";
 import { billingCollection, billingDb, assertStripeKey, assertStripeObject } from "../lib/billing-environment.js";
 import Stripe from "stripe";
@@ -472,6 +473,11 @@ export default async function handler(req, res) {
           processedAt: FieldValue.serverTimestamp()
         }, { merge: true });
       });
+      if (object.payment_status === "paid") {
+        await notifyAdminSafely(services.db, "website_paid", orderId, {
+          orderId, package: packageId, amountUsd: price / 100, environment: event.livemode ? "live" : "test"
+        });
+      }
       return res.status(200).json({ received: true, websiteService: true });
     }
     let snapshotSequence = null;
@@ -570,9 +576,21 @@ export default async function handler(req, res) {
         if (typeof charge === "string") charge = await services.stripe.charges.retrieve(charge);
         assertStripeObject(charge);
         await fulfillCreditPack({ db: services.db, session: object, uid, event, charge });
+        await notifyAdminSafely(services.db, "credit_paid", object.metadata.orderId, {
+          orderId: object.metadata.orderId, package: object.metadata.packId,
+          amountUsd: object.amount_total / 100, credits: CREDIT_PACKS[object.metadata.packId]?.credits,
+          environment: event.livemode ? "live" : "test"
+        });
       }
     } else if (event.type === "invoice.paid" && relatedSubscription) {
       await grantSubscriptionInvoice({ db: services.db, invoice: object, subscription: relatedSubscription, uid });
+      if (object.status === "paid" && object.amount_paid > 0 &&
+          ["subscription_create", "subscription_cycle"].includes(object.billing_reason)) {
+        await notifyAdminSafely(services.db, "subscription_paid", object.id, {
+          plan: relatedSubscription.metadata?.planId, amountUsd: object.amount_paid / 100,
+          credits: PLAN_CREDITS[relatedSubscription.metadata?.planId], environment: event.livemode ? "live" : "test"
+        });
+      }
     }
 
     if (uid) {
@@ -867,6 +885,11 @@ export default async function handler(req, res) {
       }, { merge: true });
     });
 
+    if (event.type === "invoice.payment_failed") {
+      await notifyAdminSafely(services.db, "billing_failure", event.id, {
+        category: "invoice_payment_failed", source: "stripe_webhook", environment: event.livemode ? "live" : "test"
+      });
+    }
     return res.status(200).json({ received: true, linked: Boolean(uid) });
   } catch {
     // Release only this invocation's lease so Stripe can retry immediately.
@@ -883,6 +906,9 @@ export default async function handler(req, res) {
         }, { merge: true });
       });
     } catch {}
+    await notifyAdminSafely(services.db, "billing_failure", event.id, {
+      category: "webhook_processing_failed", source: "stripe_webhook", environment: event.livemode ? "live" : "test"
+    });
     return res.status(500).json({ error: "Stripe event processing failed." });
   }
 }
