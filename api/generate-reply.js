@@ -1,3 +1,4 @@
+import { notifyAdminSafely, errorAlertReference } from "../lib/admin-email-alerts.js";
 import { billingCollection, billingDb, assertLegacyReviewed } from "../lib/billing-environment.js";
 import { createHash, randomUUID } from "node:crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
@@ -285,6 +286,9 @@ export default async function handler(req, res) {
       });;
     } catch {
       const refunded = await refundCredits(services.db, uid, requestId, "ai_provider_unreachable", reservationToken);
+      await notifyAdminSafely(services.db, "system_failure", errorAlertReference("ai_reply", "provider_unreachable"), {
+        source: "ai_reply", stage: "provider_unreachable", environment: process.env.VERCEL_ENV === "production" ? "live" : "test"
+      });
       reserved = false;
       return res.status(refunded ? 502 : 409).json({
         error: refunded
@@ -296,6 +300,9 @@ export default async function handler(req, res) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       const refunded = await refundCredits(services.db, uid, requestId, response.status === 429 ? "ai_provider_busy" : "ai_provider_error", reservationToken);
+      if (response.status >= 500) await notifyAdminSafely(services.db, "system_failure", errorAlertReference("ai_reply", "provider_error"), {
+        source: "ai_reply", stage: "provider_error", environment: process.env.VERCEL_ENV === "production" ? "live" : "test"
+      });
       reserved = false;
       if (!refunded) {
         return res.status(409).json({ error: "A newer attempt is already processing this request. Please wait for it to finish." });
@@ -325,6 +332,9 @@ export default async function handler(req, res) {
       try { await refundCredits(services.db, uid, requestId, "internal_error", reservationToken); } catch {}
     }
     if (error?.code === "billing_legacy_review_required") return res.status(409).json({ error: error.message });
+    if (services?.db) await notifyAdminSafely(services.db, "system_failure", errorAlertReference("ai_reply", "unexpected_error"), {
+      source: "ai_reply", stage: "unexpected_error", environment: process.env.VERCEL_ENV === "production" ? "live" : "test"
+    });
     const message = error?.message || "";
     const unavailable = message.includes("not configured") || message.includes("Legacy billing review") || message.includes("project mismatch");
     return res.status(unavailable ? 503 : 500).json({ error: unavailable ? "AI billing service is not configured." : "Could not complete the reply request. Please try again." });

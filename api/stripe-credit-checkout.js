@@ -1,4 +1,5 @@
 import { billingCollection, billingDb, assertStripeKey, assertStripeObject, assertLegacyReviewed } from "../lib/billing-environment.js";
+import { notifyAdminSafely, errorAlertReference } from "../lib/admin-email-alerts.js";
 import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
@@ -135,6 +136,7 @@ export default async function handler(req, res) {
   }
 
   let stage = "authorization";
+  let alertDb;
   try {
     const authorization = req.headers.authorization;
     if (typeof authorization !== "string" || !authorization.startsWith("Bearer ")) {
@@ -145,6 +147,7 @@ export default async function handler(req, res) {
 
     stage = "service_initialization";
     const { stripe, auth, db } = await getServices();
+    alertDb = db;
     stage = "identity_verification";
     const user = await auth.verifyIdToken(token, true);
     if (!user.email || user.email_verified !== true) {
@@ -256,6 +259,9 @@ export default async function handler(req, res) {
       stripeType: stripeType || undefined,
       stripeStatus: stripeStatus || undefined,
       stripeCode: typeof error?.code === "string" && /^([a-z_]{1,64})$/.test(error.code) ? error.code : undefined
+    });
+    if (alertDb) await notifyAdminSafely(alertDb, "billing_failure", errorAlertReference("credit_checkout", stage + "_" + kind), {
+      source: "credit_checkout", stage, category: kind, environment: process.env.VERCEL_ENV === "production" ? "live" : "test"
     });
     const publicError = kind === "STRIPE_KEY_REJECTED"
       ? "Stripe rejected the server API key. Check the Production Stripe credential."

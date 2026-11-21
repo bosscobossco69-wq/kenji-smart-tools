@@ -1,3 +1,4 @@
+import { notifyAdminSafely, errorAlertReference } from "../lib/admin-email-alerts.js";
 import Stripe from "stripe";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
@@ -51,6 +52,12 @@ export default async function handler(req, res) {
           buyerEmail: session.customer_details?.email || null, paidAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       }
     });
+    // Also notify when this verification endpoint confirms payment before a webhook arrives.
+    // Same order ID guarantees deduplication with the Stripe webhook notification.
+    if (paid) await notifyAdminSafely(db, "website_paid", orderId, {
+      orderId, package: packageId, amountUsd: selected.amount / 100,
+      environment: process.env.VERCEL_ENV === "production" ? "live" : "test"
+    });
     if (req.method === "POST") {
       if (!paid) return res.status(409).json({ error: "Payment has not been confirmed." });
       const { businessName, projectDetails, contactEmail } = req.body || {};
@@ -62,6 +69,9 @@ export default async function handler(req, res) {
       await ref.set({ onboarding: { businessName: businessName.trim(), projectDetails: projectDetails.trim(),
         contactEmail: contactEmail.trim() }, onboardingSubmittedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      await notifyAdminSafely(db, "website_onboarding", orderId, {
+        orderId, package: packageId, environment: process.env.VERCEL_ENV === "production" ? "live" : "test"
+      });
       return res.status(200).json({ paid: true, package: selected.name, onboardingSubmitted: true });
     }
     const latest = (await ref.get()).data() || {};
@@ -69,6 +79,9 @@ export default async function handler(req, res) {
       onboardingSubmitted: Boolean(latest.onboardingSubmittedAt), status: paid ? "paid" : "pending" });
   } catch (e) {
     console.error("[website-order]", { code: typeof e?.code === "string" ? e.code : "failed" });
+    try { const { db } = await getServices(); await notifyAdminSafely(db, "system_failure", errorAlertReference("website_order", "handler"), {
+      source: "website_order", stage: "handler", environment: process.env.VERCEL_ENV === "production" ? "live" : "test"
+    }); } catch {}
     return res.status(503).json({ error: "Unable to verify order right now. Please try again or contact support." });
   }
 }
