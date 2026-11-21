@@ -105,9 +105,9 @@ test('two successful monthly renewals grant once per unique invoice without chan
   await c.grantSubscriptionInvoice({ db, invoice: invoice('in_cycle_1'), subscription, uid: 'renewal-user' });
   await c.grantSubscriptionInvoice({ db, invoice: invoice('in_cycle_2'), subscription, uid: 'renewal-user' });
   await c.grantSubscriptionInvoice({ db, invoice: invoice('in_cycle_2'), subscription, uid: 'renewal-user' });
-  assert.equal(db.read('billing_test_users/renewal-user/billing_test/current').creditBalance, 20000);
-  assert.equal(db.read('billing_test_users/renewal-user/creditLedger/stripe_invoice_in_cycle_1').credits, 10000);
-  assert.equal(db.read('billing_test_users/renewal-user/creditLedger/stripe_invoice_in_cycle_2').credits, 10000);
+  assert.equal(db.read('users/renewal-user/billing_test/current').creditBalance, 20000);
+  assert.equal(db.read('users/renewal-user/creditLedger/stripe_invoice_in_cycle_1').credits, 10000);
+  assert.equal(db.read('users/renewal-user/creditLedger/stripe_invoice_in_cycle_2').credits, 10000);
 });
 
 for (const file of ['api/stripe-checkout.js', 'api/stripe-credit-checkout.js']) {
