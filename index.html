@@ -230,7 +230,7 @@
   <header class="nav shell"><div class="nav-inner">
     <a class="brand" href="#home"><span class="brand-mark"></span><span>KENJI / SMART TOOLS</span></a>
     <nav class="nav-links" id="mobileNavLinks"><a href="#web-services">Website Services</a><a href="#tools">Tools</a><a href="#integrations">Integrations</a><a href="#feedback">Feedback</a><a href="#about">About</a><a href="#privacy">Privacy</a><a href="#contact">Contact</a></nav><button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" aria-controls="mobileNavLinks" aria-expanded="false">Menu ☰</button>
-    <div class="nav-actions"><a class="nav-cta" href="#tools">Open tools ↗</a><div class="login-cta" id="mainAuthNav"><a href="/workspace/login.html">Log in</a></div></div>
+    <div class="nav-actions"><a class="nav-cta" href="#tools">Open tools ↗</a><div class="login-cta" id="mainAuthNav"><a href="/workspace/login.html">Log in</a> · <a href="/workspace/signup.html" data-signup-entry="homepage_nav">Sign up</a></div></div>
   </div></header>
 
   <main>
@@ -239,7 +239,7 @@
         <span class="eyebrow"><i></i> browser-first utilities</span>
         <h1>Simple tools.<br><span class="gradient-text">Sharper work.</span></h1>
         <p class="hero-copy">A focused toolkit for freelancers, creators, and small businesses. Fast, private, and designed to help you move from idea to action without unnecessary friction.</p>
-        <div class="hero-actions"><a class="btn" href="#web-services">Website services from US$99</a><a class="btn secondary" href="#tools">Explore free tools</a><a class="btn secondary" href="/ai-customer-reply.html">Try AI Customer Reply</a></div>
+        <div class="hero-actions"><a class="btn" href="/workspace/signup.html" data-signup-entry="homepage_hero">Create free account</a><a class="btn secondary" href="#tools">Explore free tools</a><a class="btn secondary" href="/ai-customer-reply.html">Try AI Customer Reply</a><a class="btn secondary" href="#web-services">Website services from US$99</a></div><p style="font-size:.84rem;color:var(--muted);margin-top:12px">Free browser tools work without registration. An account is for managing AI Credits and billing; no subscription is required to sign up.</p>
       </div>
       <div class="hero-orbit" aria-hidden="true"><div class="orbital"><div class="core"><span>K</span></div><b class="orbit-dot dot-1"></b><b class="orbit-dot dot-2"></b><b class="orbit-dot dot-3"></b></div></div>
     </section>
@@ -519,10 +519,18 @@
           location.reload();
         });
       }else{
-        authNav.innerHTML='<a class="login-cta" href="/workspace/login.html">Log in</a>';
+        authNav.innerHTML='<a class="login-cta" href="/workspace/login.html">Log in</a> · <a href="/workspace/signup.html" data-signup-entry="homepage_nav">Sign up</a>';
       }
     });
   </script>
+<script>
+  // Anonymous conversion events: never send email addresses, names or form data.
+  window.va = window.va || function(){ (window.vaq=window.vaq||[]).push(arguments); };
+  document.addEventListener("click", event => {
+    const link=event.target.closest?.("a[data-signup-entry]");
+    if(link)window.va("event",{name:"Signup Link Clicked",data:{source:link.dataset.signupEntry}});
+  });
+</script>
 <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
