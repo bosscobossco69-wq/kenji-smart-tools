@@ -5,7 +5,7 @@ import {createProduct,editProduct,archiveProduct,adjustStock,inventoryList,norma
 const clock={serverTimestamp:()=>({toDate:()=>new Date("2026-11-22T00:00:00Z")})};
 function mockDb(){
  const store=new Map();
- const ref=(path)=>({path,collection(n){return collection(path+"/"+n);}});
+ const ref=(path)=>({path,collection(n){return collection(path+"/"+n);},async get(){return snapshot({path});}});
  const collection=(path)=>({doc(id){return ref(path+"/"+(id??"generated-"+(store.size+1)));},
   limit(){return this;},orderBy(){return this;},
   async get(){return {docs:[...store].filter(([key])=>key.startsWith(path+"/")&&!key.slice(path.length+1).includes("/")).map(([key,data])=>({id:key.slice(path.length+1),data:()=>data}))};}});
