@@ -37,7 +37,7 @@ test("purchase suppression includes Credits, subscriptions, invoices and website
 });
 test("administrator marketing test cannot target arbitrary or unverified customers",async()=>{
  const {eligibleForMarketingTest:check}=await load("lib/marketing-admin-test.js",{
-  "firebase-admin/firestore.js":{FieldValue:{}},
+  "firebase-admin/firestore":{FieldValue:{}},
   "./marketing-consent.js":{preferenceRef:()=>{},unsubscribeSignature:()=>""},
   "./marketing-purchase.js":{hasRecordedPurchase:async()=>false}
  });
