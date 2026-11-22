@@ -7,8 +7,8 @@ function mockDb(){
  const store=new Map();
  const ref=(path)=>({path,collection(n){return collection(path+"/"+n);},async get(){return snapshot({path});}});
  const collection=(path)=>({doc(id){return ref(path+"/"+(id??"generated-"+(store.size+1)));},
-  limit(){return this;},orderBy(){return this;},
-  async get(){return {docs:[...store].filter(([key])=>key.startsWith(path+"/")&&!key.slice(path.length+1).includes("/")).map(([key,data])=>({id:key.slice(path.length+1),data:()=>data}))};}});
+  limit(){return this;},orderBy(){return this;},where(field,op,value){this.filter={field,op,value};return this;},
+  async get(){return {docs:[...store].filter(([key,data])=>key.startsWith(path+"/")&&!key.slice(path.length+1).includes("/")&&(!this.filter||data[this.filter.field]===this.filter.value)).map(([key,data])=>({id:key.slice(path.length+1),data:()=>data}))};}});
  const snapshot=(r)=>({exists:store.has(r.path),data:()=>store.get(r.path)});
  const tx={async get(r){return snapshot(r);},create(r,d){assert.equal(store.has(r.path),false);store.set(r.path,d);},
   set(r,d){store.set(r.path,{...(store.get(r.path)||{}),...d});},update(r,d){assert.ok(store.has(r.path));store.set(r.path,{...store.get(r.path),...d});}};
