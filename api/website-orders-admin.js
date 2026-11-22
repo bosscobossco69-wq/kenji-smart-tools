@@ -110,7 +110,7 @@ export default async function handler(req,res){
           product:x.packId||x.planId||"Checkout",
           email:userMap.get(x.uid)?.email||null,
           amount:Number.isSafeInteger(x.amount)?x.amount:null,currency:x.currency||"usd",
-          status:x.status||"unknown",
+          status:x.status||"unknown",category:orderCategory(x.status),
           createdAt:toISO(x.createdAt),paidAt:toISO(x.paidAt),
           workflowStatus:null
         };
@@ -123,7 +123,7 @@ export default async function handler(req,res){
       const activity=[
         ...users.map(u=>({kind:"registration",email:u.email,time:u.createdAt,detail:u.emailVerified?"Email verified":"Email unverified"})),
         ...orders.map(o=>({kind:o.category==="paid"?"payment_success":o.category==="failed"?"payment_failed":o.category==="expired"?"checkout_expired":"checkout_created",
-          email:o.email,time:isPaid(o.status)?o.paidAt||o.createdAt:o.createdAt,
+          email:o.email,time:o.category==="paid"?(o.paidAt||o.createdAt):o.createdAt,
           detail:o.kind+" · "+o.product+" · "+o.status})),
         ...webhookFailures.map(e=>({kind:"invoice_payment_failed",email:null,time:e.receivedAt,
           detail:"Stripe invoice payment failed; webhook "+(e.processed?"processed":"not confirmed")}))
