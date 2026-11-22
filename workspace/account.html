@@ -38,6 +38,11 @@ footer{margin-top:32px;color:var(--muted);font-size:.82rem}
 </section>
 <section class="grid">
 <article class="card"><h2>Profile</h2><label for="displayName">Display name</label><p><input id="displayName" maxlength="80" style="width:100%;padding:11px;border-radius:9px;border:1px solid #405875;background:#091526;color:white"></p><button id="save" type="button">Save name</button></article>
+<article class="card"><h2>Email preferences</h2>
+<p class="muted">Optional product news and promotions. You can decline without affecting account access, paid Credits or essential receipts.</p>
+<label style="display:flex;align-items:flex-start;gap:9px"><input type="checkbox" id="marketingConsent" style="margin-top:6px" disabled> <span>Receive optional product updates and offers</span></label>
+<p><button id="saveMarketing" class="secondary" type="button" disabled>Save email preference</button></p>
+<p class="muted" id="marketingStatus" role="status">Loading preference…</p></article>
 <article class="card"><h2>Security</h2><p class="muted">Send a password reset email to your account address.</p><p><button class="secondary" id="reset" type="button">Send password reset</button></p><button class="secondary" id="logout" type="button">Sign out</button></article>
 </section>
 <footer>KENJI AI Workspace · Account and security</footer>
@@ -69,6 +74,10 @@ const notice=(message,isError=false)=>{el("notice").textContent=message;el("noti
     if(!response.ok)throw new Error(data.error||"Could not load billing details.");
     const credits=Number(data.creditBalance);
     el("creditBalance").textContent=(Number.isFinite(credits)?Math.max(0,Math.floor(credits)):0).toLocaleString("en-US");
+    el("marketingConsent").checked=data.marketingConsent===true;
+    el("marketingConsent").disabled=false;
+    el("saveMarketing").disabled=false;
+    el("marketingStatus").textContent=data.marketingConsent===true?"Optional email updates enabled.":"Optional email updates disabled.";
     const debt=Number(data.creditDebt||0);
     if(debt>0)notice("Credits debt: "+debt.toLocaleString("en-US")+" after a refund or payment dispute. New Credits first offset this debt.",true);
     const active=data.planActive===true;
@@ -80,6 +89,22 @@ const notice=(message,isError=false)=>{el("notice").textContent=message;el("noti
     el("planNote").textContent="Billing details could not be loaded. Please refresh or contact support.";
    }
   }
+  el("saveMarketing").addEventListener("click",async()=>{
+    const user=f.auth.currentUser;if(!user?.emailVerified)return notice("Verify your email first.",true);
+    const button=el("saveMarketing");button.disabled=true;
+    try{
+      const token=await user.getIdToken();
+      const response=await fetch("/api/account-billing?action=marketing_preference",{
+        method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},
+        body:JSON.stringify({marketingConsent:el("marketingConsent").checked})
+      });
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.error||"Unable to save preference.");
+      el("marketingStatus").textContent=data.marketingConsent?"Optional email updates enabled.":"Optional email updates disabled.";
+      notice("Email preference saved. Account receipts and security emails are unaffected.");
+    }catch(error){notice(error.message||"Could not save preference.",true);}
+    finally{button.disabled=false;}
+  });
   el("save").addEventListener("click",async()=>{
    const user=f.auth.currentUser,name=el("displayName").value.trim();
    if(!user){notice("Please sign in again.",true);return;}
