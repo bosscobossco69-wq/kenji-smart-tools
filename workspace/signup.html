@@ -14,11 +14,20 @@ function track(eventName,reason){
   const data=reason?{reason}:{source:"signup_page"};
   window.va("event",{name:eventName,data});
 }
-track("Signup Page Viewed");
+function countFunnel(event){
+  // Optional analytics; failures never block Firebase signup or leak form details.
+  fetch("/api/conversion-event",{method:"POST",credentials:"same-origin",keepalive:true,
+    headers:{"Content-Type":"application/json"},body:JSON.stringify({event})}).catch(()=>{});
+}
+authReady.then(()=>{
+  // Signed-in users (including the site administrator) are not included.
+  if(!auth.currentUser)countFunnel("signup_page");
+}).catch(()=>{});
 function showMessage(text,isError=false){message.textContent=text;message.hidden=false;message.classList.toggle("error",isError);}
 form.addEventListener("submit",async event=>{
  event.preventDefault();button.disabled=true;button.textContent="Creating account…";message.hidden=true;
  track("Signup Submitted");
+ if(!auth.currentUser)countFunnel("signup_submit");
  try{
   await authReady;
   const name=document.getElementById("name").value.trim();
@@ -35,6 +44,8 @@ form.addEventListener("submit",async event=>{
  }catch(error){
   const known=new Set(["auth/email-already-in-use","auth/invalid-email","auth/weak-password","auth/network-request-failed","auth/too-many-requests","auth/operation-not-allowed","auth/unauthorized-domain"]);
   track("Signup Failed",known.has(error.code)?error.code:"other");
+  // Only non-credential validation failures are anonymous aggregate counts.
+  if(!auth.currentUser)countFunnel("signup_error");
   showMessage(error.message && !error.code ? error.message : friendlyAuthError(error),true);
  }
  finally{button.disabled=false;button.textContent="Create account";}
