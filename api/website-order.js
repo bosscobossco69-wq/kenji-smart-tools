@@ -20,6 +20,13 @@ async function getServices() {
   })();
   return services;
 }
+// Marketing preference removal must stay available during Stripe incidents.
+async function marketingDb() {
+  const account=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON||"null");
+  if (!account || account.project_id!==process.env.FIREBASE_PROJECT_ID) throw Error("Firebase missing");
+  const app=getApps()[0]||initializeApp({credential:cert(account),projectId:account.project_id});
+  return billingDb(getFirestore(app));
+}
 export default async function handler(req, res) {
   // This dedicated action is isolated from Stripe order verification and keeps Hobby under 12 functions.
   if (req.method === "POST" && req.query?.action === "conversion_event") return recordFunnel(req,res);
@@ -34,7 +41,7 @@ export default async function handler(req, res) {
       return res.status(400).json({error:"Invalid unsubscribe request."});
     }
     try {
-      const {db}=await getServices();
+      const db=await marketingDb();
       const success=await unsubscribeBySignature(db,uid,signature);
       return res.status(success?200:400).json(success?{ok:true,unsubscribed:true}:{error:"Invalid or expired link."});
     }catch{
