@@ -181,6 +181,6 @@ el("orderFilter").addEventListener("change",refresh);
 window.setInterval(()=>{if(!document.hidden&&user?.emailVerified)refresh();},60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&user?.emailVerified)refresh();});
 await authReady;
-onAuthStateChanged(auth,u=>{user=u;el("signedin").textContent=u?.email||"Not signed in";el("emailtest").disabled=!u?.emailVerified;el("webhookcheck").disabled=!u?.emailVerified;refresh();});
+onAuthStateChanged(auth,u=>{user=u;el("signedin").textContent=u?.email||"Not signed in";el("emailtest").disabled=!u?.emailVerified;el("webhookcheck").disabled=!u?.emailVerified;refresh();loadMarketingEligibility();});
 </script><script defer src="/_vercel/insights/script.js"></script>
 </body></html>
