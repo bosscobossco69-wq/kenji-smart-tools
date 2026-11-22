@@ -537,7 +537,7 @@
     const link=event.target.closest?.("a[data-signup-entry]");
     if(link && !window.__kenjiSignedIn){
       window.va("event",{name:"Signup Link Clicked",data:{source:link.dataset.signupEntry}});
-      fetch("/api/conversion-event",{
+      fetch("/api/website-order?action=conversion_event",{
         method:"POST",credentials:"same-origin",keepalive:true,
         headers:{"Content-Type":"application/json"},body:JSON.stringify({event:"signup_link"})
       }).catch(()=>{});
