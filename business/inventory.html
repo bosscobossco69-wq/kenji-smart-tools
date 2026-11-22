@@ -74,7 +74,7 @@ function render(){
 async function request(method,body){
  if(!current?.emailVerified)throw Error("Verified login is required.");
  const token=await current.getIdToken(true);
- const r=await fetch("/api/business-inventory",{method,headers:{Authorization:"Bearer "+token,...(body?{"Content-Type":"application/json"}:{})},...(body?{body:JSON.stringify(body)}:{}) ,cache:"no-store"});
+ const r=await fetch("/api/account-billing?action=inventory",{method,headers:{Authorization:"Bearer "+token,...(body?{"Content-Type":"application/json"}:{})},...(body?{body:JSON.stringify(body)}:{}) ,cache:"no-store"});
  const v=await r.json().catch(()=>({}));if(!r.ok)throw Error(v.error||"Inventory request failed.");return v;
 }
 async function load(){if(!current?.emailVerified)return;try{data=await request("GET");el("workspace").hidden=false;el("gate").hidden=true;el("status").hidden=true;render();}catch(e){show(e.message,true);}}
