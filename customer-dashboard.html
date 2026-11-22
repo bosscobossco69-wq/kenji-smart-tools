@@ -27,15 +27,21 @@ main{max-width:1200px;margin:auto;padding:16px 14px 90px}a{color:#eac18a}header{
 <div class="stats">
 <div class="stat"><strong id="visitors7d">—</strong><small>Vercel unique visitors · 7 days</small></div>
 <div class="stat"><strong id="pageviews7d">—</strong><small>Vercel pageviews · 7 days</small></div>
-<div class="stat"><strong id="signupClicks7d">Not available</strong><small>Signup clicks · custom event API restricted</small></div>
-</div><p id="trafficStatus" class="muted" role="status">Checking Vercel Analytics access…</p>
+<div class="stat"><strong id="signupClicks7d">—</strong><small>Signup link clicks · approx. browser/days</small></div>
+</div><div class="stats">
+<div class="stat"><strong id="signupViews7d">—</strong><small>Signup page opened</small></div>
+<div class="stat"><strong id="signupSubmits7d">—</strong><small>Signup form submitted</small></div>
+<div class="stat"><strong id="signupErrors7d">—</strong><small>Signup errors (approx.)</small></div>
+</div>
+<p class="muted">Free first-party counters count at most one recorded browser per event per UTC day. They can be blocked, reset or automated; registration totals below are authoritative Firebase accounts, not equivalent funnel denominators.</p>
+<p id="trafficStatus" class="muted" role="status">Checking Vercel Analytics access…</p>
 <p class="muted">Traffic includes administrator browsing and is not the same as external potential customers. No conversion rate is computed from different date windows.</p></section>
 <section class="surface" aria-labelledby="conversion-head"><h2 id="conversion-head">Signup conversion · past 7 days</h2>
 <p class="muted">Counts are from Firebase Authentication and exclude no accounts automatically. Visitors and signup-click events are stored separately in Vercel Analytics, so no unsupported conversion percentage is shown.</p>
 <div class="stats"><div class="stat"><strong id="newRegistrations">—</strong><small>New registered accounts, 7 days</small></div>
 <div class="stat"><strong id="newVerified">—</strong><small>Of those, verified now</small></div>
 <div class="stat"><strong id="newNotVerified">—</strong><small>Of those, unverified now</small></div></div>
-<p class="muted">Registration page viewed, form submitted, registration success and failure events are collected by Vercel Web Analytics. Their totals require a separately authorized analytics integration and are not fabricated here.</p></section>
+<p class="muted">Authoritative new registrations come from Firebase; anonymous page, click, submit and error counters are shown above. These approximate measurements are not unique people.</p></section>
 <div id="scope" class="notice" hidden></div>
 <section class="surface"><div class="section-head"><h2>Orders & payment status</h2><select id="orderFilter" aria-label="Filter orders"><option value="all">All recent orders</option><option value="paid">Paid</option><option value="failed">Failed only</option><option value="awaiting">Awaiting payment</option><option value="expired">Expired checkout</option><option value="other">Other / unknown</option></select></div>
 <p class="muted">Paid is confirmed by server records. Expired means explicitly marked expired by the backend, not merely an old timestamp; awaiting means unconfirmed, not a declined charge. This view shows recent sampled orders, not full historical revenue.</p>
@@ -54,7 +60,12 @@ function clearRows(id){el(id).replaceChildren();}
 function state(s){return s==="paid"?"paid":["failed","payment_failed"].includes(s)?"failed":["checkout_expired","expired"].includes(s)?"expired":["checkout_pending","checkout_created","pending","unpaid"].includes(s)?"awaiting":"other";}
 function addEmpty(tbody,message){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=5;td.className="empty";td.textContent=message;tr.append(td);tbody.append(tr);}
 function render(){
-if(!data)return;const s=data.summary;el("registered").textContent=s.registrations;el("verified").textContent=s.verifiedUsers;el("paid").textContent=s.paid;el("income").textContent=dollars(s.paidUsdCents);el("failed").textContent=s.failed;el("pending").textContent=s.awaiting;el("expired").textContent=s.expired;el("unknownOrders").textContent=s.other;const traffic=data.traffic||{};
+if(!data)return;const s=data.summary;el("registered").textContent=s.registrations;el("verified").textContent=s.verifiedUsers;el("paid").textContent=s.paid;el("income").textContent=dollars(s.paidUsdCents);el("failed").textContent=s.failed;el("pending").textContent=s.awaiting;el("expired").textContent=s.expired;el("unknownOrders").textContent=s.other;const conversion=data.conversion||{};
+el("signupClicks7d").textContent=Number.isSafeInteger(conversion.signup_link)?conversion.signup_link:"—";
+el("signupViews7d").textContent=Number.isSafeInteger(conversion.signup_page)?conversion.signup_page:"—";
+el("signupSubmits7d").textContent=Number.isSafeInteger(conversion.signup_submit)?conversion.signup_submit:"—";
+el("signupErrors7d").textContent=Number.isSafeInteger(conversion.signup_error)?conversion.signup_error:"—";
+const traffic=data.traffic||{};
 el("visitors7d").textContent=traffic.status==="ready"?traffic.visitors:"—";
 el("pageviews7d").textContent=traffic.status==="ready"?traffic.pageviews:"—";
 el("trafficStatus").textContent=traffic.status==="ready"
