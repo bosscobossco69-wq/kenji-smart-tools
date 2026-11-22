@@ -2,6 +2,7 @@ import { billingMode, billingCollection, billingDb, assertLegacyReviewed } from 
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
+import { preferenceRef, updateMarketingPreference } from "../lib/marketing-consent.js";
 
 let servicesPromise;
 function getServices() {
@@ -24,9 +25,15 @@ export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store, private");
   res.setHeader("Vary", "Authorization");
   res.setHeader("X-Content-Type-Options", "nosniff");
-  if (req.method !== "GET") {
-    res.setHeader("Allow", "GET");
+  const marketingUpdate = req.method === "POST" && req.query?.action === "marketing_preference";
+  if (req.method !== "GET" && !marketingUpdate) {
+    res.setHeader("Allow", "GET, POST");
     return res.status(405).json({ error: "Method not allowed." });
+  }
+  if (marketingUpdate && (typeof req.body?.marketingConsent !== "boolean" ||
+      Object.keys(req.body||{}).length !== 1 ||
+      req.headers["content-type"]?.split(";")[0] !== "application/json")) {
+    return res.status(400).json({error:"A true or false marketing choice is required."});
   }
 
   try {
@@ -40,14 +47,21 @@ export default async function handler(req, res) {
     }
 
     const { auth, db } = await getServices();
-    const user = await auth.verifyIdToken(token, true);
+    const identity = await auth.verifyIdToken(token, true);
+    if (marketingUpdate) {
+      const userRecord = await auth.getUser(identity.uid);
+      if (userRecord.disabled || !userRecord.email) return res.status(403).json({error:"Account unavailable."});
+      const result = await updateMarketingPreference(db,userRecord,req.body.marketingConsent,"account");
+      return res.status(200).json({ok:true,...result});
+    }
+    const user = identity;
     if (!user.email || user.email_verified !== true) {
       return res.status(403).json({ error: "A verified email address is required." });
     }
 
     await assertLegacyReviewed(db, user.uid);
     const billingRef = db.collection("users").doc(user.uid).collection(billingCollection()).doc("current");
-    const snapshot = await billingRef.get();
+    const [snapshot, marketingSnapshot] = await Promise.all([billingRef.get(),preferenceRef(db,user.uid).get()]);
     const billing = snapshot.exists ? snapshot.data() : {};
     const balance = Number(billing.creditBalance ?? 0);
     const subscriptionStatus = typeof billing.status === "string" ? billing.status : "inactive";
@@ -57,7 +71,8 @@ export default async function handler(req, res) {
       billingEnvironment: billingMode(),
       creditBalance: Number.isFinite(balance) && balance >= 0 ? Math.floor(balance) : 0,
       subscriptionStatus,
-      planActive: ["active", "trialing"].includes(subscriptionStatus)
+      planActive: ["active", "trialing"].includes(subscriptionStatus),
+      marketingConsent: marketingSnapshot.exists && marketingSnapshot.data()?.marketingConsent === true
     });
   } catch (error) {
     if (error?.code === "billing_legacy_review_required") return res.status(409).json({ error: error.message });
