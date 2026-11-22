@@ -1,0 +1,31 @@
+const test=require("node:test");
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const path=require("node:path");
+const root=path.join(__dirname,"..");
+const home=fs.readFileSync(path.join(root,"index.html"),"utf8");
+const signup=fs.readFileSync(path.join(root,"workspace/signup.html"),"utf8");
+const css=fs.readFileSync(path.join(root,"assets/kenji-editorial-refresh.css"),"utf8");
+test("public pages keep live links and analytics while loading editorial styles",()=>{
+ for(const html of [home,signup])assert.match(html,/\/assets\/kenji-editorial-refresh\.css/);
+ assert.match(home,/kenji-editorial/);assert.match(signup,/kenji-signup-editorial/);
+ assert.match(home,/id="homeSignupCta"/);
+ assert.match(home,/id="mainAuthNav"/);
+ assert.match(home,/data-signup-entry="homepage_nav"/);
+ assert.match(home,/\/api\/website-checkout/);
+ assert.match(home,/https:\/\/checkout\.stripe\.com|checkout\.stripe\.com/);
+ assert.match(home,/data-package="basic"/);assert.match(home,/data-package="professional"/);assert.match(home,/data-package="premium"/);
+ assert.match(home,/\/workspace\/firebase-auth\.js/);
+ assert.match(signup,/createUserWithEmailAndPassword/);
+ assert.match(signup,/sendEmailVerification/);
+ assert.match(signup,/marketingConsent/);
+ assert.match(signup,/countFunnel/);
+});
+test("consultation & honest offer statements are present",()=>{
+ assert.match(home,/href="#contact">Ask a question first/);
+ assert.match(home,/Payment starts the onboarding process/);
+ assert.match(home,/Domain registration, paid hosting/);
+ assert.match(signup,/No subscription required to register/);
+ assert.match(css,/prefers-reduced-motion/);
+ assert.doesNotMatch(css,/display\s*:\s*none[^}]*website-pay-btn/);
+});
