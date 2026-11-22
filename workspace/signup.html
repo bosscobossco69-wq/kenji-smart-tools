@@ -4,7 +4,7 @@
 <link rel="stylesheet" href="/assets/kenji-premium.css">
   <link rel="stylesheet" href="/assets/kenji-brand-system.css">
 </head>
-<body><main class="wrap"><a class="brand" href="/workspace/"><span>KENJI</span> AI WORKSPACE</a><section class="panel"><h1>Create your account</h1><p class="muted">Set up access to your AI workspace.</p><div class="status"><strong>Planned offer:</strong> 3 days of free access, followed by a subscription to continue using premium AI features. The trial is not active yet; we will announce it when account and subscription verification are ready.</div><p id="formMessage" class="status" role="status" aria-live="polite" hidden></p><form id="signupForm"><label for="name">Full name</label><input id="name" name="name" autocomplete="name" maxlength="80" required placeholder="Your name"><label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@example.com"><label for="password">Create password</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="6" required placeholder="At least 6 characters"><button type="submit" id="submitButton">Create account</button></form><small>We will create your account with Firebase Authentication and send a verification email. Do not reuse a password from another service.</small><div class="links"><a href="/workspace/">← Workspace</a><a href="/workspace/login.html">Already have an account? Sign in</a></div></section><div class="foot">KENJI AI Workspace · Early access</div></main>
+<body><main class="wrap"><a class="brand" href="/workspace/"><span>KENJI</span> AI WORKSPACE</a><section class="panel"><h1>Create your account</h1><p class="muted">Set up access to your AI workspace.</p><div class="status"><strong>Planned offer:</strong> 3 days of free access, followed by a subscription to continue using premium AI features. The trial is not active yet; we will announce it when account and subscription verification are ready.</div><p id="formMessage" class="status" role="status" aria-live="polite" hidden></p><form id="signupForm"><label for="name">Full name</label><input id="name" name="name" autocomplete="name" maxlength="80" required placeholder="Your name"><label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@example.com"><label for="password">Create password</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="6" required placeholder="At least 6 characters"><label style="display:flex;align-items:flex-start;gap:10px;font-weight:400;line-height:1.45"><input type="checkbox" id="marketingConsent" style="width:18px;height:18px;flex:none;margin-top:4px"><span>Send me occasional product tips and offers by email. Optional; I can unsubscribe at any time.</span></label><button type="submit" id="submitButton">Create account</button></form><small>We will create your account with Firebase Authentication and send a verification email. Do not reuse a password from another service.</small><div class="links"><a href="/workspace/">← Workspace</a><a href="/workspace/login.html">Already have an account? Sign in</a></div></section><div class="foot">KENJI AI Workspace · Early access</div></main>
 <script type="module">
 import {auth,authReady,createUserWithEmailAndPassword,updateProfile,sendEmailVerification,signOut,friendlyAuthError} from "./firebase-auth.js";
 const form=document.getElementById("signupForm"),button=document.getElementById("submitButton"),message=document.getElementById("formMessage");
@@ -33,10 +33,21 @@ form.addEventListener("submit",async event=>{
   const name=document.getElementById("name").value.trim();
   const email=document.getElementById("email").value.trim();
   const password=document.getElementById("password").value;
+  const marketingConsent=document.getElementById("marketingConsent").checked;
   if(!name){throw new Error("Please enter your name.");}
   const credential=await createUserWithEmailAndPassword(auth,email,password);
   await updateProfile(credential.user,{displayName:name});
   await sendEmailVerification(credential.user,{url:location.origin+"/workspace/login.html",handleCodeInApp:false});
+  // Consent is recorded only against the authenticated new Firebase UID.
+  // Failure is fail-closed: no consent record means no promotional messages.
+  try {
+    const idToken=await credential.user.getIdToken();
+    const resp=await fetch("/api/account-billing?action=marketing_preference",{
+      method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+idToken},
+      body:JSON.stringify({marketingConsent})
+    });
+    if(!resp.ok)console.warn("Marketing preference was not saved; no marketing is enabled.");
+  }catch{console.warn("Marketing preference unavailable; no marketing is enabled.");}
   track("Signup Account Created");
   await signOut(auth);
   form.reset();

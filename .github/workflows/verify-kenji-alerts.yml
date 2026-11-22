@@ -20,3 +20,10 @@ jobs:
           node-version: '22'
       - run: npm run test:billing
       - run: npm run test:notifications
+      - run: npm run test:marketing
+      - name: Check marketing and consent API syntax
+        run: |
+          node --check api/account-billing.js
+          node --check api/website-order.js
+          node --check lib/marketing-consent.js
+          node --check lib/marketing-followups.js
