@@ -21,6 +21,13 @@ main{max-width:1200px;margin:auto;padding:16px 14px 90px}a{color:#eac18a}header{
 <div class="stat"><strong id="failed">—</strong><small>Explicit failed orders</small></div>
 <div class="stat"><strong id="pending">—</strong><small>Checkout pending / unpaid</small></div>
 </div>
+<section class="surface" aria-labelledby="traffic-head"><h2 id="traffic-head">Website traffic · past 7 days</h2>
+<div class="stats">
+<div class="stat"><strong id="visitors7d">—</strong><small>Vercel unique visitors · 7 days</small></div>
+<div class="stat"><strong id="pageviews7d">—</strong><small>Vercel pageviews · 7 days</small></div>
+<div class="stat"><strong id="signupClicks7d">Not available</strong><small>Signup clicks · custom event API restricted</small></div>
+</div><p id="trafficStatus" class="muted" role="status">Checking Vercel Analytics access…</p>
+<p class="muted">Traffic includes administrator browsing and is not the same as external potential customers. No conversion rate is computed from different date windows.</p></section>
 <section class="surface" aria-labelledby="conversion-head"><h2 id="conversion-head">Signup conversion · past 7 days</h2>
 <p class="muted">Counts are from Firebase Authentication and exclude no accounts automatically. Visitors and signup-click events are stored separately in Vercel Analytics, so no unsupported conversion percentage is shown.</p>
 <div class="stats"><div class="stat"><strong id="newRegistrations">—</strong><small>New registered accounts, 7 days</small></div>
@@ -45,7 +52,15 @@ function clearRows(id){el(id).replaceChildren();}
 function state(s){return s==="paid"?"paid":["failed","payment_failed"].includes(s)?"failed":"pending";}
 function addEmpty(tbody,message){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=5;td.className="empty";td.textContent=message;tr.append(td);tbody.append(tr);}
 function render(){
-if(!data)return;const s=data.summary;el("registered").textContent=s.registrations;el("verified").textContent=s.verifiedUsers;el("paid").textContent=s.paid;el("income").textContent=dollars(s.paidUsdCents);el("failed").textContent=s.failed;el("pending").textContent=s.pending;el("newRegistrations").textContent=s.registrations7d??"—";el("newVerified").textContent=s.verifiedRegistrations7d??"—";el("newNotVerified").textContent=Number.isInteger(s.registrations7d)&&Number.isInteger(s.verifiedRegistrations7d)?s.registrations7d-s.verifiedRegistrations7d:"—";
+if(!data)return;const s=data.summary;el("registered").textContent=s.registrations;el("verified").textContent=s.verifiedUsers;el("paid").textContent=s.paid;el("income").textContent=dollars(s.paidUsdCents);el("failed").textContent=s.failed;el("pending").textContent=s.pending;const traffic=data.traffic||{};
+el("visitors7d").textContent=traffic.status==="ready"?traffic.visitors:"—";
+el("pageviews7d").textContent=traffic.status==="ready"?traffic.pageviews:"—";
+el("trafficStatus").textContent=traffic.status==="ready"
+  ? "Source: Vercel Web Analytics (production). Window: "+dt(traffic.since)+" to "+dt(traffic.until)+"."
+  : traffic.status==="not_configured"
+    ? "Live traffic integration requires a server-side Vercel Analytics read token. No token or placeholder values are exposed to customers."
+    : (traffic.note||"Traffic numbers are unavailable; do not interpret missing data as zero.");
+el("newRegistrations").textContent=s.registrations7d??"—";el("newVerified").textContent=s.verifiedRegistrations7d??"—";el("newNotVerified").textContent=Number.isInteger(s.registrations7d)&&Number.isInteger(s.verifiedRegistrations7d)?s.registrations7d-s.verifiedRegistrations7d:"—";
 const sc=data.scope;const partial=sc.usersTruncated||sc.websiteOrdersTruncated||sc.billingOrdersTruncated;
 const scope=el("scope");scope.hidden=false;
 scope.textContent=(data.environment==="live"?"LIVE / PRODUCTION":"PREVIEW / TEST")+" · "+(partial?"Partial results; limits reached.":"Recent records only.")+" Firebase accounts sampled: "+sc.firebaseUsers+"; website orders: "+sc.websiteOrders+"; billing orders: "+sc.billingOrders+". Stripe failed-invoice webhook events in recent sample: "+s.invoiceFailureEvents+". These events are not added to the failed-order count to avoid double counting.";
