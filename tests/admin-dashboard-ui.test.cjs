@@ -4,7 +4,7 @@ const fs=require("node:fs");
 const path=require("node:path");
 const {execFileSync}=require("node:child_process");
 const html=fs.readFileSync(path.join(__dirname,"..","customer-dashboard.html"),"utf8");
-const js=html.match(/<script type="module">([\\s\\S]*?)<\\/script>/)?.[1];
+const js=html.match(/<script type="module">([\s\S]*?)<\/script>/)?.[1];
 
 test("dashboard module parses as JavaScript and keeps Firebase authentication",()=>{
  assert.ok(js,"inline dashboard module must exist");
