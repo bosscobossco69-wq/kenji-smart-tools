@@ -225,8 +225,9 @@
     @media(max-width:850px){.service-grid{grid-template-columns:1fr}.service-plan{padding:22px}.service-offer{padding-top:20px}}
   </style>
   <link rel="stylesheet" href="/assets/kenji-brand-system.css">
+  <link rel="stylesheet" href="/assets/kenji-editorial-refresh.css">
 </head>
-<body>
+<body class="kenji-editorial">
   <header class="nav shell"><div class="nav-inner">
     <a class="brand" href="#home"><span class="brand-mark"></span><span>KENJI / SMART TOOLS</span></a>
     <nav class="nav-links" id="mobileNavLinks"><a href="#web-services">Website Services</a><a href="#tools">Tools</a><a href="#integrations">Integrations</a><a href="#feedback">Feedback</a><a href="#about">About</a><a href="#privacy">Privacy</a><a href="#contact">Contact</a></nav><button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" aria-controls="mobileNavLinks" aria-expanded="false">Menu ☰</button>
@@ -235,11 +236,11 @@
 
   <main>
     <section class="hero shell" id="home">
-      <div>
-        <span class="eyebrow"><i></i> browser-first utilities</span>
-        <h1>Simple tools.<br><span class="gradient-text">Sharper work.</span></h1>
-        <p class="hero-copy">A focused toolkit for freelancers, creators, and small businesses. Fast, private, and designed to help you move from idea to action without unnecessary friction.</p>
-        <div class="hero-actions"><a class="btn" id="homeSignupCta" href="/workspace/signup.html" data-signup-entry="homepage_hero">Create free account</a><a class="btn secondary" href="#tools">Explore free tools</a><a class="btn secondary" href="/ai-customer-reply.html">Try AI Customer Reply</a><a class="btn secondary" href="#web-services">Website services from US$99</a></div><p style="font-size:.84rem;color:var(--muted);margin-top:12px">Free browser tools work without registration. An account is for managing AI Credits and billing; no subscription is required to sign up.</p>
+      <div class="hero-message">
+        <span class="eyebrow"><i></i> FREE TOOLS · AI WORKSPACE · WEB DESIGN</span>
+        <h1>Smarter tools.<br><span class="gradient-text">A stronger business.</span></h1>
+        <p class="hero-copy">Everything your small business needs to get moving: practical free browser tools, professional AI workflows, and custom websites from US$99. Start with something useful today.</p>
+        <div class="hero-actions"><a class="btn" id="homeSignupCta" href="/workspace/signup.html" data-signup-entry="homepage_hero">Create free account</a><a class="btn secondary" href="#tools">Try free tools</a><a class="btn secondary" href="/ai-customer-reply.html">Try AI Customer Reply</a><a class="btn secondary" href="#web-services">Get a website · from US$99</a></div><p style="font-size:.84rem;color:var(--muted);margin-top:12px">Free browser tools work without registration. An account is for managing AI Credits and billing; no subscription is required to sign up.</p><div class="hero-trust" aria-label="Our commitments"><span>Free tools, no sign-up needed</span><span>Mobile friendly</span><span>Secure Stripe checkout for services</span></div>
       </div>
       <div class="hero-orbit" aria-hidden="true"><div class="orbital"><div class="core"><span>K</span></div><b class="orbit-dot dot-1"></b><b class="orbit-dot dot-2"></b><b class="orbit-dot dot-3"></b></div></div>
     </section>
@@ -247,8 +248,8 @@
     <section class="section shell service-offer" id="web-services" aria-labelledby="web-services-title">
       <div class="service-head">
         <div class="section-kicker">Professional services / KENJI Web &amp; Digital</div>
-        <h2 id="web-services-title">Need a website for your business?</h2>
-        <p>Choose a website package below and request a quote. These are <strong>paid website-building services</strong>; our browser utilities remain available separately for free.</p>
+        <h2 id="web-services-title">Your next business website starts here.</h2>
+        <p>Clear packages for entrepreneurs and small businesses. Explore what is included, ask questions before purchasing, or open secure Stripe Checkout when you are ready. Free browser tools remain free.</p>
       </div>
       <div class="service-grid">
         <article class="service-plan">
@@ -272,6 +273,16 @@
           <ul><li>Up to 10 responsive pages</li><li>Custom visual layout</li><li>Basic on-page SEO</li><li>Deployment assistance and launch checks</li></ul>
           <button class="btn website-pay-btn" type="button" data-package="premium">Pay securely · Get Premium package</button>
         </article>
+      </div>
+      <div class="service-question">
+        <p><strong>Not sure which package fits?</strong> Tell us about your business and the pages you need before paying.</p>
+        <a href="#contact">Ask a question first ↗</a>
+      </div>
+      <div class="service-faq" aria-label="Website package FAQs">
+        <details><summary>Do I have to pay before discussing my project?</summary><p>No. Use the contact section to explain your requirements first. Package buttons open Stripe Checkout only if you decide to purchase.</p></details>
+        <details><summary>Is the website completed immediately after payment?</summary><p>No. Payment starts the onboarding process. We agree on your scope, content, revision details, and delivery timeline before completing the website.</p></details>
+        <details><summary>Are domains and hosting included?</summary><p>Domain registration, paid hosting, and third-party subscriptions are not included in the listed website package price. We can discuss the setup options during onboarding.</p></details>
+        <details><summary>Can I use the free browser tools without subscribing?</summary><p>Yes. The free browser tools do not require a paid subscription. AI Credits and website-building services are separate offers.</p></details>
       </div>
       <p class="service-note">Prices are in USD and start at the amounts shown. Listed package prices are charged at checkout. Final requirements, delivery timelines and revision scope will be agreed during onboarding. Domain registration, paid hosting and third-party subscriptions are not included. Selecting a package opens secure Stripe Checkout for a one-time payment. After confirmed payment, your package is activated and you can submit project requirements immediately. A completed custom website is delivered later after scope and timing are agreed. <a href="#tools" style="text-decoration:underline">Looking for free tools? Browse them here.</a></p>
     </section>
