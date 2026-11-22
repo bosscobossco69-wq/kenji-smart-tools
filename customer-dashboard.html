@@ -19,24 +19,32 @@ main{max-width:1200px;margin:auto;padding:16px 14px 90px}a{color:#eac18a}header{
 <div class="stat"><strong id="paid">—</strong><small>Paid orders (sample)</small></div>
 <div class="stat"><strong id="income">—</strong><small>Paid order value (USD, sample)</small></div>
 <div class="stat"><strong id="failed">—</strong><small>Explicit failed orders</small></div>
-<div class="stat"><strong id="pending">—</strong><small>Checkout pending / unpaid</small></div>
+<div class="stat"><strong id="pending">—</strong><small>Awaiting payment</small></div>
+<div class="stat"><strong id="expired">—</strong><small>Explicitly expired checkouts</small></div>
+<div class="stat"><strong id="unknownOrders">—</strong><small>Other / reconciliation needed</small></div>
 </div>
 <section class="surface" aria-labelledby="traffic-head"><h2 id="traffic-head">Website traffic · past 7 days</h2>
 <div class="stats">
 <div class="stat"><strong id="visitors7d">—</strong><small>Vercel unique visitors · 7 days</small></div>
 <div class="stat"><strong id="pageviews7d">—</strong><small>Vercel pageviews · 7 days</small></div>
-<div class="stat"><strong id="signupClicks7d">Not available</strong><small>Signup clicks · custom event API restricted</small></div>
-</div><p id="trafficStatus" class="muted" role="status">Checking Vercel Analytics access…</p>
+<div class="stat"><strong id="signupClicks7d">—</strong><small>Signup link clicks · approx. browser/days</small></div>
+</div><div class="stats">
+<div class="stat"><strong id="signupViews7d">—</strong><small>Signup page opened</small></div>
+<div class="stat"><strong id="signupSubmits7d">—</strong><small>Signup form submitted</small></div>
+<div class="stat"><strong id="signupErrors7d">—</strong><small>Signup errors (approx.)</small></div>
+</div>
+<p class="muted">Free first-party counters count at most one recorded browser per event per UTC day. They can be blocked, reset or automated; registration totals below are authoritative Firebase accounts, not equivalent funnel denominators.</p>
+<p id="trafficStatus" class="muted" role="status">Checking Vercel Analytics access…</p>
 <p class="muted">Traffic includes administrator browsing and is not the same as external potential customers. No conversion rate is computed from different date windows.</p></section>
 <section class="surface" aria-labelledby="conversion-head"><h2 id="conversion-head">Signup conversion · past 7 days</h2>
 <p class="muted">Counts are from Firebase Authentication and exclude no accounts automatically. Visitors and signup-click events are stored separately in Vercel Analytics, so no unsupported conversion percentage is shown.</p>
 <div class="stats"><div class="stat"><strong id="newRegistrations">—</strong><small>New registered accounts, 7 days</small></div>
 <div class="stat"><strong id="newVerified">—</strong><small>Of those, verified now</small></div>
 <div class="stat"><strong id="newNotVerified">—</strong><small>Of those, unverified now</small></div></div>
-<p class="muted">Registration page viewed, form submitted, registration success and failure events are collected by Vercel Web Analytics. Their totals require a separately authorized analytics integration and are not fabricated here.</p></section>
+<p class="muted">Authoritative new registrations come from Firebase; anonymous page, click, submit and error counters are shown above. These approximate measurements are not unique people.</p></section>
 <div id="scope" class="notice" hidden></div>
-<section class="surface"><div class="section-head"><h2>Orders & payment status</h2><select id="orderFilter" aria-label="Filter orders"><option value="all">All recent orders</option><option value="paid">Paid</option><option value="failed">Failed only</option><option value="pending">Pending / unpaid</option></select></div>
-<p class="muted">Paid is confirmed by server records; pending does not mean Stripe declined a card. This view shows recent sampled orders, not full historical revenue.</p>
+<section class="surface"><div class="section-head"><h2>Orders & payment status</h2><select id="orderFilter" aria-label="Filter orders"><option value="all">All recent orders</option><option value="paid">Paid</option><option value="failed">Failed only</option><option value="awaiting">Awaiting payment</option><option value="expired">Expired checkout</option><option value="other">Other / unknown</option></select></div>
+<p class="muted">Paid is confirmed by server records. Expired means explicitly marked expired by the backend, not merely an old timestamp; awaiting means unconfirmed, not a declined charge. This view shows recent sampled orders, not full historical revenue.</p>
 <div class="scroller"><table><thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Amount</th><th>Payment</th></tr></thead><tbody id="orderRows"></tbody></table></div></section>
 <section class="surface"><h2>Real customer activity</h2><p class="muted">Server-observed registration, checkout and payment events. Website page visits are not tracked here.</p>
 <div class="scroller"><table><thead><tr><th>Date</th><th>Event</th><th>Customer</th><th>Detail</th></tr></thead><tbody id="activityRows"></tbody></table></div></section>
@@ -49,10 +57,15 @@ const dt=v=>v?new Date(v).toLocaleString():"—";
 const dollars=n=>Number.isSafeInteger(n)?"US$"+(n/100).toFixed(2):"—";
 function cell(tr,text){const td=document.createElement("td");td.textContent=text===null||text===undefined?"—":String(text);tr.append(td);return td;}
 function clearRows(id){el(id).replaceChildren();}
-function state(s){return s==="paid"?"paid":["failed","payment_failed"].includes(s)?"failed":"pending";}
+function state(s){return s==="paid"?"paid":["failed","payment_failed"].includes(s)?"failed":["checkout_expired","expired"].includes(s)?"expired":["checkout_pending","checkout_created","pending","unpaid"].includes(s)?"awaiting":"other";}
 function addEmpty(tbody,message){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=5;td.className="empty";td.textContent=message;tr.append(td);tbody.append(tr);}
 function render(){
-if(!data)return;const s=data.summary;el("registered").textContent=s.registrations;el("verified").textContent=s.verifiedUsers;el("paid").textContent=s.paid;el("income").textContent=dollars(s.paidUsdCents);el("failed").textContent=s.failed;el("pending").textContent=s.pending;const traffic=data.traffic||{};
+if(!data)return;const s=data.summary;el("registered").textContent=s.registrations;el("verified").textContent=s.verifiedUsers;el("paid").textContent=s.paid;el("income").textContent=dollars(s.paidUsdCents);el("failed").textContent=s.failed;el("pending").textContent=s.awaiting;el("expired").textContent=s.expired;el("unknownOrders").textContent=s.other;const conversion=data.conversion||{};
+el("signupClicks7d").textContent=Number.isSafeInteger(conversion.signup_link)?conversion.signup_link:"—";
+el("signupViews7d").textContent=Number.isSafeInteger(conversion.signup_page)?conversion.signup_page:"—";
+el("signupSubmits7d").textContent=Number.isSafeInteger(conversion.signup_submit)?conversion.signup_submit:"—";
+el("signupErrors7d").textContent=Number.isSafeInteger(conversion.signup_error)?conversion.signup_error:"—";
+const traffic=data.traffic||{};
 el("visitors7d").textContent=traffic.status==="ready"?traffic.visitors:"—";
 el("pageviews7d").textContent=traffic.status==="ready"?traffic.pageviews:"—";
 el("trafficStatus").textContent=traffic.status==="ready"
@@ -67,7 +80,7 @@ scope.textContent=(data.environment==="live"?"LIVE / PRODUCTION":"PREVIEW / TEST
 el("updated").textContent="Updated "+dt(data.generatedAt);
 el("orderRows").replaceChildren();const filter=el("orderFilter").value;
 let orders=data.orders.filter(o=>filter==="all"||filter===state(o.status));
-for(const o of orders){const tr=document.createElement("tr");cell(tr,dt(o.createdAt));cell(tr,o.email||"Not linked to an email");cell(tr,o.kind+" · "+o.product);cell(tr,o.currency==="usd"?dollars(o.amount):(o.amount==null?"—":String(o.amount)+" "+o.currency.toUpperCase()));const td=cell(tr,o.status);td.className="tag "+state(o.status);el("orderRows").append(tr);}
+for(const o of orders){const tr=document.createElement("tr");cell(tr,dt(o.createdAt));cell(tr,o.email||"Not linked to an email");cell(tr,o.kind+" · "+o.product);cell(tr,o.currency==="usd"?dollars(o.amount):(o.amount==null?"—":String(o.amount)+" "+o.currency.toUpperCase()));const td=cell(tr,(o.category||state(o.status))+" · "+o.status);td.className="tag "+state(o.status);el("orderRows").append(tr);}
 if(!orders.length)addEmpty(el("orderRows"),"No matching recent orders.");
 clearRows("activityRows");for(const a of data.activity){const tr=document.createElement("tr");cell(tr,dt(a.time));cell(tr,a.kind.replaceAll("_"," "));cell(tr,a.email||"Not linked");cell(tr,a.detail);el("activityRows").append(tr);}
 if(!data.activity.length)addEmpty(el("activityRows"),"No recorded events in the sampled window.");

@@ -4,6 +4,7 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { billingDb } from "../lib/billing-environment.js";
 import { adminEmailConfigured, notifyAdmin } from "../lib/admin-email-alerts.js";
 import { readCustomerTraffic7d } from "../lib/website-traffic.js";
+import { orderCategory, orderSummary } from "../lib/order-status.js";
 
 const allowedStatuses = new Set(["new", "in_progress", "delivered", "on_hold"]);
 let services;
@@ -84,13 +85,21 @@ export default async function handler(req,res){
       const sevenDaysAgo=Date.now()-7*24*60*60*1000;
       const recentUsers=users.filter(u=>u.createdAt && new Date(u.createdAt).getTime()>=sevenDaysAgo);
       const recentVerified=recentUsers.filter(u=>u.emailVerified).length;
+      // Daily counters are approximate anonymous browser/day events, not unique people.
+      const dayKeys=Array.from({length:7},(_,i)=>new Date(Date.now()-i*86400000).toISOString().slice(0,10));
+      const eventSnaps=await Promise.all(dayKeys.map(day=>db.collection("conversionDaily").doc(day).get()));
+      const conversion={signup_link:0,signup_page:0,signup_submit:0,signup_error:0};
+      for(const doc of eventSnaps) if(doc.exists)for(const type of Object.keys(conversion)){
+        const value=doc.data()?.[type];
+        if(Number.isSafeInteger(value)&&value>=0)conversion[type]+=value;
+      }
       const userMap=new Map(users.map(u=>[u.uid,u]));
       const website=websitePage.docs.map(d=>{
         const x=d.data();return {
           id:d.id,kind:"Website service",product:x.packageId||"Website service",
           email:x.buyerEmail||x.onboarding?.contactEmail||null,
           amount:Number.isSafeInteger(x.amount)?x.amount:null,currency:x.currency||"usd",
-          status:x.status||"unknown",
+          status:x.status||"unknown",category:orderCategory(x.status),
           createdAt:toISO(x.createdAt),paidAt:toISO(x.paidAt),
           workflowStatus:x.workflowStatus||"new"
         };
@@ -107,21 +116,13 @@ export default async function handler(req,res){
         };
       });
       const orders=[...website,...billing].sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
-      const isPaid=s=>s==="paid";
-      // 'pending' does not mean Stripe declined a charge. Only explicit failed states qualify.
-      const isFailed=s=>["payment_failed","failed"].includes(s);
-      const totals=orders.reduce((out,o)=>{
-        if(isPaid(o.status)){out.paid++;if(o.currency==="usd"&&o.amount!==null)out.paidUsdCents+=o.amount;}
-        else if(isFailed(o.status))out.failed++;
-        else out.pending++;
-        return out;
-      },{paid:0,failed:0,pending:0,paidUsdCents:0});
+      const totals=orderSummary(orders);
       const webhookFailures=webhookPage.docs.filter(d=>d.data().type==="invoice.payment_failed")
         .map(d=>({eventId:d.id,receivedAt:toISO(d.data().receivedAt),
           processed:d.data().processed===true}));
       const activity=[
         ...users.map(u=>({kind:"registration",email:u.email,time:u.createdAt,detail:u.emailVerified?"Email verified":"Email unverified"})),
-        ...orders.map(o=>({kind:isPaid(o.status)?"payment_success":isFailed(o.status)?"payment_failed":"checkout_created",
+        ...orders.map(o=>({kind:o.category==="paid"?"payment_success":o.category==="failed"?"payment_failed":o.category==="expired"?"checkout_expired":"checkout_created",
           email:o.email,time:isPaid(o.status)?o.paidAt||o.createdAt:o.createdAt,
           detail:o.kind+" · "+o.product+" · "+o.status})),
         ...webhookFailures.map(e=>({kind:"invoice_payment_failed",email:null,time:e.receivedAt,
@@ -131,6 +132,7 @@ export default async function handler(req,res){
         environment:isLive?"live":"preview_test",
         generatedAt:new Date().toISOString(),
         traffic,
+        conversion:{...conversion,window:"7 UTC dates including today",unit:"approximate distinct browser/day per event; anonymous and non-authoritative"},
         scope:{firebaseUsers:users.length,usersTruncated:Boolean(usersPage.pageToken),
           websiteOrders:website.length,websiteOrdersTruncated:websitePage.size===100,
           billingOrders:billing.length,billingOrdersTruncated:billingPage.size===100,
