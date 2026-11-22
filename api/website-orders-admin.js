@@ -5,6 +5,7 @@ import { billingDb } from "../lib/billing-environment.js";
 import { adminEmailConfigured, notifyAdmin } from "../lib/admin-email-alerts.js";
 import { readCustomerTraffic7d } from "../lib/website-traffic.js";
 import { orderCategory, orderSummary } from "../lib/order-status.js";
+import { adminMarketingTestStatus, sendAdminMarketingTest } from "../lib/marketing-admin-test.js";
 
 const allowedStatuses = new Set(["new", "in_progress", "delivered", "on_hold"]);
 let services;
@@ -45,6 +46,20 @@ export default async function handler(req,res){
     if(!identity.email_verified||identity.email?.toLowerCase()!==configuredEmail) return res.status(403).json({error:"Administrator account required."});
     const currentUser=await auth.getUser(identity.uid);
     if(currentUser.disabled||!currentUser.emailVerified||currentUser.email?.toLowerCase()!==configuredEmail)return res.status(403).json({error:"Administrator verification failed."});
+    // Auth was verified against the exact configured admin email above.
+    // This endpoint never accepts a recipient address in the request.
+    if(req.method==="GET"&&req.query?.view==="marketing_test_status"){
+      const status=await adminMarketingTestStatus({db,person:currentUser,adminEmail:configuredEmail});
+      return res.status(200).json(status);
+    }
+    if(req.method==="POST"&&req.body?.action==="marketing_test_email"){
+      if(Object.keys(req.body).length!==1 || req.headers["content-type"]?.split(";")[0]!=="application/json")
+        return res.status(400).json({error:"Only the single-recipient test action is allowed."});
+      if(req.headers.origin!=="https://"+req.headers.host)
+        return res.status(403).json({error:"Invalid request origin."});
+      const outcome=await sendAdminMarketingTest({db,person:currentUser,adminEmail:configuredEmail});
+      return res.status(outcome.sent?200:409).json(outcome);
+    }
     // Read-only diagnostics: only the verified administrator may inspect isolated Test webhook processing.
     // Never return Firebase UIDs, Stripe customers, payment details or secrets.
     if(req.method==="GET" && req.query?.view==="sandbox_webhook"){

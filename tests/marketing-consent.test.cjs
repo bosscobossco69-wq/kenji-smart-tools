@@ -13,8 +13,10 @@ test("marketing worker cannot send by default, verifies emails and purchases",()
  const c=get("lib/marketing-followups.js");
  assert.match(c,/MARKETING_EMAILS_ENABLED!=="true"/);
  assert.match(c,/!person.emailVerified/);
- assert.match(c,/orders.docs.some/);
- assert.match(c,/webOrders.docs.some/);
+ assert.match(c,/hasRecordedPurchase\(db,person\)/);
+ const purchase=get("lib/marketing-purchase.js");
+ assert.match(purchase,/orders.some/);
+ assert.match(purchase,/websiteOrders.some/);
  assert.match(c,/savedPref.data\(\).marketingConsent!==true/);
  assert.match(c,/unsubscribe\.html/);
 });
