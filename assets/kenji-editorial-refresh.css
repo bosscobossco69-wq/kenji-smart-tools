@@ -1,0 +1,55 @@
+/* Public-facing editorial refresh inspired by EarnLoop's spacing and hierarchy.
+   All payments, auth, analytics, and existing component logic stay unchanged. */
+body.kenji-editorial .nav{top:0;padding-top:12px}
+body.kenji-editorial .nav-inner{background:#252019!important;border:1px solid #594938!important;border-radius:18px;padding:15px 20px}
+body.kenji-editorial .brand{letter-spacing:.025em;font-size:.96rem}
+body.kenji-editorial .brand-mark{border-radius:50%;background:linear-gradient(140deg,#f3dba6,#a07842)!important;box-shadow:none}
+body.kenji-editorial .nav-links{gap:20px}
+body.kenji-editorial .nav-cta{border-radius:50px!important}
+body.kenji-editorial .hero{position:relative;gap:42px;padding:84px 0 74px;grid-template-columns:1.12fr .88fr}
+body.kenji-editorial .hero>.hero-message{position:relative;z-index:1}
+body.kenji-editorial .hero h1{font-size:clamp(2.9rem,6.5vw,5.6rem);letter-spacing:-.069em;line-height:1.06;max-width:670px;margin:23px 0}
+body.kenji-editorial .hero .gradient-text{-webkit-text-fill-color:#edc78b!important;color:#edc78b!important}
+body.kenji-editorial .hero-copy{font-size:1.12rem;line-height:1.72;max-width:575px}
+body.kenji-editorial .hero .eyebrow{letter-spacing:.12em;border:1px solid #816744;background:#30271d;color:#e1bc82!important}
+body.kenji-editorial .hero .btn,body.kenji-editorial .service-plan .btn{border-radius:100px!important;min-height:46px;display:inline-flex;align-items:center;justify-content:center;text-align:center}
+body.kenji-editorial .hero .btn{padding:13px 23px}
+body.kenji-editorial .hero .btn.secondary{background:#29241d!important}
+body.kenji-editorial .hero-trust{display:flex;gap:13px;flex-wrap:wrap;margin-top:27px;color:#cdbca5;font-size:.82rem}
+body.kenji-editorial .hero-trust span{border-left:2px solid #bb955f;padding-left:11px}
+body.kenji-editorial .hero-orbit{min-height:400px;background:radial-gradient(circle,#6a54342e,transparent 62%);border-radius:50%}
+body.kenji-editorial .section-head h2,body.kenji-editorial .service-head h2{letter-spacing:-.05em;line-height:1.13}
+body.kenji-editorial .service-offer{padding:65px 0 77px;position:relative}
+body.kenji-editorial .service-head{max-width:730px;margin-bottom:30px}
+body.kenji-editorial .service-head p{font-size:1rem;line-height:1.8}
+body.kenji-editorial .service-grid{gap:18px}
+body.kenji-editorial .service-plan{border-radius:22px;padding:29px 25px;box-shadow:0 12px 38px #0002!important}
+body.kenji-editorial .service-plan.featured{border-color:#d6b88c!important;box-shadow:0 22px 65px #0005!important;transform:translateY(-5px)}
+body.kenji-editorial .service-price{font-size:clamp(2.25rem,4vw,3rem)}
+body.kenji-editorial .service-plan ul{line-height:2}
+body.kenji-editorial .service-plan .btn{width:100%;padding:13px 16px;white-space:normal;font-size:.9rem}
+body.kenji-editorial .service-question{display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between;padding:19px 24px;background:#332a20;border:1px solid #786143;border-radius:18px;margin-top:24px}
+body.kenji-editorial .service-question p{margin:0;max-width:630px;color:#e6d5bc!important;font-size:.92rem;line-height:1.7}
+body.kenji-editorial .service-question a{display:inline-flex;padding:12px 19px;border:1px solid #cfb087;border-radius:50px;color:#f4d6a5!important;text-decoration:none;font-weight:750}
+body.kenji-editorial .service-faq{margin-top:26px;display:grid;gap:10px}
+body.kenji-editorial .service-faq details{border:1px solid #61503d;border-radius:13px;background:#28221b;padding:15px 19px;color:#ddcdb4}
+body.kenji-editorial .service-faq summary{cursor:pointer;color:#f0dcc0;font-weight:750}
+body.kenji-editorial .service-faq p{color:#c8b8a3!important;line-height:1.75;margin:12px 0 0;font-size:.91rem}
+body.kenji-editorial .tool-card{border-radius:20px!important;transition:transform .17s ease,border-color .17s ease}
+body.kenji-editorial .tool-card:hover{transform:translateY(-3px);border-color:#b59466!important}
+body.kenji-editorial .tool-directory a{transition:background .18s ease}
+body.kenji-editorial .tool-directory a:hover{background:#3e3327}
+@media(max-width:850px){body.kenji-editorial .hero{grid-template-columns:1fr;gap:6px;padding:54px 0 34px}body.kenji-editorial .hero-orbit{min-height:240px}body.kenji-editorial .hero .orbital{width:min(290px,68vw)}body.kenji-editorial .service-plan.featured{transform:none}body.kenji-editorial .service-offer{padding:38px 0 58px}}
+@media(max-width:560px){body.kenji-editorial .nav-inner{padding:11px}body.kenji-editorial .brand{font-size:.75rem}body.kenji-editorial .hero{padding:46px 0 28px}body.kenji-editorial .hero h1{font-size:clamp(2.5rem,10vw,3.6rem)}body.kenji-editorial .hero-copy{font-size:1rem}body.kenji-editorial .hero-actions{gap:9px}body.kenji-editorial .hero .btn{padding:12px 16px;font-size:.9rem}body.kenji-editorial .hero-trust{gap:8px;font-size:.76rem}body.kenji-editorial .hero-orbit{min-height:245px}body.kenji-editorial .service-question{padding:18px}body.kenji-editorial .service-grid{gap:12px}body.kenji-editorial .service-plan{padding:23px!important}}
+@media(prefers-reduced-motion:reduce){body.kenji-editorial .tool-card{transition:none}body.kenji-editorial .tool-card:hover{transform:none}}
+/* Signup is a distinct body class; avoid affecting Firebase form markup or state. */
+body.kenji-signup-editorial{background:radial-gradient(circle at 15% 8%,#51412a47,transparent 35rem),linear-gradient(140deg,#17120e,#262019)!important}
+body.kenji-signup-editorial .wrap{width:min(515px,100%)}
+body.kenji-signup-editorial .brand{font-size:1.08rem;letter-spacing:.06em}
+body.kenji-signup-editorial .panel{border:1px solid #6e583d!important;background:linear-gradient(145deg,#33291f,#231c16)!important;border-radius:24px;padding:clamp(22px,5vw,37px);box-shadow:0 30px 90px #0005!important}
+body.kenji-signup-editorial .panel h1{font-size:clamp(1.9rem,5vw,2.6rem);line-height:1.15}
+body.kenji-signup-editorial .panel input:not([type="checkbox"]){min-height:46px;border-radius:12px}
+body.kenji-signup-editorial .panel button{min-height:49px;border-radius:50px}
+body.kenji-signup-editorial .signup-value{display:flex;flex-wrap:wrap;gap:7px 15px;padding:0;margin:13px 0 21px;list-style:none}
+body.kenji-signup-editorial .signup-value li{font-size:.82rem;color:#dcc5a4!important}
+body.kenji-signup-editorial .signup-value li::before{content:"✓ ";color:#e1bb82}
