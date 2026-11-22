@@ -72,14 +72,14 @@ function filteredOrders(){
 function csvValue(value){
  let text=String(value??"");
  // Prevent spreadsheet applications from interpreting untrusted customer data as formulas.
- if(/^[\\s\\uFEFF]*[=+@-]/u.test(text))text="'"+text;
+ if(/^[\s\uFEFF]*[=+@-]/u.test(text))text="'"+text;
  return '"'+text.replaceAll('"','""')+'"';
 }
 function exportOrderCsv(){
  if(!user?.emailVerified||!data)return;
  const orders=filteredOrders(),rows=[["Date (UTC)","Customer email","Type","Product","Amount (minor units)","Currency","Payment status","Source"]];
  for(const o of orders)rows.push([o.createdAt||"",o.email||"",o.kind||"",o.product||"",o.amount??"",o.currency||"",o.status||"",data.environment||""]);
- const csv="\\uFEFF"+rows.map(r=>r.map(csvValue).join(",")).join("\\r\\n");
+ const csv="\uFEFF"+rows.map(r=>r.map(csvValue).join(",")).join("\r\n");
  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob);
  const link=document.createElement("a");link.href=url;link.download="kenji-sampled-orders-"+new Date().toISOString().slice(0,10)+".csv";document.body.append(link);link.click();link.remove();URL.revokeObjectURL(url);
 }
