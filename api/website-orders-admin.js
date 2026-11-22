@@ -79,6 +79,9 @@ export default async function handler(req,res){
         lastSignInAt:u.metadata.lastSignInTime?new Date(u.metadata.lastSignInTime).toISOString():null,
         disabled:u.disabled===true
       }));
+      const sevenDaysAgo=Date.now()-7*24*60*60*1000;
+      const recentUsers=users.filter(u=>u.createdAt && new Date(u.createdAt).getTime()>=sevenDaysAgo);
+      const recentVerified=recentUsers.filter(u=>u.emailVerified).length;
       const userMap=new Map(users.map(u=>[u.uid,u]));
       const website=websitePage.docs.map(d=>{
         const x=d.data();return {
@@ -130,6 +133,7 @@ export default async function handler(req,res){
           billingOrders:billing.length,billingOrdersTruncated:billingPage.size===100,
           webhookEventsSampled:webhookPage.size},
         summary:{registrations:users.length,verifiedUsers:users.filter(u=>u.emailVerified).length,
+          registrations7d:recentUsers.length,verifiedRegistrations7d:recentVerified,
           ...totals,invoiceFailureEvents:webhookFailures.length},
         users:users.sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||"")).slice(0,75),
         orders:orders.slice(0,100),activity
