@@ -1,4 +1,5 @@
 import { notifyAdminSafely, errorAlertReference } from "../lib/admin-email-alerts.js";
+import { unsubscribeBySignature } from "../lib/marketing-consent.js";
 import Stripe from "stripe";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
@@ -22,6 +23,24 @@ async function getServices() {
 export default async function handler(req, res) {
   // This dedicated action is isolated from Stripe order verification and keeps Hobby under 12 functions.
   if (req.method === "POST" && req.query?.action === "conversion_event") return recordFunnel(req,res);
+  if (req.method === "POST" && req.query?.action === "marketing_unsubscribe") {
+    const origin=req.headers.origin;
+    if(typeof origin !== "string" || origin !== "https://" + req.headers.host ||
+       req.headers["content-type"]?.split(";")[0] !== "application/json") {
+      return res.status(403).json({error:"Invalid request origin."});
+    }
+    const uid=req.body?.uid,signature=req.body?.signature;
+    if(typeof uid!=="string"||typeof signature!=="string"||JSON.stringify(req.body).length>600) {
+      return res.status(400).json({error:"Invalid unsubscribe request."});
+    }
+    try {
+      const {db}=await getServices();
+      const success=await unsubscribeBySignature(db,uid,signature);
+      return res.status(success?200:400).json(success?{ok:true,unsubscribed:true}:{error:"Invalid or expired link."});
+    }catch{
+      return res.status(503).json({error:"Unsubscribe service unavailable."});
+    }
+  }
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
   if (!["GET", "POST"].includes(req.method)) return res.status(405).json({ error: "Method not allowed" });
