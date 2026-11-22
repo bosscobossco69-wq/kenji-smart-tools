@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#192b25">
+<title>Business Inventory · KENJI Smart Tools</title>
+<style>
+:root{color-scheme:light;font:15px/1.5 Inter,system-ui,-apple-system,sans-serif;color:#23362e;background:#f6f7f3}*{box-sizing:border-box}
+body{margin:0}a{color:#285b48}button,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.55;cursor:wait}
+.shell{max-width:1160px;margin:auto;padding:0 18px 80px}.topbar{background:#1b3027;color:#f9f4e9;padding:17px 0}.topinner{max-width:1160px;margin:auto;padding:0 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-weight:850;letter-spacing:.06em;color:#efc68b;text-decoration:none}.topinner a{color:#f7e8ce}
+.hero{padding:44px 0 24px}.kicker{font-size:.75rem;text-transform:uppercase;letter-spacing:.16em;color:#587a69;font-weight:850}
+h1{font-size:clamp(2.1rem,5vw,3.6rem);letter-spacing:-.05em;line-height:1.1;margin:12px 0 14px}h2{font-size:1.18rem;margin:0 0 12px}.muted{color:#657469}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px}.card{background:#fff;border:1px solid #d8e1d8;border-radius:18px;padding:20px;box-shadow:0 10px 30px #10291b0d;margin-bottom:18px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}.stat{border:1px solid #dbe3db;background:#f7faf6;border-radius:14px;padding:16px}.stat strong{font-size:1.8rem;color:#245b43;display:block}
+input,select{padding:11px 12px;border:1px solid #b6c7b8;border-radius:9px;min-width:0;width:100%;background:#fff;color:#21382d}label{display:block;font-size:.84rem;font-weight:750;margin:13px 0 5px}
+.btn{border:0;background:#245b43;color:#fff;border-radius:10px;padding:12px 16px;font-weight:750}.btn.alt{background:#e9efe8;color:#22523d;border:1px solid #b9d2be}.btn.warn{background:#fff1df;color:#935322;border:1px solid #dfc4a6}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:17px}.notice{padding:13px 15px;border-radius:12px;background:#e8f2e8;border:1px solid #b4d5b7;color:#28583c;margin:16px 0;white-space:pre-wrap}.notice.error{background:#fff1ed;border-color:#e4b5ae;color:#a32d23}
+.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:630px}th,td{padding:13px 9px;text-align:left;border-bottom:1px solid #e5eae5}th{color:#607668;font-size:.8rem}td{font-size:.92rem}.low{color:#a05824;font-weight:750}.pill{background:#f5eddc;border-radius:50px;padding:4px 9px;display:inline-block;color:#755322}
+.row-actions{display:flex;gap:7px}.row-actions button{border:1px solid #c9d4cb;background:#f5f9f5;color:#275740;padding:6px 9px;border-radius:8px;font-size:.78rem}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.section-head input{max-width:290px}
+#gate[hidden],#workspace[hidden],#status[hidden],#editor[hidden]{display:none}
+details{padding:12px 0;border-top:1px solid #e2e9e1}summary{cursor:pointer;font-weight:700}
+.footer{padding-top:30px;color:#78847a;font-size:.8rem}
+@media(max-width:900px){.layout{grid-template-columns:1fr}}@media(max-width:550px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stat:last-child{grid-column:span 2}.card{padding:15px}.topinner{font-size:.85rem}}
+</style></head><body>
+<header class="topbar"><div class="topinner"><a class="brand" href="/">KENJI / BUSINESS TOOLS</a><nav><a href="/">Free tools</a> · <a href="/workspace/account.html">My account</a></nav></div></header>
+<main class="shell">
+<section class="hero"><span class="kicker">Business workspace · Early access</span><h1>Your inventory, under control.</h1><p class="muted">Manage products, track stock in and out, and spot low-stock items. Free account required. No payment card needed.</p></section>
+<p id="status" class="notice" role="status" aria-live="polite">Checking your account…</p>
+<section id="gate" class="card" hidden><h2>Register or sign in to get started</h2><p class="muted" id="gateCopy">Your inventory is private to your verified KENJI account.</p><div class="actions"><a class="btn" href="/workspace/signup.html">Create free account</a><a class="btn alt" href="/workspace/login.html">Sign in / verify email</a></div></section>
+<div id="workspace" hidden>
+<div class="stats">
+ <div class="stat"><span class="muted">Active products</span><strong id="totalProducts">0</strong><small class="muted">Free limit: 30</small></div>
+ <div class="stat"><span class="muted">Low stock items</span><strong id="lowProducts">0</strong><small class="muted">Quantity ≤ threshold</small></div>
+ <div class="stat"><span class="muted">Stock movements this month</span><strong id="movementCount">0</strong><small class="muted">Free limit: 50 / UTC month</small></div>
+</div>
+<div class="layout"><div>
+<section class="card"><div class="section-head"><h2>Your products</h2><input id="search" type="search" placeholder="Search product name or SKU" aria-label="Search products"></div>
+<div class="table-wrap"><table><thead><tr><th>SKU</th><th>Product</th><th>Stock</th><th>Low-stock level</th><th>Actions</th></tr></thead><tbody id="productRows"></tbody></table></div>
+<p class="muted" id="emptyProducts">No products yet. Add your first product using the form.</p></section>
+<section class="card"><h2>Recent stock movements</h2><div class="table-wrap"><table><thead><tr><th>When</th><th>SKU</th><th>Type</th><th>Qty</th><th>Stock after</th></tr></thead><tbody id="movementRows"></tbody></table></div><p class="muted">Most recent 50 movements. Records are retained when products are archived.</p></section></div>
+<aside>
+<section class="card"><h2 id="editorTitle">Add a product</h2><form id="productForm">
+<label for="sku">SKU (unique identifier)</label><input id="sku" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9_-]{1,31}" required placeholder="COFFEE-01">
+<label for="name">Product name</label><input id="name" maxlength="100" required placeholder="Coffee beans 250g">
+<label for="threshold">Low-stock alert level</label><input id="threshold" type="number" min="0" max="1000000" step="1" value="5" required>
+<div class="actions"><button class="btn" id="saveProduct" type="submit">Save product</button><button class="btn alt" type="button" id="cancelEdit" hidden>Cancel edit</button></div></form>
+<p class="muted">Products start at 0 stock. Record stock entries below to create an audit trail.</p></section>
+<section class="card"><h2>Stock in / stock out</h2><form id="stockForm"><label for="stockSku">Product SKU</label><select id="stockSku" required></select><label for="direction">Movement</label><select id="direction"><option value="in">Stock in (+)</option><option value="out">Stock out (−)</option></select><label for="quantity">Quantity</label><input id="quantity" type="number" min="1" max="100000" step="1" required value="1"><button class="btn" style="margin-top:15px" type="submit" id="saveStock">Record movement</button></form><p class="muted">Stock cannot become negative. Each confirmed movement counts toward the monthly Free limit.</p></section>
+<section class="card"><h2>Free plan limits</h2><p>30 active products · 50 stock movements per UTC month · 1 account.</p><details><summary>Can I archive a product?</summary><p>Yes, after stock reaches zero. Archiving hides it from the active list while retaining history and reserving its SKU.</p></details><details><summary>Is this connected to Stripe subscriptions?</summary><p>No. Business subscriptions are not available yet, and using Free requires no payment.</p></details></section>
+</aside></div>
+</div><p class="footer">KENJI Smart Tools · Business Inventory beta. Do not rely on this early-access feature as your sole accounting or inventory record.</p>
+</main>
+<script type="module">
+import {auth,authReady,onAuthStateChanged} from "../workspace/firebase-auth.js";
+const el=id=>document.getElementById(id);let current=null,data=null,editing=false,busy=false;
+function show(msg,error=false){el("status").hidden=false;el("status").textContent=msg;el("status").classList.toggle("error",error);}
+function td(row,text){const cell=document.createElement("td");cell.textContent=String(text??"—");row.append(cell);return cell;}
+function render(){
+ if(!data)return;
+ const p=data.products||[];el("totalProducts").textContent=p.length;el("lowProducts").textContent=p.filter(x=>x.quantity<=x.threshold).length;el("movementCount").textContent=data.monthlyMovements+" / "+data.limits.monthlyMovements;
+ const s=el("search").value.trim().toLowerCase(),match=p.filter(x=>[x.sku,x.name].some(v=>v.toLowerCase().includes(s)));
+ el("productRows").replaceChildren();el("emptyProducts").hidden=match.length>0;
+ for(const x of match){const row=document.createElement("tr");td(row,x.sku);td(row,x.name);const balance=td(row,x.quantity);if(x.quantity<=x.threshold)balance.className="low";td(row,x.threshold);
+ const actions=document.createElement("td"),wrap=document.createElement("div");wrap.className="row-actions";
+ for(const [label,action] of [["Edit","edit"],["Stock","stock"],["Archive","archive"]]){
+  const b=document.createElement("button");b.type="button";b.textContent=label;b.dataset.action=action;b.dataset.sku=x.sku;b.disabled=busy;wrap.append(b);
+ }actions.append(wrap);row.append(actions);el("productRows").append(row);}
+ const selected=el("stockSku").value;el("stockSku").replaceChildren();
+ for(const x of p){const opt=document.createElement("option");opt.value=x.sku;opt.textContent=x.name+" ("+x.sku+")";el("stockSku").append(opt);}
+ if(p.some(x=>x.sku===selected))el("stockSku").value=selected;
+ el("movementRows").replaceChildren();
+ for(const x of data.history||[]){const row=document.createElement("tr");for(const value of [x.createdAt?new Date(x.createdAt).toLocaleString():"—",x.sku,x.direction==="in"?"Stock in":"Stock out",x.quantity,x.balance])td(row,value);el("movementRows").append(row);}
+}
+async function request(method,body){
+ if(!current?.emailVerified)throw Error("Verified login is required.");
+ const token=await current.getIdToken(true);
+ const r=await fetch("/api/business-inventory",{method,headers:{Authorization:"Bearer "+token,...(body?{"Content-Type":"application/json"}:{})},...(body?{body:JSON.stringify(body)}:{}) ,cache:"no-store"});
+ const v=await r.json().catch(()=>({}));if(!r.ok)throw Error(v.error||"Inventory request failed.");return v;
+}
+async function load(){if(!current?.emailVerified)return;try{data=await request("GET");el("workspace").hidden=false;el("gate").hidden=true;el("status").hidden=true;render();}catch(e){show(e.message,true);}}
+function setBusy(v){busy=v;el("saveProduct").disabled=v;el("saveStock").disabled=v;}
+async function mutate(body){if(busy)return;setBusy(true);try{await request("POST",body);show("Saved successfully.");await load();}catch(e){show(e.message,true);}finally{setBusy(false);}}
+function stopEdit(){editing=false;el("productForm").reset();el("sku").readOnly=false;el("editorTitle").textContent="Add a product";el("saveProduct").textContent="Save product";el("cancelEdit").hidden=true;}
+el("productForm").addEventListener("submit",async e=>{e.preventDefault();const body={action:editing?"edit":"create",sku:el("sku").value.trim(),name:el("name").value.trim(),threshold:Number(el("threshold").value)};await mutate(body);if(!el("status").classList.contains("error"))stopEdit();});
+el("stockForm").addEventListener("submit",async e=>{e.preventDefault();await mutate({action:"adjust",sku:el("stockSku").value,direction:el("direction").value,quantity:Number(el("quantity").value)});});
+el("cancelEdit").addEventListener("click",stopEdit);
+el("search").addEventListener("input",render);
+el("productRows").addEventListener("click",e=>{
+ const btn=e.target.closest("button[data-action]");if(!btn||busy)return;const sku=btn.dataset.sku,product=data?.products.find(x=>x.sku===sku);if(!product)return;
+ if(btn.dataset.action==="stock"){el("stockSku").value=sku;el("quantity").focus();return;}
+ if(btn.dataset.action==="edit"){editing=true;el("sku").value=product.sku;el("sku").readOnly=true;el("name").value=product.name;el("threshold").value=product.threshold;el("editorTitle").textContent="Edit product";el("saveProduct").textContent="Update product";el("cancelEdit").hidden=false;el("name").focus();return;}
+ if(btn.dataset.action==="archive"&&confirm("Archive "+product.name+"? Only products with zero stock can be archived."))mutate({action:"archive",sku});
+});
+await authReady;onAuthStateChanged(auth,u=>{current=u;data=null;el("workspace").hidden=true;if(!u?.emailVerified){el("gate").hidden=false;el("gateCopy").textContent=u?"Verify your email address and sign in again to access this workspace.":"Register or sign in to access your private inventory.";show(u?"Email verification is required.":"Sign in to access your Free inventory.");}else{el("gate").hidden=true;show("Loading your inventory…");load();}});
+</script></body></html>
