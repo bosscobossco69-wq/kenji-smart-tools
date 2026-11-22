@@ -3,6 +3,8 @@ import { billingMode, billingDb, assertStripeKey, assertStripeObject } from "../
 import Stripe from "stripe";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
+import { runMarketingFollowups } from "../lib/marketing-followups.js";
 
 const PLAN_CREDITS = { lite: 10000, pro: 30000, pro_plus: 100000, ultra: 400000 };
 let servicesPromise;
@@ -19,7 +21,7 @@ function getServices() {
       try { account = JSON.parse(rawAccount); } catch { throw new Error("Firebase service account is invalid."); }
       if (account.project_id !== projectId) throw new Error("Firebase project mismatch.");
       const app = getApps()[0] || initializeApp({ credential: cert(account), projectId });
-      return { stripe: new Stripe(stripeKey), db: billingDb(getFirestore(app)) };
+      return { stripe: new Stripe(stripeKey), db: billingDb(getFirestore(app)), auth:getAuth(app) };
     })();
   }
   return servicesPromise;
@@ -66,7 +68,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { stripe, db } = await getServices();
+    const { stripe, db, auth } = await getServices();
     const now = new Date();
     const query = db.collectionGroup("billing").where("interval", "==", "year");
     const pageSize = 200;
@@ -184,7 +186,12 @@ export default async function handler(req, res) {
         }
       } catch { console.warn("[kenji-admin-alert] Unable to read pending email alerts."); }
     }
-    return res.status(200).json({ ok: true, scanned, granted, skipped, failed, retriedAlerts });
+    // Isolate optional marketing errors from essential annual Credits and admin alerts.
+    // Disabled until the environment flag is explicitly enabled after safety checks.
+    let marketing={enabled:false,sent:0};
+    try { marketing=await runMarketingFollowups({db,auth}); }
+    catch { console.warn("[kenji-marketing] Optional follow-up job skipped."); }
+    return res.status(200).json({ ok: true, scanned, granted, skipped, failed, retriedAlerts, marketing });
   } catch {
     return res.status(500).json({ error: "Annual Credits grant job failed." });
   }
