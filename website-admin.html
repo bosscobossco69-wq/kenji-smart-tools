@@ -7,7 +7,8 @@
 <header><strong>KENJI / ORDERS</strong><nav><a href="/customer-dashboard.html">Customer &amp; revenue overview</a> · <a href="/">Main site</a></nav></header>
 <h1>Website service orders</h1>
 <p>Administrator-only dashboard · Real Stripe payment status, customer project requirements and delivery workflow. Never mark unpaid orders as paid manually.</p>
-<div class="bar"><button type="button" id="reload">Refresh orders</button><button type="button" id="emailtest" disabled>Send test admin email</button><button type="button" id="webhookcheck" disabled>Check Sandbox Webhooks</button><span id="emailresult" class="muted" role="status" aria-live="polite"></span><span id="count" class="muted"></span><span id="signedin" class="muted"></span></div>
+<div class="bar"><button type="button" id="reload">Refresh orders</button><button type="button" id="emailtest" disabled>Send test admin email</button><button type="button" id="marketingtest" disabled>Send one marketing test to my email</button><button type="button" id="webhookcheck" disabled>Check Sandbox Webhooks</button><span id="emailresult" class="muted" role="status" aria-live="polite"></span><span id="count" class="muted"></span><span id="signedin" class="muted"></span></div>
+<div class="alert" style="margin:0 0 15px">Marketing test is single-recipient only: your verified administrator email, after you explicitly opted in and only if there is no recorded purchase. Maximum one attempt per UTC day. The automatic customer campaign remains OFF. <a href="/workspace/account.html">Manage email consent</a> · <span id="marketingresult" role="status" aria-live="polite">Checking test eligibility…</span></div>
 <div class="stats" aria-label="Order overview"><div class="stat"><strong id="paidCount">0</strong><span>Confirmed paid</span></div><div class="stat"><strong id="needsCount">0</strong><span>Needs action</span></div><div class="stat"><strong id="pendingCount">0</strong><span>Not paid yet</span></div></div>
 <div class="bar"><label for="orderFilter">Show orders</label><select class="filter" id="orderFilter"><option value="action">Need action first</option><option value="all">All orders</option><option value="paid">Paid orders only</option><option value="unpaid">Unpaid / awaiting payment</option></select></div>
 <div id="newAlert" class="alert hidden" role="status" aria-live="polite"></div>
@@ -119,6 +120,43 @@ el("emailtest").addEventListener("click",async()=>{
    if(!response.ok)throw new Error(payload.error||"Test failed");
    out.textContent=payload.message||("Test status: "+payload.status);
  }catch(e){out.textContent=e.message||"Test unavailable";}finally{btn.disabled=!user?.emailVerified;}
+});
+async function loadMarketingEligibility(){
+ const out=el("marketingresult"),btn=el("marketingtest");
+ btn.disabled=true;
+ if(!user?.emailVerified){out.textContent="Verified admin sign-in required.";return;}
+ try{
+  const token=await user.getIdToken(true);
+  const response=await fetch("/api/website-orders-admin?view=marketing_test_status",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error(payload.error||"Eligibility unavailable");
+  const descriptions={
+    ready:"Eligible: your verified account is opted in and has no recorded purchase.",
+    consent_required:"Marketing emails are disabled in your Account. Enable them there to test.",
+    purchase_detected:"Sending blocked: this account has purchase or Credits evidence.",
+    already_attempted_today:"A marketing test was already attempted today. Check Resend.",
+    sender_unavailable:"Resend or unsubscribe signing is not configured.",
+    production_only:"Marketing test is disabled in Preview.",
+    verified_admin_required:"Verified administrator identity required."
+  };
+  out.textContent=descriptions[payload.reason]||"Not eligible; check account and payment records.";
+  btn.disabled=payload.eligible!==true;
+ }catch(err){out.textContent=err.message||"Eligibility temporarily unavailable";btn.disabled=true;}
+}
+el("marketingtest").addEventListener("click",async()=>{
+ const btn=el("marketingtest"),out=el("marketingresult");
+ if(!user?.emailVerified)return;
+ btn.disabled=true;out.textContent="Checking consent and purchase, then sending to your verified email only…";
+ try{
+  const token=await user.getIdToken(true);
+  const response=await fetch("/api/website-orders-admin",{
+    method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+    body:JSON.stringify({action:"marketing_test_email"}),cache:"no-store"
+  });
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error("Test not sent: "+(payload.reason||payload.error||"Request rejected"));
+  out.textContent="Resend accepted the one-recipient marketing test. Check your email, then click its unsubscribe link. Automatic campaigns remain OFF.";
+ }catch(err){out.textContent=err.message||"Test not confirmed";}finally{btn.disabled=true;}
 });
 el("webhookcheck").addEventListener("click",async()=>{
  const btn=el("webhookcheck"),out=el("webhookresult");
