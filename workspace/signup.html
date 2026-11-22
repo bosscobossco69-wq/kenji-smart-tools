@@ -8,9 +8,17 @@
 <script type="module">
 import {auth,authReady,createUserWithEmailAndPassword,updateProfile,sendEmailVerification,signOut,friendlyAuthError} from "./firebase-auth.js";
 const form=document.getElementById("signupForm"),button=document.getElementById("submitButton"),message=document.getElementById("formMessage");
+window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments);};
+function track(eventName,reason){
+  // No email, password, name, Firebase UID, or freeform error messages are sent.
+  const data=reason?{reason}:{source:"signup_page"};
+  window.va("event",{name:eventName,data});
+}
+track("Signup Page Viewed");
 function showMessage(text,isError=false){message.textContent=text;message.hidden=false;message.classList.toggle("error",isError);}
 form.addEventListener("submit",async event=>{
  event.preventDefault();button.disabled=true;button.textContent="Creating account…";message.hidden=true;
+ track("Signup Submitted");
  try{
   await authReady;
   const name=document.getElementById("name").value.trim();
@@ -20,10 +28,15 @@ form.addEventListener("submit",async event=>{
   const credential=await createUserWithEmailAndPassword(auth,email,password);
   await updateProfile(credential.user,{displayName:name});
   await sendEmailVerification(credential.user,{url:location.origin+"/workspace/login.html",handleCodeInApp:false});
+  track("Signup Account Created");
   await signOut(auth);
   form.reset();
   showMessage("Your account has been created. Check your inbox and verify your email before signing in. If you do not see the message, check your spam folder.");
- }catch(error){showMessage(error.message && !error.code ? error.message : friendlyAuthError(error),true);}
+ }catch(error){
+  const known=new Set(["auth/email-already-in-use","auth/invalid-email","auth/weak-password","auth/network-request-failed","auth/too-many-requests","auth/operation-not-allowed","auth/unauthorized-domain"]);
+  track("Signup Failed",known.has(error.code)?error.code:"other");
+  showMessage(error.message && !error.code ? error.message : friendlyAuthError(error),true);
+ }
  finally{button.disabled=false;button.textContent="Create account";}
 });
 </script><script src="/assets/kenji-motion.js" defer></script>
