@@ -21,6 +21,12 @@ main{max-width:1200px;margin:auto;padding:16px 14px 90px}a{color:#eac18a}header{
 <div class="stat"><strong id="failed">—</strong><small>Explicit failed orders</small></div>
 <div class="stat"><strong id="pending">—</strong><small>Checkout pending / unpaid</small></div>
 </div>
+<section class="surface" aria-labelledby="conversion-head"><h2 id="conversion-head">Signup conversion · past 7 days</h2>
+<p class="muted">Counts are from Firebase Authentication and exclude no accounts automatically. Visitors and signup-click events are stored separately in Vercel Analytics, so no unsupported conversion percentage is shown.</p>
+<div class="stats"><div class="stat"><strong id="newRegistrations">—</strong><small>New registered accounts, 7 days</small></div>
+<div class="stat"><strong id="newVerified">—</strong><small>Of those, verified now</small></div>
+<div class="stat"><strong id="newNotVerified">—</strong><small>Of those, unverified now</small></div></div>
+<p class="muted">Registration page viewed, form submitted, registration success and failure events are collected by Vercel Web Analytics. Their totals require a separately authorized analytics integration and are not fabricated here.</p></section>
 <div id="scope" class="notice" hidden></div>
 <section class="surface"><div class="section-head"><h2>Orders & payment status</h2><select id="orderFilter" aria-label="Filter orders"><option value="all">All recent orders</option><option value="paid">Paid</option><option value="failed">Failed only</option><option value="pending">Pending / unpaid</option></select></div>
 <p class="muted">Paid is confirmed by server records; pending does not mean Stripe declined a card. This view shows recent sampled orders, not full historical revenue.</p>
@@ -39,7 +45,7 @@ function clearRows(id){el(id).replaceChildren();}
 function state(s){return s==="paid"?"paid":["failed","payment_failed"].includes(s)?"failed":"pending";}
 function addEmpty(tbody,message){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=5;td.className="empty";td.textContent=message;tr.append(td);tbody.append(tr);}
 function render(){
-if(!data)return;const s=data.summary;el("registered").textContent=s.registrations;el("verified").textContent=s.verifiedUsers;el("paid").textContent=s.paid;el("income").textContent=dollars(s.paidUsdCents);el("failed").textContent=s.failed;el("pending").textContent=s.pending;
+if(!data)return;const s=data.summary;el("registered").textContent=s.registrations;el("verified").textContent=s.verifiedUsers;el("paid").textContent=s.paid;el("income").textContent=dollars(s.paidUsdCents);el("failed").textContent=s.failed;el("pending").textContent=s.pending;el("newRegistrations").textContent=s.registrations7d??"—";el("newVerified").textContent=s.verifiedRegistrations7d??"—";el("newNotVerified").textContent=Number.isInteger(s.registrations7d)&&Number.isInteger(s.verifiedRegistrations7d)?s.registrations7d-s.verifiedRegistrations7d:"—";
 const sc=data.scope;const partial=sc.usersTruncated||sc.websiteOrdersTruncated||sc.billingOrdersTruncated;
 const scope=el("scope");scope.hidden=false;
 scope.textContent=(data.environment==="live"?"LIVE / PRODUCTION":"PREVIEW / TEST")+" · "+(partial?"Partial results; limits reached.":"Recent records only.")+" Firebase accounts sampled: "+sc.firebaseUsers+"; website orders: "+sc.websiteOrders+"; billing orders: "+sc.billingOrders+". Stripe failed-invoice webhook events in recent sample: "+s.invoiceFailureEvents+". These events are not added to the failed-order count to avoid double counting.";

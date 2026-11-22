@@ -239,7 +239,7 @@
         <span class="eyebrow"><i></i> browser-first utilities</span>
         <h1>Simple tools.<br><span class="gradient-text">Sharper work.</span></h1>
         <p class="hero-copy">A focused toolkit for freelancers, creators, and small businesses. Fast, private, and designed to help you move from idea to action without unnecessary friction.</p>
-        <div class="hero-actions"><a class="btn" href="/workspace/signup.html" data-signup-entry="homepage_hero">Create free account</a><a class="btn secondary" href="#tools">Explore free tools</a><a class="btn secondary" href="/ai-customer-reply.html">Try AI Customer Reply</a><a class="btn secondary" href="#web-services">Website services from US$99</a></div><p style="font-size:.84rem;color:var(--muted);margin-top:12px">Free browser tools work without registration. An account is for managing AI Credits and billing; no subscription is required to sign up.</p>
+        <div class="hero-actions"><a class="btn" id="homeSignupCta" href="/workspace/signup.html" data-signup-entry="homepage_hero">Create free account</a><a class="btn secondary" href="#tools">Explore free tools</a><a class="btn secondary" href="/ai-customer-reply.html">Try AI Customer Reply</a><a class="btn secondary" href="#web-services">Website services from US$99</a></div><p style="font-size:.84rem;color:var(--muted);margin-top:12px">Free browser tools work without registration. An account is for managing AI Credits and billing; no subscription is required to sign up.</p>
       </div>
       <div class="hero-orbit" aria-hidden="true"><div class="orbital"><div class="core"><span>K</span></div><b class="orbit-dot dot-1"></b><b class="orbit-dot dot-2"></b><b class="orbit-dot dot-3"></b></div></div>
     </section>
@@ -509,8 +509,14 @@
   <script type="module">
     import {auth,authReady,onAuthStateChanged,signOut} from "./workspace/firebase-auth.js";
     const authNav=document.getElementById("mainAuthNav");
+    const heroSignup=document.getElementById("homeSignupCta");
     await authReady;
     onAuthStateChanged(auth,user=>{
+      if(heroSignup){
+        if(user?.emailVerified){heroSignup.textContent="Go to my workspace";heroSignup.href="/workspace/account.html";heroSignup.removeAttribute("data-signup-entry");}
+        else if(user){heroSignup.textContent="Verify your email";heroSignup.href="/workspace/login.html";heroSignup.removeAttribute("data-signup-entry");}
+        else{heroSignup.textContent="Create free account";heroSignup.href="/workspace/signup.html";heroSignup.setAttribute("data-signup-entry","homepage_hero");}
+      }
       if(!authNav)return;
       if(user && user.emailVerified){
         authNav.innerHTML='<a class="login-cta" href="/workspace/account.html">My account</a><button class="login-cta" id="mainSignOut" type="button">Sign out</button>';
