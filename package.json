@@ -13,6 +13,6 @@
     "test:billing": "node --experimental-vm-modules tests/stripe-billing.test.cjs",
     "check:billing-config": "node scripts/check-billing-config.mjs",
     "test:notifications": "node --test tests/admin-email-alerts.test.cjs",
-    "test:marketing": "node --test tests/marketing-consent.test.cjs"
+    "test:marketing": "node --test tests/marketing-consent.test.cjs && node --experimental-vm-modules --test tests/marketing-admin-test.test.cjs"
   }
 }
