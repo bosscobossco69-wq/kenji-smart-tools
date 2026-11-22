@@ -1,3 +1,4 @@
+import inventoryHandler from "../lib/business-inventory-handler.js";
 import { billingMode, billingCollection, billingDb, assertLegacyReviewed } from "../lib/billing-environment.js";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
@@ -22,6 +23,7 @@ function getServices() {
 }
 
 export default async function handler(req, res) {
+  if (req.query?.action === "inventory") return inventoryHandler(req, res);
   res.setHeader("Cache-Control", "no-store, private");
   res.setHeader("Vary", "Authorization");
   res.setHeader("X-Content-Type-Options", "nosniff");
