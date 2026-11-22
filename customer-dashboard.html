@@ -5,15 +5,17 @@
 main{max-width:1200px;margin:auto;padding:16px 14px 90px}a{color:#eac18a}header{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #65513c;padding:10px 0 18px;flex-wrap:wrap}h1{font-size:clamp(1.5rem,5vw,2.25rem);margin:27px 0 6px}h2{font-size:1.1rem}p,.muted{color:#cfc0aa}.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:18px 0}button,select{font:inherit;border-radius:9px;border:1px solid #9c7b50;padding:10px 13px;background:#dfbc87;color:#251b13;font-weight:700}button{cursor:pointer}select{background:#2d241d;color:#f3e6d2}button:disabled{opacity:.65}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}.stat{border:1px solid #655039;border-radius:14px;background:#30261f;padding:16px;min-width:0}.stat strong{display:block;font-size:clamp(1.35rem,4vw,2rem);overflow-wrap:anywhere;color:#f2c88e}.stat small{color:#d3c2aa}.surface{background:#241d17;border:1px solid #66513a;border-radius:15px;padding:15px;margin-top:16px;overflow:hidden}
 .scroller{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:640px;text-align:left}th,td{padding:12px 9px;border-bottom:1px solid #574636;vertical-align:top}th{color:#dfbf91;font-size:.82rem}td{overflow-wrap:anywhere}small{font-size:.79rem}.tag{display:inline-block;padding:3px 8px;border-radius:999px;border:1px solid #80684a;font-size:.8rem}.tag.paid{border-color:#619b76;color:#b4ebc3}.tag.failed{border-color:#ba716e;color:#ffb2ad}.tag.pending{color:#efd9a5}.notice{padding:12px;border:1px solid #b89560;border-radius:10px;background:#403323;margin:14px 0;white-space:pre-wrap}
+.quicknav{display:flex;gap:8px;overflow:auto;padding:8px 0 4px;scrollbar-width:thin}.quicknav a{white-space:nowrap;background:#342920;border:1px solid #806342;border-radius:999px;padding:8px 13px;text-decoration:none;font-weight:650}.quicknav a:focus-visible,.toolbar button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #ffdc9c;outline-offset:2px}.table-tools{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:12px 0}.table-tools input{font:inherit;min-width:190px;max-width:100%;flex:1;padding:10px 12px;border:1px solid #96764b;border-radius:9px;color:#f3e6d2;background:#2d241d}.table-tools input::placeholder{color:#cbb9a1}.table-tools button{white-space:nowrap}.tag.awaiting{color:#efd9a5}.tag.expired{color:#ddb4a2}.tag.other{color:#e4c09e}section[id]{scroll-margin-top:20px}
 .section-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}.empty{padding:16px;color:#cdbda7}
 @media(max-width:600px){.stats{grid-template-columns:1fr 1fr}.stat:last-child{grid-column:span 2}}
 </style></head>
 <body><main><header><strong>KENJI / ADMIN</strong><nav><a href="/website-admin.html">Service orders</a> · <a href="/">Main site</a></nav></header>
 <h1>Customer & revenue overview</h1>
+<nav class="quicknav" aria-label="Dashboard sections"><a href="#overview">Overview</a><a href="#traffic">Traffic</a><a href="#signup">Signups</a><a href="#orders">Payments</a><a href="#activity">Activity</a><a href="#customers">Customers</a></nav>
 <p>One secure dashboard for real Firebase accounts, verified payments, failed attempts and recent activity. Live and Sandbox data are never combined.</p>
 <div class="toolbar"><button id="reload" type="button">Refresh real data</button><span id="who" class="muted"></span><span id="updated" class="muted"></span></div>
 <div id="message" class="notice" role="status" aria-live="polite">Checking administrator login…</div>
-<div class="stats" aria-label="Verified source statistics">
+<section id="overview" aria-label="Revenue and account overview"><div class="stats" aria-label="Verified source statistics">
 <div class="stat"><strong id="registered">—</strong><small>Registered accounts (sample)</small></div>
 <div class="stat"><strong id="verified">—</strong><small>Verified email accounts</small></div>
 <div class="stat"><strong id="paid">—</strong><small>Paid orders (sample)</small></div>
@@ -22,8 +24,8 @@ main{max-width:1200px;margin:auto;padding:16px 14px 90px}a{color:#eac18a}header{
 <div class="stat"><strong id="pending">—</strong><small>Awaiting payment</small></div>
 <div class="stat"><strong id="expired">—</strong><small>Explicitly expired checkouts</small></div>
 <div class="stat"><strong id="unknownOrders">—</strong><small>Other / reconciliation needed</small></div>
-</div>
-<section class="surface" aria-labelledby="traffic-head"><h2 id="traffic-head">Website traffic · past 7 days</h2>
+</div></section>
+<section id="traffic" class="surface" aria-labelledby="traffic-head"><h2 id="traffic-head">Website traffic · past 7 days</h2>
 <div class="stats">
 <div class="stat"><strong id="visitors7d">—</strong><small>Vercel unique visitors · 7 days</small></div>
 <div class="stat"><strong id="pageviews7d">—</strong><small>Vercel pageviews · 7 days</small></div>
@@ -36,20 +38,22 @@ main{max-width:1200px;margin:auto;padding:16px 14px 90px}a{color:#eac18a}header{
 <p class="muted">Free first-party counters count at most one recorded browser per event per UTC day. They can be blocked, reset or automated; registration totals below are authoritative Firebase accounts, not equivalent funnel denominators.</p>
 <p id="trafficStatus" class="muted" role="status">Checking Vercel Analytics access…</p>
 <p class="muted">Traffic includes administrator browsing and is not the same as external potential customers. No conversion rate is computed from different date windows.</p></section>
-<section class="surface" aria-labelledby="conversion-head"><h2 id="conversion-head">Signup conversion · past 7 days</h2>
+<section id="signup" class="surface" aria-labelledby="conversion-head"><h2 id="conversion-head">Signup conversion · past 7 days</h2>
 <p class="muted">Counts are from Firebase Authentication and exclude no accounts automatically. Visitors and signup-click events are stored separately in Vercel Analytics, so no unsupported conversion percentage is shown.</p>
 <div class="stats"><div class="stat"><strong id="newRegistrations">—</strong><small>New registered accounts, 7 days</small></div>
 <div class="stat"><strong id="newVerified">—</strong><small>Of those, verified now</small></div>
 <div class="stat"><strong id="newNotVerified">—</strong><small>Of those, unverified now</small></div></div>
 <p class="muted">Authoritative new registrations come from Firebase; anonymous page, click, submit and error counters are shown above. These approximate measurements are not unique people.</p></section>
 <div id="scope" class="notice" hidden></div>
-<section class="surface"><div class="section-head"><h2>Orders & payment status</h2><select id="orderFilter" aria-label="Filter orders"><option value="all">All recent orders</option><option value="paid">Paid</option><option value="failed">Failed only</option><option value="awaiting">Awaiting payment</option><option value="expired">Expired checkout</option><option value="other">Other / unknown</option></select></div>
+<section id="orders" class="surface"><div class="section-head"><h2>Orders & payment status</h2><select id="orderFilter" aria-label="Filter orders"><option value="all">All recent orders</option><option value="paid">Paid</option><option value="failed">Failed only</option><option value="awaiting">Awaiting payment</option><option value="expired">Expired checkout</option><option value="other">Other / unknown</option></select></div>
 <p class="muted">Paid is confirmed by server records. Expired means explicitly marked expired by the backend, not merely an old timestamp; awaiting means unconfirmed, not a declined charge. This view shows recent sampled orders, not full historical revenue.</p>
+<div class="table-tools"><input id="orderSearch" type="search" placeholder="Search customer, package or payment status…" aria-label="Search recent orders" autocomplete="off"><button type="button" id="exportOrders" disabled>Export filtered CSV</button><span id="orderResults" class="muted" role="status"></span></div>
+<p class="muted"><small>CSV exports only the currently loaded and filtered orders. Records are sampled, not a complete accounting ledger. Protect customer emails in downloaded files.</small></p>
 <div class="scroller"><table><thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Amount</th><th>Payment</th></tr></thead><tbody id="orderRows"></tbody></table></div></section>
-<section class="surface"><h2>Real customer activity</h2><p class="muted">Server-observed registration, checkout and payment events. Website page visits are not tracked here.</p>
+<section id="activity" class="surface"><h2>Real customer activity</h2><p class="muted">Server-observed registration, checkout and payment events. Website page visits are not tracked here.</p>
 <div class="scroller"><table><thead><tr><th>Date</th><th>Event</th><th>Customer</th><th>Detail</th></tr></thead><tbody id="activityRows"></tbody></table></div></section>
-<section class="surface"><h2>Registered customers</h2><p class="muted">Firebase Authentication accounts. Only the verified administrator can view this information.</p>
-<div class="scroller"><table><thead><tr><th>Registered</th><th>Email</th><th>Verified</th><th>Last sign-in</th></tr></thead><tbody id="customerRows"></tbody></table></div></section>
+<section id="customers" class="surface"><h2>Registered customers</h2><p class="muted">Firebase Authentication accounts. Only the verified administrator can view this information.</p>
+<div class="table-tools"><input type="search" id="customerSearch" placeholder="Search registered account email…" aria-label="Search customer accounts" autocomplete="off"><span id="customerResults" class="muted" role="status"></span></div><div class="scroller"><table><thead><tr><th>Registered</th><th>Email</th><th>Verified</th><th>Last sign-in</th></tr></thead><tbody id="customerRows"></tbody></table></div></section>
 </main><script type="module">
 import {auth,authReady,onAuthStateChanged} from "/workspace/firebase-auth.js";
 const el=id=>document.getElementById(id);let user=null,data=null,busy=false;
@@ -59,6 +63,26 @@ function cell(tr,text){const td=document.createElement("td");td.textContent=text
 function clearRows(id){el(id).replaceChildren();}
 function state(s){return s==="paid"?"paid":["failed","payment_failed"].includes(s)?"failed":["checkout_expired","expired"].includes(s)?"expired":["checkout_pending","checkout_created","pending","unpaid"].includes(s)?"awaiting":"other";}
 function addEmpty(tbody,message){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=5;td.className="empty";td.textContent=message;tr.append(td);tbody.append(tr);}
+function filteredOrders(){
+ if(!data)return[];
+ const f=el("orderFilter").value,q=el("orderSearch").value.trim().toLocaleLowerCase();
+ return data.orders.filter(o=>(f==="all"||f===state(o.status)) &&
+   (!q||[o.email,o.kind,o.product,o.status,o.category,o.currency].some(v=>String(v||"").toLocaleLowerCase().includes(q))));
+}
+function csvValue(value){
+ let text=String(value??"");
+ // Prevent spreadsheet applications from interpreting untrusted customer data as formulas.
+ if(/^[\\s\\uFEFF]*[=+@-]/u.test(text))text="'"+text;
+ return '"'+text.replaceAll('"','""')+'"';
+}
+function exportOrderCsv(){
+ if(!user?.emailVerified||!data)return;
+ const orders=filteredOrders(),rows=[["Date (UTC)","Customer email","Type","Product","Amount (minor units)","Currency","Payment status","Source"]];
+ for(const o of orders)rows.push([o.createdAt||"",o.email||"",o.kind||"",o.product||"",o.amount??"",o.currency||"",o.status||"",data.environment||""]);
+ const csv="\\uFEFF"+rows.map(r=>r.map(csvValue).join(",")).join("\\r\\n");
+ const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob);
+ const link=document.createElement("a");link.href=url;link.download="kenji-sampled-orders-"+new Date().toISOString().slice(0,10)+".csv";document.body.append(link);link.click();link.remove();URL.revokeObjectURL(url);
+}
 function render(){
 if(!data)return;const s=data.summary;el("registered").textContent=s.registrations;el("verified").textContent=s.verifiedUsers;el("paid").textContent=s.paid;el("income").textContent=dollars(s.paidUsdCents);el("failed").textContent=s.failed;el("pending").textContent=s.awaiting;el("expired").textContent=s.expired;el("unknownOrders").textContent=s.other;const conversion=data.conversion||{};
 el("signupClicks7d").textContent=Number.isSafeInteger(conversion.signup_link)?conversion.signup_link:"—";
@@ -78,21 +102,27 @@ const sc=data.scope;const partial=sc.usersTruncated||sc.websiteOrdersTruncated||
 const scope=el("scope");scope.hidden=false;
 scope.textContent=(data.environment==="live"?"LIVE / PRODUCTION":"PREVIEW / TEST")+" · "+(partial?"Partial results; limits reached.":"Recent records only.")+" Firebase accounts sampled: "+sc.firebaseUsers+"; website orders: "+sc.websiteOrders+"; billing orders: "+sc.billingOrders+". Stripe failed-invoice webhook events in recent sample: "+s.invoiceFailureEvents+". These events are not added to the failed-order count to avoid double counting.";
 el("updated").textContent="Updated "+dt(data.generatedAt);
-el("orderRows").replaceChildren();const filter=el("orderFilter").value;
-let orders=data.orders.filter(o=>filter==="all"||filter===state(o.status));
+el("orderRows").replaceChildren();const orders=filteredOrders();
+el("orderResults").textContent=orders.length+" of "+data.orders.length+" recent orders";
 for(const o of orders){const tr=document.createElement("tr");cell(tr,dt(o.createdAt));cell(tr,o.email||"Not linked to an email");cell(tr,o.kind+" · "+o.product);cell(tr,o.currency==="usd"?dollars(o.amount):(o.amount==null?"—":String(o.amount)+" "+o.currency.toUpperCase()));const td=cell(tr,(o.category||state(o.status))+" · "+o.status);td.className="tag "+state(o.status);el("orderRows").append(tr);}
 if(!orders.length)addEmpty(el("orderRows"),"No matching recent orders.");
 clearRows("activityRows");for(const a of data.activity){const tr=document.createElement("tr");cell(tr,dt(a.time));cell(tr,a.kind.replaceAll("_"," "));cell(tr,a.email||"Not linked");cell(tr,a.detail);el("activityRows").append(tr);}
 if(!data.activity.length)addEmpty(el("activityRows"),"No recorded events in the sampled window.");
-clearRows("customerRows");for(const u of data.users){const tr=document.createElement("tr");cell(tr,dt(u.createdAt));cell(tr,u.email||"No email");cell(tr,u.emailVerified?"Yes":"No");cell(tr,dt(u.lastSignInAt));el("customerRows").append(tr);}
-if(!data.users.length)addEmpty(el("customerRows"),"No accounts in sample.");
+clearRows("customerRows");
+const customerQuery=el("customerSearch").value.trim().toLocaleLowerCase();
+const customers=data.users.filter(u=>!customerQuery||String(u.email||"").toLocaleLowerCase().includes(customerQuery));
+el("customerResults").textContent=customers.length+" of "+data.users.length+" sampled accounts";
+for(const u of customers){const tr=document.createElement("tr");cell(tr,dt(u.createdAt));cell(tr,u.email||"No email");cell(tr,u.emailVerified?"Yes":"No");cell(tr,dt(u.lastSignInAt));el("customerRows").append(tr);}
+if(!customers.length)addEmpty(el("customerRows"),"No matching registered accounts.");
 }
 async function refresh(){
 if(!user?.emailVerified){el("message").textContent="Sign in with the verified administrator account first.";return;}
 if(busy)return;busy=true;el("reload").disabled=true;el("message").textContent="Reading real account and payment records…";
-try{const token=await user.getIdToken(true);const r=await fetch("/api/website-orders-admin?view=customer_overview",{headers:{Authorization:"Bearer "+token},cache:"no-store"});const v=await r.json().catch(()=>({}));if(!r.ok)throw Error(v.error||"Unable to load overview.");data=v;render();el("message").textContent="Authenticated read-only overview loaded. No test payments included in Production.";}
+try{const token=await user.getIdToken(true);const r=await fetch("/api/website-orders-admin?view=customer_overview",{headers:{Authorization:"Bearer "+token},cache:"no-store"});const v=await r.json().catch(()=>({}));if(!r.ok)throw Error(v.error||"Unable to load overview.");data=v;el("exportOrders").disabled=false;render();el("message").textContent="Authenticated read-only overview loaded. No test payments included in Production.";}
 catch(e){el("message").textContent=e.message||"Overview unavailable.";}finally{busy=false;el("reload").disabled=false;}
 }
 el("reload").addEventListener("click",refresh);el("orderFilter").addEventListener("change",render);
+el("orderSearch").addEventListener("input",render);el("customerSearch").addEventListener("input",render);
+el("exportOrders").addEventListener("click",exportOrderCsv);
 await authReady;onAuthStateChanged(auth,u=>{user=u;el("who").textContent=u?.email||"Not signed in";refresh();});
 </script></body></html>
