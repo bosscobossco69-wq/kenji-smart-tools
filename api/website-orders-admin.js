@@ -3,6 +3,7 @@ import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { billingDb } from "../lib/billing-environment.js";
 import { adminEmailConfigured, notifyAdmin } from "../lib/admin-email-alerts.js";
+import { readCustomerTraffic7d } from "../lib/website-traffic.js";
 
 const allowedStatuses = new Set(["new", "in_progress", "delivered", "on_hold"]);
 let services;
@@ -66,11 +67,12 @@ export default async function handler(req,res){
     // Never count unfinished Checkout as a declined payment or test traffic as revenue.
     if(req.method==="GET" && req.query?.view==="customer_overview"){
       const isLive=process.env.VERCEL_ENV==="production";
-      const [usersPage,websitePage,billingPage,webhookPage]=await Promise.all([
+      const [usersPage,websitePage,billingPage,webhookPage,traffic]=await Promise.all([
         auth.listUsers(1000),
         db.collection("websiteOrders").orderBy("createdAt","desc").limit(100).get(),
         db.collection("billingOrders").orderBy("createdAt","desc").limit(100).get(),
-        db.collection("stripeWebhookEvents").orderBy("receivedAt","desc").limit(80).get()
+        db.collection("stripeWebhookEvents").orderBy("receivedAt","desc").limit(80).get(),
+        readCustomerTraffic7d()
       ]);
       const users=usersPage.users.map(u=>({
         uid:u.uid,email:u.email||null,name:u.displayName||null,
@@ -128,6 +130,7 @@ export default async function handler(req,res){
       return res.status(200).json({
         environment:isLive?"live":"preview_test",
         generatedAt:new Date().toISOString(),
+        traffic,
         scope:{firebaseUsers:users.length,usersTruncated:Boolean(usersPage.pageToken),
           websiteOrders:website.length,websiteOrdersTruncated:websitePage.size===100,
           billingOrders:billing.length,billingOrdersTruncated:billingPage.size===100,
