@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { assertStripeKey, assertStripeObject, billingDb } from "../lib/billing-environment.js";
+import { recordFunnel } from "../lib/conversion-funnel.js";
 
 const PACKAGES = { basic: { amount: 9900, name: "Basic", pages: 1 },
   professional: { amount: 24900, name: "Professional", pages: 5 },
@@ -19,6 +20,8 @@ async function getServices() {
   return services;
 }
 export default async function handler(req, res) {
+  // This dedicated action is isolated from Stripe order verification and keeps Hobby under 12 functions.
+  if (req.method === "POST" && req.query?.action === "conversion_event") return recordFunnel(req,res);
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
   if (!["GET", "POST"].includes(req.method)) return res.status(405).json({ error: "Method not allowed" });
