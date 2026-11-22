@@ -16,7 +16,7 @@ function track(eventName,reason){
 }
 function countFunnel(event){
   // Optional analytics; failures never block Firebase signup or leak form details.
-  fetch("/api/conversion-event",{method:"POST",credentials:"same-origin",keepalive:true,
+  fetch("/api/website-order?action=conversion_event",{method:"POST",credentials:"same-origin",keepalive:true,
     headers:{"Content-Type":"application/json"},body:JSON.stringify({event})}).catch(()=>{});
 }
 authReady.then(()=>{
