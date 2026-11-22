@@ -85,6 +85,14 @@ export default async function handler(req,res){
       const sevenDaysAgo=Date.now()-7*24*60*60*1000;
       const recentUsers=users.filter(u=>u.createdAt && new Date(u.createdAt).getTime()>=sevenDaysAgo);
       const recentVerified=recentUsers.filter(u=>u.emailVerified).length;
+      // Daily counters are approximate anonymous browser/day events, not unique people.
+      const dayKeys=Array.from({length:7},(_,i)=>new Date(Date.now()-i*86400000).toISOString().slice(0,10));
+      const eventSnaps=await Promise.all(dayKeys.map(day=>db.collection("conversionDaily").doc(day).get()));
+      const conversion={signup_link:0,signup_page:0,signup_submit:0,signup_error:0};
+      for(const doc of eventSnaps) if(doc.exists)for(const type of Object.keys(conversion)){
+        const value=doc.data()?.[type];
+        if(Number.isSafeInteger(value)&&value>=0)conversion[type]+=value;
+      }
       const userMap=new Map(users.map(u=>[u.uid,u]));
       const website=websitePage.docs.map(d=>{
         const x=d.data();return {
@@ -124,6 +132,7 @@ export default async function handler(req,res){
         environment:isLive?"live":"preview_test",
         generatedAt:new Date().toISOString(),
         traffic,
+        conversion:{...conversion,window:"7 UTC dates including today",unit:"approximate distinct browser/day per event; anonymous and non-authoritative"},
         scope:{firebaseUsers:users.length,usersTruncated:Boolean(usersPage.pageToken),
           websiteOrders:website.length,websiteOrdersTruncated:websitePage.size===100,
           billingOrders:billing.length,billingOrdersTruncated:billingPage.size===100,
