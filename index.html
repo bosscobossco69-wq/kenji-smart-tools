@@ -512,6 +512,7 @@
     const heroSignup=document.getElementById("homeSignupCta");
     await authReady;
     onAuthStateChanged(auth,user=>{
+      window.__kenjiSignedIn=Boolean(user);
       if(heroSignup){
         if(user?.emailVerified){heroSignup.textContent="Go to my workspace";heroSignup.href="/workspace/account.html";heroSignup.removeAttribute("data-signup-entry");}
         else if(user){heroSignup.textContent="Verify your email";heroSignup.href="/workspace/login.html";heroSignup.removeAttribute("data-signup-entry");}
@@ -534,7 +535,13 @@
   window.va = window.va || function(){ (window.vaq=window.vaq||[]).push(arguments); };
   document.addEventListener("click", event => {
     const link=event.target.closest?.("a[data-signup-entry]");
-    if(link)window.va("event",{name:"Signup Link Clicked",data:{source:link.dataset.signupEntry}});
+    if(link && !window.__kenjiSignedIn){
+      window.va("event",{name:"Signup Link Clicked",data:{source:link.dataset.signupEntry}});
+      fetch("/api/conversion-event",{
+        method:"POST",credentials:"same-origin",keepalive:true,
+        headers:{"Content-Type":"application/json"},body:JSON.stringify({event:"signup_link"})
+      }).catch(()=>{});
+    }
   });
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
