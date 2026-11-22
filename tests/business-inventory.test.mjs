@@ -51,9 +51,12 @@ test("free plan enforces 30 product limit and 50 monthly stock moves",async()=>{
 });
 test("UI requires login and API checks email verification and origin",()=>{
  const page=fs.readFileSync(new URL("../business/inventory.html",import.meta.url),"utf8");
- const api=fs.readFileSync(new URL("../api/business-inventory.js",import.meta.url),"utf8");
+ const api=fs.readFileSync(new URL("../lib/business-inventory-handler.js",import.meta.url),"utf8");
+ const accountApi=fs.readFileSync(new URL("../api/account-billing.js",import.meta.url),"utf8");
+ assert.match(accountApi,/req\.query\?\.action === "inventory"/);
+ assert.match(accountApi,/inventoryHandler\(req, res\)/);
  assert.match(page,/authReady/);assert.match(page,/emailVerified/);
- assert.match(page,/\/workspace\/signup\.html/);assert.match(page,/\/api\/business-inventory/);
+ assert.match(page,/\/workspace\/signup\.html/);assert.match(page,/\/api\/account-billing\?action=inventory/);
  assert.match(api,/verifyIdToken\(header\.slice\(7\),true\)/);assert.match(api,/getUser\(identity\.uid\)/);
  assert.match(api,/email_verified/);assert.match(api,/req\.headers\.origin/);
  assert.doesNotMatch(api,/STRIPE_SECRET_KEY/);
