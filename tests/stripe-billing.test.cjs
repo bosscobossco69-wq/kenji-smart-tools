@@ -527,20 +527,24 @@ test('annual Credits Cron grants two overdue months once, then stops before next
   assert.equal(native.read(path).creditBalance, 30000);
 });
 
-test('billing UI keeps subscriptions on waitlist and offers four purchasable Credits packs', () => {
+test('billing UI offers four subscription checkouts and four purchasable Credits packs', () => {
   const html = fs.readFileSync('workspace/billing.html', 'utf8');
   const cards = html.split('<article').slice(1).map(piece =>
     '<article' + piece.split('</article>')[0] + '</article>');
   for (const label of ['Lite', 'Pro', 'Pro+', 'Ultra']) {
-    const card = cards.find(piece => piece.includes('>' + label + '</div>') && piece.includes('Join waitlist'));
-    assert.ok(card, 'waitlist plan ' + label + ' missing');
-    assert.match(card, /href="mailto:/);
-    assert.doesNotMatch(card, /checkout-btn/);
+    const card = cards.find(piece => piece.includes('>' + label + '</div>') && piece.includes('Subscribe securely'));
+    assert.ok(card, 'subscription plan ' + label + ' missing');
+    assert.match(card, /class="btn checkout-btn"/);
+    assert.doesNotMatch(card, /Join waitlist/);
   }
   for (const pack of ['mini', 'basic', 'pro', 'business']) {
     assert.match(html, new RegExp('<button[^>]*class="btn credit-pack-btn"[^>]*data-pack="' + pack + '"'));
   }
   assert.match(html, /\/api\/stripe-credit-checkout/);
+  assert.match(html, /\/api\/stripe-checkout/);
+  for (const plan of ['lite', 'pro', 'pro_plus', 'ultra']) {
+    assert.match(html, new RegExp('class="btn checkout-btn"[^>]*data-plan="' + plan + '"'));
+  }
 });
 
 test('scoped Stripe keys preserve the billing mode and live checkout gate', () => {
@@ -687,7 +691,7 @@ test('published billing prices and Credits match server checkout and webhook gra
   const webhook = load('api/stripe-webhook.js');
   const cards = html.split('<article').slice(1).map(piece =>
     '<article' + piece.split('</article>')[0] + '</article>');
-  // Waitlist disclosure must match actual credits granted by the server.
+  // Published subscription prices and Credits must match server-side entitlements.
   const planAmounts = {
     lite: { label: 'Lite', monthly: 1000, yearly: 10000, currentCredits: 10000 },
     pro: { label: 'Pro', monthly: 2000, yearly: 20000, currentCredits: 30000 },
@@ -697,8 +701,9 @@ test('published billing prices and Credits match server checkout and webhook gra
   const checkoutPlans = vm.runInContext('PLAN_PRICE_AMOUNTS', subscriptions);
   const webhookPlans = vm.runInContext('PLAN_CREDITS', webhook);
   for (const [id, expected] of Object.entries(planAmounts)) {
-    const card = cards.find(piece => piece.includes('>' + expected.label + '</div>') && piece.includes('Join waitlist'));
-    assert.ok(card, 'waitlist plan ' + id + ' missing');
+    const card = cards.find(piece => piece.includes('>' + expected.label + '</div>') && piece.includes('Subscribe securely'));
+    assert.ok(card, 'subscription plan ' + id + ' missing');
+    assert.ok(card.includes('data-plan="' + id + '"'));
     assert.ok(card.includes('data-month="' + expected.monthly / 100 + '"'));
     assert.ok(card.includes('data-year="' + expected.yearly / 100 + '"'));
     assert.ok(card.includes(expected.currentCredits.toLocaleString('en-US') + ' Credits'));
