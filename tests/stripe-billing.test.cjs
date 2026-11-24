@@ -994,16 +994,16 @@ test('AI reservation recovery preserves the original single Credit debit and rej
 });
 
 test('Credits confirmation only reports success for an authenticated paid order with matching ledger', () => {
-  const api = fs.readFileSync('api/checkout-status.js', 'utf8');
+  const api = fs.readFileSync('api/account-billing.js', 'utf8');
   const page = fs.readFileSync('workspace/checkout-success.html', 'utf8');
-  assert.match(api, /verifyIdToken\(authorization\.slice\(7\), true\)/);
+  assert.match(api, /verifyIdToken\(token, true\)/);
   assert.match(api, /order\.uid !== user\.uid/);
   assert.match(api, /order\.status !== "paid"/);
   assert.match(api, /doc\("stripe_pack_" \+ doc\.id\)/);
   assert.match(api, /entry\.stripeCheckoutSessionId !== sessionId/);
   assert.match(api, /entry\.credits !== order\.credits/);
   assert.match(api, /state: "paid"/);
-  assert.match(page, /\/api\/checkout-status\?session_id=/);
+  assert.match(page, /\/api\/account-billing\?session_id=/);
   assert.match(page, /if\(receipt\.state==="paid"\)/);
   assert.match(page, /Payment successful/);
   assert.match(page, /Do not pay again/);
