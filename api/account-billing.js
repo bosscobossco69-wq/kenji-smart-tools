@@ -1,7 +1,7 @@
 import { billingMode, billingCollection, billingDb, assertLegacyReviewed } from "../lib/billing-environment.js";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { preferenceRef, updateMarketingPreference } from "../lib/marketing-consent.js";
 
 let servicesPromise;
@@ -89,6 +89,39 @@ export default async function handler(req, res) {
       }
       return res.status(200).json({ state: "paid", creditsGranted: order.credits,
         amount: order.amount, currency: "usd" });
+    }
+    // Optional rollout: award verified NEW accounts a one-time trial grant.
+    // Deliberately off until FREE_SIGNUP_CREDITS is configured in production.
+    // No browser inputs control eligibility or amount. Keep legacy billing audits intact.
+    const configuredGrant = Number(process.env.FREE_SIGNUP_CREDITS || 0);
+    const signupGrant = Number.isSafeInteger(configuredGrant) && configuredGrant >= 1 && configuredGrant <= 100 ? configuredGrant : 0;
+    if (signupGrant > 0) {
+      const firebaseUser = await auth.getUser(user.uid);
+      const signupDate = Date.parse(firebaseUser.metadata.creationTime || "");
+      // Existing accounts and prior Stripe customers must not receive a retroactive grant.
+      if (!firebaseUser.disabled && Number.isFinite(signupDate) &&
+          signupDate >= Date.parse("2026-11-25T00:00:00.000Z")) {
+        const signupBillingRef = db.collection("users").doc(user.uid).collection(billingCollection()).doc("current");
+        const grantLedgerRef = db.collection("users").doc(user.uid).collection("creditLedger").doc("signup_trial_v1");
+        await db.runTransaction(async tx => {
+          const [grantSnapshot, balanceSnapshot] = await Promise.all([
+            tx.get(grantLedgerRef), tx.get(signupBillingRef)
+          ]);
+          if (grantSnapshot.exists) return;
+          const current = balanceSnapshot.exists ? balanceSnapshot.data() : {};
+          const balance = Number(current.creditBalance ?? 0);
+          // Never modify accounts with a pre-existing subscription, balance or debt.
+          if (!Number.isSafeInteger(balance) || balance !== 0 ||
+              (current.status && current.status !== "inactive")) return;
+          tx.set(signupBillingRef, {
+            creditBalance: signupGrant, updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+          tx.create(grantLedgerRef, {
+            type: "signup_trial_grant", credits: signupGrant,
+            createdAt: FieldValue.serverTimestamp(), source: "verified_new_signup"
+          });
+        });
+      }
     }
     const billingRef = db.collection("users").doc(user.uid).collection(billingCollection()).doc("current");
     const [snapshot, marketingSnapshot] = await Promise.all([billingRef.get(),preferenceRef(db,user.uid).get()]);

@@ -85,6 +85,7 @@ body.ai-reply-page{min-height:100vh;margin:0;background:#17120e;color:#f4efe6;fo
 <span class="label">Reply tone</span><div class="tones" role="group" aria-label="Reply tone"><button class="tone" data-tone="professional" aria-pressed="true" type="button">Professional</button><button class="tone" data-tone="friendly" aria-pressed="false" type="button">Friendly</button><button class="tone" data-tone="direct" aria-pressed="false" type="button">Short &amp; Direct</button></div>
 <div class="actions" style="margin-top:20px"><button class="primary" id="generate" type="button">Generate reply</button><button class="secondary" id="clear" type="button">Clear</button></div>
 <p id="credit-balance" class="notice" aria-live="polite">Sign in to check your available AI Credits.</p>
+<p id="upgrade-notice" class="notice" hidden><strong>Your free Credits have been used.</strong> <a href="/workspace/billing.html" style="color:#d6b88c;text-decoration:underline">Upgrade subscription or buy Credits →</a></p>
 <p class="notice">Sign in with a verified email to generate AI replies. Each successful reply uses 1 AI Credit. <a href="/workspace/signup.html" style="color:#d6b88c;text-decoration:underline">Create account</a> · <a href="/workspace/login.html" style="color:#d6b88c;text-decoration:underline">Sign in</a> · <a href="/workspace/billing.html" style="color:#d6b88c;text-decoration:underline">View Credits packs</a></p><p class="notice">Do not include passwords, payment details or sensitive personal information.</p>
 </div>
 <div class="tool-card">
@@ -112,8 +113,9 @@ async function refreshCreditBalance(user){
   if(auth.currentUser?.uid!==user.uid)return;
   if(!response.ok)throw new Error(data.error||"Balance unavailable.");
   const balance=Number(data.creditBalance);
+  $("upgrade-notice").hidden=!(Number.isSafeInteger(balance) && balance===0);
   label.textContent=Number.isSafeInteger(balance) && balance>=0
-   ? "Available AI Credits: "+balance.toLocaleString("en-US")+(balance===0?" · Purchase a Credits pack to generate replies.":"")
+   ? "Available AI Credits: "+balance.toLocaleString("en-US")+(balance===0?" · Free Credits used. Upgrade your plan or buy a Credits pack to continue.":"")
    : "Credit balance unavailable. Check your account billing page.";
  }catch{
   if(auth.currentUser?.uid===user.uid)label.textContent="Unable to refresh Credits balance. See your account billing page.";
@@ -139,6 +141,7 @@ async function generate(){
   const token=await currentUser.getIdToken();
   const response=await fetch("/api/generate-reply",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({message,scenario,tone,requestId})});
   const data=await response.json();
+  if(response.status===402){$("upgrade-notice").hidden=false;throw new Error("No AI Credits left. Upgrade or buy a Credits pack to continue.");}
   if(!response.ok)throw new Error(data.error||"Unable to generate a reply.");
   reply=data.reply;$("result").textContent=reply;$("result").classList.remove("empty");$("copy").disabled=false;
   setStatus("Reply ready. "+(data.creditCost||1)+" AI Credit used.");if(activeRequestId===requestId){activeRequestId=null;activeRequestKey=null;}
