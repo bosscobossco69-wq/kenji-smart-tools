@@ -256,6 +256,12 @@ async function handleTelegramPilot(req, res) {
         await postTelegramMessage(config.token, msg.chatId, "AI Credits are depleted. Please upgrade at https://kenjismarttools.com/workspace/billing.html");
         return res.status(200).json({ ok: true });
       }
+      if (reservation.status === 409) {
+        const ledger = await services.db.collection("users").doc(config.uid)
+          .collection("creditLedger").doc(msg.requestId).get();
+        if (ledger.exists && ledger.data()?.status === "completed" &&
+            ledger.data()?.requestHash === hash) return res.status(200).json({ ok: true });
+      }
       // Telegram retries transient processing conflicts; request ID guarantees no double charge.
       return res.status(503).json({ error: "Update is not ready." });
     }
