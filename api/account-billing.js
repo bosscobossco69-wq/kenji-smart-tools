@@ -60,6 +60,36 @@ export default async function handler(req, res) {
     }
 
     await assertLegacyReviewed(db, user.uid);
+    // Verify the *specific* paid Credits order for the signed-in user without adding
+    // a new Serverless Function (Vercel Hobby limit). Balance alone is not a receipt.
+    if (!marketingUpdate && req.query?.session_id !== undefined) {
+      const sessionId = req.query.session_id;
+      const modePrefix = billingMode() === "live" ? "cs_live_" : "cs_test_";
+      if (typeof sessionId !== "string" || !/^cs_(live|test)_[A-Za-z0-9_]{10,250}$/.test(sessionId) ||
+          !sessionId.startsWith(modePrefix)) {
+        return res.status(400).json({ error: "Invalid checkout reference." });
+      }
+      const orders = await db.collection("billingOrders")
+        .where("stripeCheckoutSessionId", "==", sessionId).limit(2).get();
+      if (orders.empty) return res.status(200).json({ state: "pending" });
+      if (orders.size !== 1) return res.status(409).json({ error: "Billing order needs support review." });
+      const doc = orders.docs[0], order = doc.data();
+      if (order.uid !== user.uid) return res.status(403).json({ error: "Checkout does not belong to this account." });
+      if (order.type !== "credit_pack" || order.currency !== "usd") {
+        return res.status(400).json({ error: "Not a Credits purchase." });
+      }
+      if (order.status !== "paid") return res.status(200).json({ state: "pending" });
+      const ledger = await db.collection("users").doc(user.uid).collection("creditLedger")
+        .doc("stripe_pack_" + doc.id).get();
+      const entry = ledger.exists ? ledger.data() : null;
+      if (!entry || entry.type !== "credit_pack_purchase" ||
+          entry.orderId !== doc.id || entry.stripeCheckoutSessionId !== sessionId ||
+          entry.credits !== order.credits || entry.amount !== order.amount || entry.currency !== order.currency) {
+        return res.status(200).json({ state: "pending" });
+      }
+      return res.status(200).json({ state: "paid", creditsGranted: order.credits,
+        amount: order.amount, currency: "usd" });
+    }
     const billingRef = db.collection("users").doc(user.uid).collection(billingCollection()).doc("current");
     const [snapshot, marketingSnapshot] = await Promise.all([billingRef.get(),preferenceRef(db,user.uid).get()]);
     const billing = snapshot.exists ? snapshot.data() : {};
