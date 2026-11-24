@@ -47,7 +47,7 @@ const set=(title,message,extra="")=>{heading.textContent=title;status.textConten
         if(mode==="credits"){
           const sessionId=params.get("session_id")||"";
           if(!sessionId){set("Payment verification pending","Missing the checkout reference. View your account or contact support. Do not pay again.");return;}
-          const check=await fetch("/api/checkout-status?session_id="+encodeURIComponent(sessionId),{
+          const check=await fetch("/api/account-billing?session_id="+encodeURIComponent(sessionId),{
             headers:{Authorization:"Bearer "+token},cache:"no-store"
           });
           const receipt=await check.json().catch(()=>({}));
