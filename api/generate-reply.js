@@ -1,4 +1,5 @@
 import { notifyAdminSafely, errorAlertReference } from "../lib/admin-email-alerts.js";
+import { configuredTelegramPilot, safeTokenMatch, telegramMessage, postTelegramMessage, generateTelegramReply } from "../lib/telegram-pilot.js";
 import { billingCollection, billingDb, assertLegacyReviewed } from "../lib/billing-environment.js";
 import { createHash, randomUUID } from "node:crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
@@ -223,7 +224,58 @@ async function completeCredits(db, uid, requestId, hash, reply, leaseToken) {
   });
 }
 
+// Reuse an existing Vercel function to stay under the Hobby function limit.
+// Single-operator pilot only. No customer channel onboarding is exposed yet.
+async function handleTelegramPilot(req, res) {
+  res.setHeader("Cache-Control", "no-store, private");
+  const config = configuredTelegramPilot();
+  if (!config) return res.status(404).json({ error: "Not available." });
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
+  if (Number(req.headers["content-length"] || 0) > 8192) return res.status(413).json({ error: "Message too large." });
+  const suppliedSecret = req.headers["x-telegram-bot-api-secret-token"];
+  if (!safeTokenMatch(suppliedSecret, config.secret)) return res.status(403).json({ error: "Forbidden." });
+  const msg = telegramMessage(req.body, config.chatId);
+  if (!msg) return res.status(200).json({ ok: true });
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: "AI service unavailable." });
+
+  let services, reserved = false, leaseToken = null;
+  const input = { message: msg.text, scenario: "service", tone: "professional" };
+  const hash = requestHash(input);
+  try {
+    services = await getServices();
+    const owner = await services.auth.getUser(config.uid);
+    if (owner.disabled || !owner.email || !owner.emailVerified) return res.status(503).json({ error: "Pilot owner unavailable." });
+    await assertLegacyReviewed(services.db, config.uid);
+    const reservation = await reserveCredits(services.db, config.uid, msg.requestId, hash);
+    // An already-completed update is acknowledged without re-sending or re-charging.
+    if (reservation.cachedReply) return res.status(200).json({ ok: true });
+    if (reservation.error) {
+      if (reservation.status === 402) {
+        // This is an authenticated owner-only pilot; no credit bypass occurs.
+        await postTelegramMessage(config.token, msg.chatId, "AI Credits are depleted. Please upgrade at https://kenjismarttools.com/workspace/billing.html");
+        return res.status(200).json({ ok: true });
+      }
+      // Telegram retries transient processing conflicts; request ID guarantees no double charge.
+      return res.status(503).json({ error: "Update is not ready." });
+    }
+    leaseToken = reservation.leaseToken;
+    reserved = true;
+    const reply = await generateTelegramReply(apiKey, msg.text, fetch, process.env.GROQ_MODEL || "openai/gpt-oss-20b");
+    await postTelegramMessage(config.token, msg.chatId, reply);
+    await completeCredits(services.db, config.uid, msg.requestId, hash, reply, leaseToken);
+    reserved = false;
+    return res.status(200).json({ ok: true });
+  } catch {
+    if (reserved && services) {
+      try { await refundCredits(services.db, config.uid, msg.requestId, "telegram_delivery_or_ai_error", leaseToken); } catch {}
+    }
+    return res.status(503).json({ error: "Telegram pilot temporarily unavailable." });
+  }
+}
+
 export default async function handler(req, res) {
+  if (req.query?.channel === "telegram") return handleTelegramPilot(req, res);
   res.setHeader("Cache-Control", "no-store, private");
   res.setHeader("Vary", "Authorization, Origin");
   res.setHeader("X-Content-Type-Options", "nosniff");
