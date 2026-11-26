@@ -893,12 +893,23 @@ test('paid Credits session recovers safely when Firestore did not save the Check
   assert.equal(conflict.read(billing), undefined);
 });
 
+test('AI KENJI plan knowledge matches published prices and does not promise roadmap features', () => {
+  const api = fs.readFileSync('api/generate-reply.js', 'utf8');
+  const billingPage = fs.readFileSync('workspace/billing.html', 'utf8');
+  assert.match(api, /Pro \\$20\\/month or \\$200\\/year with 30,000 Credits\\/month/);
+  assert.match(billingPage, /data-month="20" data-year="200"/);
+  assert.match(api, /Future roadmap, not currently included in any purchase/);
+  assert.match(api, /Only apply these KENJI facts when the conversation concerns KENJI products/);
+});
+
 test('AI reply retries preserve an ID only for the same input and bound the upstream wait', () => {
   const page = fs.readFileSync('ai-customer-reply.html', 'utf8');
   const api = fs.readFileSync('api/generate-reply.js', 'utf8');
-  assert.match(page, /activeRequestKey!==requestKey/);
-  assert.match(page, /JSON\.stringify\(\[message,scenario,tone\]\)/);
+  // Chat-style AI & K J uses the same request UUID only when retrying the identical prompt.
+  assert.match(page, /pendingRequest\.key!==key/);
+  assert.match(page, /JSON\.stringify\(\[requestPayload,"service","professional"\]\)/);
   assert.match(page, /requestId\}\)/);
+  assert.match(page, /if\(pending\)return/);
   assert.match(api, /signal: AbortSignal\.timeout\(45_000\)/);
   assert.ok(45_000 < 5 * 60 * 1000, 'provider timeout must expire before Credits reservation lease');
 });
