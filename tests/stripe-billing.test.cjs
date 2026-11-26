@@ -896,7 +896,7 @@ test('paid Credits session recovers safely when Firestore did not save the Check
 test('AI KENJI plan knowledge matches published prices and does not promise roadmap features', () => {
   const api = fs.readFileSync('api/generate-reply.js', 'utf8');
   const billingPage = fs.readFileSync('workspace/billing.html', 'utf8');
-  assert.match(api, /Pro \\$20\\/month or \\$200\\/year with 30,000 Credits\\/month/);
+  assert.match(api, /Pro \$20\/month or \$200\/year with 30,000 Credits\/month/);
   assert.match(billingPage, /data-month="20" data-year="200"/);
   assert.match(api, /Future roadmap, not currently included in any purchase/);
   assert.match(api, /Only apply these KENJI facts when the conversation concerns KENJI products/);
