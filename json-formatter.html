@@ -66,7 +66,7 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
     <button onclick="fmt(0)">Minify</button>
     <button onclick="copyOut()" style="background:#0e9f6e">Copy output</button>
   </div>
-  <div class="result" id="msg" style="display:none"></div>
+  <div class="result" id="msg" role="status" aria-live="polite" style="display:none"></div>
 </div>
 <div class="card">
   <label>Output</label>
@@ -86,12 +86,39 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
 </main>
 <footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; Free, no account needed</footer>
 <script>
-function fmt(sp){const t=document.getElementById('in').value,msg=document.getElementById('msg');
- try{const o=JSON.parse(t);
-  document.getElementById('out').value=JSON.stringify(o,null,sp===0?0:2);
-  msg.style.display='block';msg.style.color='#0e9f6e';msg.textContent='Valid JSON';}
- catch(e){msg.style.display='block';msg.style.color='#dc2626';msg.textContent='Invalid JSON: '+e.message;}}
-function copyOut(){navigator.clipboard.writeText(document.getElementById('out').value);}
+const jsonInput=document.getElementById('in');
+const jsonOutput=document.getElementById('out');
+const jsonMessage=document.getElementById('msg');
+function showMessage(message,success){
+ jsonMessage.style.display='block';
+ jsonMessage.style.color=success?'#0e9f6e':'#dc2626';
+ jsonMessage.textContent=message;
+}
+jsonInput.addEventListener('input',()=>{
+ jsonOutput.value='';
+ jsonMessage.style.display='none';
+ jsonMessage.textContent='';
+});
+function fmt(sp){
+ try{
+  const value=JSON.parse(jsonInput.value);
+  jsonOutput.value=JSON.stringify(value,null,sp===0?0:2);
+  showMessage('Valid JSON',true);
+ }catch(error){
+  jsonOutput.value='';
+  showMessage('Invalid JSON: '+error.message,false);
+ }
+}
+async function copyOut(){
+ const value=jsonOutput.value;
+ if(!value){showMessage('Nothing to copy. Format or minify valid JSON first.',false);return;}
+ try{
+  await navigator.clipboard.writeText(value);
+  showMessage('Copied successfully!',true);
+ }catch(error){
+  showMessage('Unable to copy. Please select the output manually.',false);
+ }
+}
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
 </body>
