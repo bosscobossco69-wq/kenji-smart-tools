@@ -22,7 +22,7 @@ test("Public AI product knowledge accurately distinguishes available and future 
 test("One-time pack values match server Stripe credit purchase definitions", () => {
   for (const [name, dollars, credits, cents] of [
     ["Mini", 5, 10000, 500], ["Basic", 20, 50000, 2000],
-    ["Pro Pack", 35, 100000, 3500], ["Business", 150, 500000, 15000]
+    ["Pro Pack", 35, 100000, 3500], ["Business Pack", 150, 500000, 15000]
   ]) {
     assert.ok(source.includes(`${name} $${dollars} for ${credits.toLocaleString("en-US")} Credits`));
     assert.ok(packs.includes(`amount: ${cents}, credits: ${credits}`));
