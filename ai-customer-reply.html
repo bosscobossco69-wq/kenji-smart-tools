@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Write AI customer service replies for price questions, discounts, delayed orders and follow-ups. Choose a tone, then generate using purchased AI Credits.">
+<meta name="description" content="Chat with AI &amp; K J to draft customer-service replies naturally. Type and send a message, continue the conversation and manage AI Credits.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://kenjismarttools.com/ai-customer-reply.html">
 <meta property="og:title" content="AI Customer Reply Generator | KENJI Smart Tools">
 <meta property="og:description" content="Draft professional, friendly or direct customer replies for common business questions with AI Credits.">
 <meta property="og:url" content="https://kenjismarttools.com/ai-customer-reply.html">
 <meta name="theme-color" content="#17120e">
-<title>AI Customer Reply Generator | KENJI Smart Tools</title>
+<title>AI &amp; K J Chat | KENJI Smart Tools</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/assets/kenji-premium.css">
 <style>
@@ -45,6 +45,29 @@ body.ai-reply-page{min-height:100vh;margin:0;background:#17120e;color:#f4efe6;fo
 .ai-reply-page .status{min-height:22px;color:#d6b88c}
 @media(max-width:720px){.ai-reply-page .tool-grid{grid-template-columns:1fr}.ai-reply-page .hero{padding-top:38px}.ai-reply-page .tool-card{padding:19px}.ai-reply-page header.nav{flex-wrap:wrap}.ai-reply-page header.nav .back-link{margin-left:auto}}
 
+
+.ai-reply-page .chat-layout{max-width:840px;margin:0 auto 32px;padding:0 0 12px}
+.ai-reply-page .chat-panel{border:1px solid #544633;border-radius:22px;background:linear-gradient(150deg,#26211b,#1a1713);overflow:hidden}
+.ai-reply-page .chat-top{padding:18px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #4a3a2a}
+.ai-reply-page .chat-mark{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#d6b88c;color:#211910;font-weight:850}
+.ai-reply-page .chat-top h2{font-size:1.1rem!important;margin:0!important;color:#f4efe6}
+.ai-reply-page .chat-top p{font-size:.77rem;color:#b8aea0;margin:0}
+.ai-reply-page .chat-log{height:min(53vh,510px);min-height:280px;overflow:auto;padding:22px;display:flex;flex-direction:column;gap:15px;overscroll-behavior:contain}
+.ai-reply-page .bubble{max-width:min(85%,620px);padding:12px 16px;border-radius:16px;white-space:pre-wrap;overflow-wrap:anywhere}
+.ai-reply-page .bubble.assistant{align-self:flex-start;background:#363026;color:#f4efe6;border-bottom-left-radius:5px}
+.ai-reply-page .bubble.user{align-self:flex-end;background:#d6b88c;color:#221a13;border-bottom-right-radius:5px}
+.ai-reply-page .bubble.error{border:1px solid #9d5a50;color:#ffd1ca}
+.ai-reply-page .bubble small{display:block;margin-top:7px;opacity:.7;font-size:.72rem}
+.ai-reply-page .bubble button{font-size:.78rem;padding:4px 8px;margin-top:8px;background:transparent;border:1px solid currentColor;color:inherit}
+.ai-reply-page .chat-form{padding:14px 18px;border-top:1px solid #4a3a2a;display:flex;align-items:end;gap:10px}
+.ai-reply-page .chat-form textarea{min-height:52px;max-height:130px;resize:vertical;flex:1}
+.ai-reply-page .chat-form button{min-height:50px}
+.ai-reply-page .chat-meta{padding:0 20px 18px}
+.ai-reply-page .chat-meta a{color:#d6b88c}
+.ai-reply-page .chat-controls{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 20px;border-top:1px solid #4a3a2a}
+.ai-reply-page .chat-controls button{font-size:.82rem;padding:6px 10px}
+.ai-reply-page .chat-form textarea:disabled{opacity:.65}
+@media(max-width:600px){.ai-reply-page .hero{padding:24px 0 16px}.ai-reply-page .chat-log{height:49vh;min-height:240px;padding:14px}.ai-reply-page .chat-form{padding:12px}.ai-reply-page .bubble{max-width:92%}.ai-reply-page .chat-top{padding:12px}}
 </style>
   <link rel="stylesheet" href="/assets/kenji-brand-system.css">
 
@@ -75,36 +98,51 @@ body.ai-reply-page{min-height:100vh;margin:0;background:#17120e;color:#f4efe6;fo
 <a class="back-link" href="/workspace/">← Workspace home</a>
 </header>
 <main class="ai-shell">
-<section class="hero"><span class="eyebrow">Business communication tool</span><h1>Reply to customers<br><span>with confidence.</span></h1><p>Enter the customer message, select a scenario and tone, then generate a reply.</p></section>
-<section class="tool-grid" aria-label="Customer reply generator">
-<div class="tool-card">
-<h2>Create your reply</h2><p class="sub">Select a scenario and tone. Your reply is generated from the customer's message.</p>
-<label for="scenario">Customer scenario</label>
-<select id="scenario"><option value="price">Price is too expensive</option><option value="discount">Customer asks for a discount</option><option value="delay">Order is delayed</option><option value="service">Customer asks about a service</option><option value="followup">Customer hasn't replied</option></select>
-<label for="message">Customer's message</label><textarea id="message" maxlength="1200" required placeholder="Paste or type the customer's message here..."></textarea>
-<span class="label">Reply tone</span><div class="tones" role="group" aria-label="Reply tone"><button class="tone" data-tone="professional" aria-pressed="true" type="button">Professional</button><button class="tone" data-tone="friendly" aria-pressed="false" type="button">Friendly</button><button class="tone" data-tone="direct" aria-pressed="false" type="button">Short &amp; Direct</button></div>
-<div class="actions" style="margin-top:20px"><button class="primary" id="generate" type="button">Generate reply</button><button class="secondary" id="clear" type="button">Clear</button></div>
+<section class="hero"><span class="eyebrow">KENJI AI Customer Support</span><h1>Meet <span>AI &amp; K J</span></h1><p>Type a customer message and send. Keep chatting to refine a professional reply.</p></section>
+<section class="chat-layout" aria-label="AI & K J customer reply chat">
+<div class="chat-panel">
+<div class="chat-top"><div class="chat-mark" aria-hidden="true">KJ</div><div><h2>AI &amp; K J</h2><p>Customer reply assistant · Drafts for your review</p></div></div>
+<div id="chat-log" class="chat-log" role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions"><div class="bubble assistant">Hello! Paste a customer question or tell me how you'd like to reply. I'll help you draft a response.<small>English customer replies · 1 AI Credit per successful response</small></div></div>
+<div class="chat-controls"><span class="notice" style="margin:0">Replies are drafts. Check facts before sending to customers.</span><button class="secondary" id="clear-chat" type="button">New chat</button></div>
+<form id="chat-form" class="chat-form"><label for="chat-input" class="sr-only">Message AI &amp; K J</label><textarea id="chat-input" maxlength="1200" placeholder="Type a customer message..." aria-label="Message AI & K J" required></textarea><button id="send-chat" class="primary" type="submit">Send ↑</button></form>
+<div class="chat-meta">
 <p id="credit-balance" class="notice" aria-live="polite">Sign in to check your available AI Credits.</p>
-<p id="upgrade-notice" class="notice" hidden><strong>Your free Credits have been used.</strong> <a href="/workspace/billing.html" style="color:#d6b88c;text-decoration:underline">Upgrade subscription or buy Credits →</a></p>
-<p class="notice">Sign in with a verified email to generate AI replies. Each successful reply uses 1 AI Credit. <a href="/workspace/signup.html" style="color:#d6b88c;text-decoration:underline">Create account</a> · <a href="/workspace/login.html" style="color:#d6b88c;text-decoration:underline">Sign in</a> · <a href="/workspace/billing.html" style="color:#d6b88c;text-decoration:underline">View Credits packs</a></p><p class="notice">Do not include passwords, payment details or sensitive personal information.</p>
+<p id="upgrade-notice" class="notice" hidden><strong>No Credits remaining.</strong> <a href="/workspace/billing.html">Upgrade or buy Credits →</a></p>
+<p class="notice">Sign in with a verified email to use AI. <a href="/workspace/signup.html">Create account</a> · <a href="/workspace/login.html">Sign in</a> · <a href="/workspace/billing.html">Credits &amp; plans</a>. Each successful response costs 1 AI Credit. Do not share secrets or payment details.</p>
+<p id="status" class="status" role="status" aria-live="polite"></p>
 </div>
-<div class="tool-card">
-<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><h2>Your reply</h2><span class="tag">AI generated</span></div>
-<div id="result" class="result empty" aria-live="polite">Your generated reply will appear here.</div>
-<div class="actions" style="margin-top:14px"><button class="primary" id="copy" type="button" disabled>Copy reply</button><button class="secondary" id="again" type="button">Regenerate</button></div>
-<div id="status" class="status" role="status" aria-live="polite"></div>
 </div>
 </section>
-<section aria-labelledby="reply-use-cases" style="padding:0 0 44px"><h2 id="reply-use-cases" style="margin:0 0 12px">What can you write with this AI reply generator?</h2><p class="sub">Choose the customer situation and a reply tone before generating. Common uses include answering a price objection without inventing a discount, responding politely when an order is delayed, and following up with a customer who has not replied.</p><p class="sub">The tool creates a draft, not an automatic customer message. Review the answer for accuracy before sending it. A successful generation uses 1 AI Credit; <a href="/workspace/billing.html" style="color:#d6b88c;text-decoration:underline">check Credits pack pricing</a>.</p><p class="sub">Need a browser-based utility instead? Try the <a href="/word-counter.html" style="color:#d6b88c;text-decoration:underline">free Word Counter</a> or browse <a href="/#tools" style="color:#d6b88c;text-decoration:underline">all tools</a>.</p></section>
+<section aria-labelledby="reply-use-cases" style="padding:0 0 44px"><h2 id="reply-use-cases" style="margin:0 0 12px">What can you write with this AI reply generator?</h2><p class="sub">Paste a customer message and send it directly. Continue the chat to refine the draft. Common uses include answering a price objection without inventing a discount, responding politely when an order is delayed, and following up with a customer who has not replied.</p><p class="sub">The tool creates a draft, not an automatic customer message. Review the answer for accuracy before sending it. A successful generation uses 1 AI Credit; <a href="/workspace/billing.html" style="color:#d6b88c;text-decoration:underline">check Credits pack pricing</a>.</p><p class="sub">Need a browser-based utility instead? Try the <a href="/word-counter.html" style="color:#d6b88c;text-decoration:underline">free Word Counter</a> or browse <a href="/#tools" style="color:#d6b88c;text-decoration:underline">all tools</a>.</p></section>
 </main>
 <script type="module">
 import {auth,authReady,onAuthStateChanged} from "./workspace/firebase-auth.js";
-let tone="professional",reply="",activeRequestId=null,activeRequestKey=null,currentUser=null;
 const $=id=>document.getElementById(id);
-const setStatus=(message,isError=false)=>{$("status").textContent=message;$("status").style.color=isError?"#ff9b9b":"#d6b88c"};
-async function refreshCreditBalance(user){
+const log=$("chat-log");
+const input=$("chat-input");
+const send=$("send-chat");
+let currentUser=null;
+let pending=false;
+let turns=[];
+let pendingRequest=null;
+const setStatus=(text,error=false)=>{$("status").textContent=text;$("status").style.color=error?"#ffabab":"#d6b88c";};
+function bubble(kind,message,copyable=false){
+ const node=document.createElement("div");node.className="bubble "+kind;
+ const text=document.createElement("span");text.textContent=message;node.append(text);
+ if(copyable){const copy=document.createElement("button");copy.type="button";copy.textContent="Copy reply";copy.addEventListener("click",async()=>{
+  try{await navigator.clipboard.writeText(message);setStatus("Copied to clipboard.");}catch{setStatus("Copy unavailable. Select and copy the reply manually.",true);}
+ });node.append(copy);}
+ log.append(node);log.scrollTop=log.scrollHeight;return node;
+}
+function resetChat(){
+ turns=[];pendingRequest=null;log.replaceChildren();
+ bubble("assistant","Hello! Paste a customer question or tell me how you'd like to reply. I'll help you draft a response.");
+ input.value="";setStatus("New chat started.");
+}
+function setSending(busy){pending=busy;send.disabled=busy||!currentUser?.emailVerified;send.textContent=busy?"Sending…":"Send ↑";}
+async function refreshBalance(user){
  const label=$("credit-balance");
- if(!user || !user.emailVerified){label.textContent="Sign in with a verified email to check your AI Credits.";return;}
+ if(!user?.emailVerified){label.textContent="Sign in with a verified email to check your AI Credits.";$("upgrade-notice").hidden=true;return;}
  label.textContent="Checking available AI Credits...";
  try{
   const token=await user.getIdToken();
@@ -112,46 +150,66 @@ async function refreshCreditBalance(user){
   const data=await response.json();
   if(auth.currentUser?.uid!==user.uid)return;
   if(!response.ok)throw new Error(data.error||"Balance unavailable.");
-  const balance=Number(data.creditBalance);
-  $("upgrade-notice").hidden=!(Number.isSafeInteger(balance) && balance===0);
-  label.textContent=Number.isSafeInteger(balance) && balance>=0
-   ? "Available AI Credits: "+balance.toLocaleString("en-US")+(balance===0?" · Free Credits used. Upgrade your plan or buy a Credits pack to continue.":"")
-   : "Credit balance unavailable. Check your account billing page.";
- }catch{
-  if(auth.currentUser?.uid===user.uid)label.textContent="Unable to refresh Credits balance. See your account billing page.";
- }
+  const count=Number(data.creditBalance);
+  $("upgrade-notice").hidden=!(Number.isSafeInteger(count)&&count===0);
+  label.textContent=Number.isSafeInteger(count)&&count>=0?"Available AI Credits: "+count.toLocaleString("en-US"):"Credit balance unavailable.";
+ }catch{if(auth.currentUser?.uid===user.uid)label.textContent="Unable to refresh Credits balance. See Billing Center.";}
 }
 await authReady;
 onAuthStateChanged(auth,user=>{
- void refreshCreditBalance(user);
+ const previousUid=currentUser?.uid;
  currentUser=user;
- if(!user || !user.emailVerified){$("generate").disabled=true;$("again").disabled=true;setStatus("Please sign in with a verified email address to use AI Credits.",true);return}
- $("generate").disabled=false;$("again").disabled=false;setStatus("Signed in. Each successful reply uses 1 AI Credit.");
+ if(previousUid&&previousUid!==user?.uid)resetChat();
+ setSending(pending);
+ void refreshBalance(user);
+ if(!user?.emailVerified)setStatus("Sign in with a verified email to chat.",true);
+ else setStatus("Ready. Each successful reply uses 1 AI Credit.");
 });
-async function generate(){
- const message=$("message").value.trim(),scenario=$("scenario").value;
- if(!message){setStatus("Enter the customer's message first.",true);$("message").focus();return}
- if(!currentUser || !currentUser.emailVerified){setStatus("Please sign in with a verified email address first.",true);return}
- const button=$("generate");button.disabled=true;$("again").disabled=true;button.textContent="Generating...";
- $("copy").disabled=true;setStatus("Checking Credits and generating reply...");
- const requestKey=JSON.stringify([message,scenario,tone]);
- if(!activeRequestId || activeRequestKey!==requestKey){activeRequestId=crypto.randomUUID();activeRequestKey=requestKey;}
- const requestId=activeRequestId;
+function contextualMessage(message){
+ const history=turns.slice(-2).map(turn=>"Customer message: "+turn.user+"\nEarlier draft: "+turn.reply).join("\n");
+ // Keep the complete new message. Context is optional and limited to the API's 1,200-character cap.
+ const prefix="Write an appropriate customer-service reply to the latest customer message. Do not invent prices or policies.\n";
+ const latest="Latest customer message: "+message;
+ const maxHistory=1200-prefix.length-latest.length-24;
+ return history&&maxHistory>80?prefix+"Earlier context:\n"+history.slice(-maxHistory)+"\n"+latest:message;
+}
+async function submitMessage(){
+ const message=input.value.trim();
+ if(!message)return;
+ if(pending)return;
+ if(!currentUser?.emailVerified){setStatus("Please sign in with a verified email first.",true);return;}
+ const userUid=currentUser.uid;
+ const requestPayload=contextualMessage(message);
+ if(requestPayload.length>1200){setStatus("Message is too long. Please shorten it.",true);return;}
+ const key=JSON.stringify([requestPayload,"service","professional"]);
+ if(!pendingRequest||pendingRequest.key!==key)pendingRequest={key,id:crypto.randomUUID()};
+ const requestId=pendingRequest.id;
+ input.value="";const sent=bubble("user",message);
+ const placeholder=bubble("assistant","Writing your reply…");
+ setSending(true);setStatus("Generating customer reply…");
  try{
   const token=await currentUser.getIdToken();
-  const response=await fetch("/api/generate-reply",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({message,scenario,tone,requestId})});
+  const response=await fetch("/api/generate-reply",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({message:requestPayload,scenario:"service",tone:"professional",requestId})});
   const data=await response.json();
-  if(response.status===402){$("upgrade-notice").hidden=false;throw new Error("No AI Credits left. Upgrade or buy a Credits pack to continue.");}
-  if(!response.ok)throw new Error(data.error||"Unable to generate a reply.");
-  reply=data.reply;$("result").textContent=reply;$("result").classList.remove("empty");$("copy").disabled=false;
-  setStatus("Reply ready. "+(data.creditCost||1)+" AI Credit used.");if(activeRequestId===requestId){activeRequestId=null;activeRequestKey=null;}
- }catch(error){reply="";$("result").textContent="Your generated reply will appear here.";$("result").classList.add("empty");setStatus(error.message||"Something went wrong. Please try again.",true)}
- finally{button.disabled=!currentUser||!currentUser.emailVerified;$("again").disabled=!currentUser||!currentUser.emailVerified;button.textContent="Generate reply";if(currentUser)void refreshCreditBalance(currentUser)}
+  if(response.status===402){$("upgrade-notice").hidden=false;throw new Error("No AI Credits remaining. Upgrade or buy Credits to continue.");}
+  if(!response.ok||typeof data.reply!=="string"||!data.reply.trim())throw new Error(data.error||"Could not generate a reply.");
+  if(auth.currentUser?.uid!==userUid){throw new Error("Account changed. Start a new chat.");}
+  placeholder.remove();bubble("assistant",data.reply,true);
+  turns.push({user:message,reply:data.reply});if(turns.length>4)turns=turns.slice(-4);
+  pendingRequest=null;setStatus("Reply ready. "+(data.cached?"No additional Credit used.":(data.creditCost||1)+" AI Credit used."));
+ }catch(error){
+  placeholder.textContent="Reply unavailable: "+(error.message||"Please retry.");placeholder.classList.add("error");
+  input.value=message;sent.remove();
+  setStatus(error.message||"Unable to generate reply.",true);
+ }finally{
+  setSending(false);if(auth.currentUser?.uid===userUid)void refreshBalance(currentUser);
+ }
 }
-document.querySelectorAll(".tone").forEach(button=>button.addEventListener("click",()=>{tone=button.dataset.tone;document.querySelectorAll(".tone").forEach(item=>item.setAttribute("aria-pressed",String(item===button)))}));
-$("generate").addEventListener("click",generate);$("again").addEventListener("click",generate);
-$("clear").addEventListener("click",()=>{$("message").value="";$("scenario").selectedIndex=0;tone="professional";activeRequestId=null;activeRequestKey=null;document.querySelectorAll(".tone").forEach(button=>button.setAttribute("aria-pressed",String(button.dataset.tone===tone)));reply="";$("result").textContent="Your generated reply will appear here.";$("result").classList.add("empty");$("copy").disabled=true;setStatus("Cleared.")});
-$("copy").addEventListener("click",async()=>{if(!reply)return;try{await navigator.clipboard.writeText(reply);setStatus("Copied to clipboard.")}catch{setStatus("Copy unavailable. Select and copy the reply manually.",true)}});
+$("chat-form").addEventListener("submit",event=>{event.preventDefault();void submitMessage();});
+input.addEventListener("keydown",event=>{
+ if(event.key==="Enter"&&!event.shiftKey&&!event.isComposing){event.preventDefault();void submitMessage();}
+});
+$("clear-chat").addEventListener("click",()=>{if(pending){setStatus("Please finish the current request before starting a new chat.",true);return;}resetChat();});
 </script>
 <script src="/assets/kenji-motion.js" defer></script>
 <script defer src="/_vercel/insights/script.js"></script>
