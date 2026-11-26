@@ -61,15 +61,21 @@ body.ai-reply-page{min-height:100vh;margin:0;background:#17120e;color:#f4efe6;fo
 .ai-reply-page .bubble.error{border:1px solid #9d5a50;color:#ffd1ca}
 .ai-reply-page .bubble small{display:block;margin-top:7px;opacity:.7;font-size:.72rem}
 .ai-reply-page .bubble .bubble-actions button{display:inline-flex;position:static;float:none;flex:0 0 auto;align-items:center;justify-content:center;max-width:100%;font-size:.78rem;line-height:1.3;padding:8px 12px;margin:0;background:#d6b88c;border:1px solid #ad8b62;color:#221a13;border-radius:9px;box-shadow:none;transform:none;white-space:nowrap}
-.ai-reply-page .chat-form{padding:14px 18px;border-top:1px solid #4a3a2a;display:flex;align-items:end;gap:10px}
-.ai-reply-page .chat-form textarea{height:150px;min-height:120px;max-height:320px;resize:vertical;flex:1;line-height:1.6;padding:16px;font-size:16px}
-.ai-reply-page .chat-form button{min-height:50px}
+.ai-reply-page .chat-form{margin:12px 16px 8px;padding:12px 14px 10px;display:flex;flex-direction:column;gap:8px;min-width:0;border:1px solid rgba(214,184,140,.4);border-radius:24px;background:linear-gradient(145deg,#302820,#221c17);box-shadow:0 10px 28px rgba(0,0,0,.22);transition:border-color .18s ease,box-shadow .18s ease}
+.ai-reply-page .chat-form:focus-within{border-color:#d6b88c;box-shadow:0 0 0 2px rgba(214,184,140,.14)}
+.ai-reply-page .chat-form textarea#chat-input{display:block;width:100%;height:48px;min-height:48px;max-height:200px;flex:none;resize:none;overflow-y:hidden;margin:0;padding:8px 4px;border:0!important;border-radius:0!important;outline:none!important;box-shadow:none!important;background:transparent!important;font-family:inherit;font-size:16px;line-height:1.55;color:#f4efe6}
+.ai-reply-page .chat-form textarea#chat-input::placeholder{color:#a99a88}
+.ai-reply-page .composer-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px}
+.ai-reply-page .composer-hint{color:#a99a88;font-size:.75rem}
+.ai-reply-page .chat-form button#send-chat{position:static;display:flex;align-items:center;justify-content:center;width:44px;height:44px;min-height:44px;min-width:44px;max-width:44px;padding:0;margin:0;border-radius:50%;font-size:1.5rem;line-height:1;flex:0 0 44px}
+.ai-reply-page .chat-form button#send-chat:disabled{opacity:.5;cursor:not-allowed}
 .ai-reply-page .chat-meta{padding:0 20px 18px}
 .ai-reply-page .chat-meta a{color:#d6b88c}
 .ai-reply-page .chat-controls{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 20px;border-top:1px solid #4a3a2a}
 .ai-reply-page .chat-controls button{font-size:.82rem;padding:6px 10px;flex:0 0 auto}.ai-reply-page .chat-controls .notice{flex:1 1 240px;min-width:0}
 .ai-reply-page .chat-form textarea:disabled{opacity:.65}
-@media(max-width:600px){.ai-reply-page .hero{padding:24px 0 16px}.ai-reply-page .chat-log{height:49vh;min-height:240px;padding:14px}.ai-reply-page .chat-form{padding:12px;flex-direction:column;align-items:stretch}.ai-reply-page .chat-form textarea{width:100%;height:165px;min-height:150px;flex:none}.ai-reply-page .chat-form button{align-self:flex-end;min-width:112px}.ai-reply-page .bubble{max-width:96%}.ai-reply-page .chat-top{padding:12px}}
+@media(max-width:600px){.ai-reply-page .hero{padding:24px 0 16px}.ai-reply-page .chat-log{height:49vh;min-height:240px;padding:14px}.ai-reply-page .bubble{max-width:96%}.ai-reply-page .chat-top{padding:12px}.ai-reply-page .chat-form{margin:10px 10px 8px;padding:10px 12px 8px;border-radius:22px}.ai-reply-page .composer-hint{font-size:.7rem}}
+
 </style>
   <link rel="stylesheet" href="/assets/kenji-brand-system.css">
 
@@ -106,7 +112,7 @@ body.ai-reply-page{min-height:100vh;margin:0;background:#17120e;color:#f4efe6;fo
 <div class="chat-top"><div class="chat-mark" aria-hidden="true">KJ</div><div><h2>AI &amp; K J</h2><p>Customer reply assistant · Drafts for your review</p></div></div>
 <div id="chat-log" class="chat-log" role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions"><div class="bubble assistant">Hello! Paste a customer question or tell me how you'd like to reply. I'll help you draft a response.<small>English customer replies · 1 AI Credit per successful response</small></div></div>
 <div class="chat-controls"><span class="notice" style="margin:0">Replies are drafts. Check facts before sending to customers.</span><button class="secondary" id="clear-chat" type="button">New chat</button></div>
-<form id="chat-form" class="chat-form"><label for="chat-input" class="sr-only">Message AI &amp; K J</label><textarea id="chat-input" maxlength="1200" rows="5" placeholder="Type your message here... (up to 1,200 characters)" aria-label="Message AI & K J" required></textarea><button id="send-chat" class="primary" type="submit">Send ↑</button></form>
+<form id="chat-form" class="chat-form"><label for="chat-input" class="sr-only">Message AI &amp; K J</label><textarea id="chat-input" maxlength="1200" rows="1" placeholder="Message AI &amp; K J..." aria-label="Message AI & K J" required></textarea><div class="composer-footer"><span class="composer-hint">Enter to send · Shift+Enter for new line</span><button id="send-chat" class="primary" type="submit" aria-label="Send message" title="Send message">↑</button></div></form>
 <div class="chat-meta">
 <p id="credit-balance" class="notice" aria-live="polite">Sign in to check your available AI Credits.</p>
 <p id="upgrade-notice" class="notice" hidden><strong>No Credits remaining.</strong> <a href="/workspace/billing.html">Upgrade or buy Credits →</a></p>
@@ -123,6 +129,12 @@ const $=id=>document.getElementById(id);
 const log=$("chat-log");
 const input=$("chat-input");
 const send=$("send-chat");
+function resizeComposer(){
+ input.style.height="auto";
+ const height=Math.min(200,Math.max(48,input.scrollHeight));
+ input.style.height=height+"px";
+ input.style.overflowY=input.scrollHeight>200?"auto":"hidden";
+}
 let currentUser=null;
 let pending=false;
 let turns=[];
@@ -145,9 +157,9 @@ function bubble(kind,message,copyable=false){
 function resetChat(){
  turns=[];pendingRequest=null;log.replaceChildren();
  bubble("assistant","Hello! Paste a customer question or tell me how you'd like to reply. I'll help you draft a response.");
- input.value="";setStatus("New chat started.");
+ input.value="";resizeComposer();setStatus("New chat started.");
 }
-function setSending(busy){pending=busy;send.disabled=busy||!currentUser?.emailVerified;send.textContent=busy?"Sending…":"Send ↑";}
+function setSending(busy){pending=busy;send.disabled=busy||!currentUser?.emailVerified;send.textContent=busy?"…":"↑";send.setAttribute("aria-label",busy?"Sending message":"Send message");}
 async function refreshBalance(user){
  const label=$("credit-balance");
  if(!user?.emailVerified){label.textContent="Sign in with a verified email to check your AI Credits.";$("upgrade-notice").hidden=true;return;}
@@ -192,7 +204,7 @@ async function submitMessage(){
  const key=JSON.stringify([requestPayload,"service","professional"]);
  if(!pendingRequest||pendingRequest.key!==key)pendingRequest={key,id:crypto.randomUUID()};
  const requestId=pendingRequest.id;
- input.value="";const sent=bubble("user",message);
+ input.value="";resizeComposer();const sent=bubble("user",message);
  const placeholder=bubble("assistant","Writing your reply…");
  setSending(true);setStatus("Generating customer reply…");
  try{
@@ -207,13 +219,15 @@ async function submitMessage(){
   pendingRequest=null;setStatus("Reply ready. "+(data.cached?"No additional Credit used.":(data.creditCost||1)+" AI Credit used."));
  }catch(error){
   placeholder.querySelector(".bubble-text").textContent="Reply unavailable: "+(error.message||"Please retry.");placeholder.classList.add("error");
-  input.value=message;sent.remove();
+  input.value=message;resizeComposer();sent.remove();
   setStatus(error.message||"Unable to generate reply.",true);
  }finally{
   setSending(false);if(auth.currentUser?.uid===userUid)void refreshBalance(currentUser);
  }
 }
 $("chat-form").addEventListener("submit",event=>{event.preventDefault();void submitMessage();});
+input.addEventListener("input",resizeComposer);
+resizeComposer();
 input.addEventListener("keydown",event=>{
  if(event.key==="Enter"&&!event.shiftKey&&!event.isComposing){event.preventDefault();void submitMessage();}
 });
