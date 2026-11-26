@@ -28,5 +28,172 @@
       "path": "/api/stripe-annual-credit-grant",
       "schedule": "0 3 * * *"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "https://kenjismarttools.com/",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kenji-smart-tools.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/ai-customer-reply.html",
+      "destination": "https://kenjismarttools.com/ai-customer-reply.html",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kenji-smart-tools.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/age-calculator.html",
+      "destination": "https://kenjismarttools.com/age-calculator.html",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kenji-smart-tools.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/case-converter.html",
+      "destination": "https://kenjismarttools.com/case-converter.html",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kenji-smart-tools.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/json-formatter.html",
+      "destination": "https://kenjismarttools.com/json-formatter.html",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kenji-smart-tools.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/password-generator.html",
+      "destination": "https://kenjismarttools.com/password-generator.html",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kenji-smart-tools.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/percentage-calculator.html",
+      "destination": "https://kenjismarttools.com/percentage-calculator.html",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kenji-smart-tools.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/tip-calculator.html",
+      "destination": "https://kenjismarttools.com/tip-calculator.html",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kenji-smart-tools.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/unit-converter.html",
+      "destination": "https://kenjismarttools.com/unit-converter.html",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kenji-smart-tools.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/word-counter.html",
+      "destination": "https://kenjismarttools.com/word-counter.html",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kenji-smart-tools.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/privacy.html",
+      "destination": "https://kenjismarttools.com/privacy.html",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kenji-smart-tools.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/terms.html",
+      "destination": "https://kenjismarttools.com/terms.html",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kenji-smart-tools.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/website-services.html",
+      "destination": "https://kenjismarttools.com/website-services.html",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kenji-smart-tools.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "https://kenjismarttools.com/sitemap.xml",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kenji-smart-tools.vercel.app"
+        }
+      ]
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "https://kenjismarttools.com/robots.txt",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kenji-smart-tools.vercel.app"
+        }
+      ]
+    }
   ]
 }
