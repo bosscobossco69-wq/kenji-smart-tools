@@ -23,6 +23,7 @@ jobs:
       - run: npm run test:notifications
       - run: npm run test:marketing
       - run: node --test tests/admin-dashboard-ui.test.cjs
+      - run: node --test tests/business-inventory.test.mjs
       - name: Check marketing and consent API syntax
         run: |
           node --check api/account-billing.js
