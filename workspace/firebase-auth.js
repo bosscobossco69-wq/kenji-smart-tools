@@ -1,9 +1,13 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import {
   getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
   setPersistence,
   browserLocalPersistence,
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
   updateProfile,
   sendEmailVerification,
   signInWithEmailAndPassword,
@@ -50,7 +54,12 @@ export function friendlyAuthError(error) {
     "auth/invalid-credential": "Email or password is incorrect.",
     "auth/user-not-found": "Email or password is incorrect.",
     "auth/wrong-password": "Email or password is incorrect.",
-    "auth/operation-not-allowed": "Email/password sign-in is not enabled in Firebase yet.",
+    "auth/operation-not-allowed": "This sign-in method is not enabled in Firebase. Please contact support.",
+    "auth/popup-closed-by-user": "Google sign-in was cancelled. Please try again.",
+    "auth/popup-blocked": "Your browser blocked the Google sign-in window. Enable pop-ups or open this page in Safari or Chrome.",
+    "auth/cancelled-popup-request": "Google sign-in was interrupted. Please try again.",
+    "auth/account-exists-with-different-credential": "An account already uses this email with another sign-in method. Sign in with your existing method first; do not create a second account.",
+    "auth/unauthorized-continue-uri": "This website is not authorized for Google sign-in.",
     "auth/unauthorized-domain": "This website domain is not authorized in Firebase Authentication.",
     "auth/expired-action-code": "This email link has expired. Please request a new one.",
     "auth/invalid-action-code": "This email link is invalid or has already been used."
