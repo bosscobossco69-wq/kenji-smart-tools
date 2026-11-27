@@ -6,8 +6,6 @@ import {
   setPersistence,
   browserLocalPersistence,
   createUserWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup,
   updateProfile,
   sendEmailVerification,
   signInWithEmailAndPassword,
@@ -31,6 +29,8 @@ export const auth = getAuth(app);
 export const authReady = setPersistence(auth, browserLocalPersistence);
 
 export {
+  GoogleAuthProvider,
+  signInWithPopup,
   createUserWithEmailAndPassword,
   updateProfile,
   sendEmailVerification,
