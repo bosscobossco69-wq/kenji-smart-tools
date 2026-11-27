@@ -43,6 +43,13 @@ a{color:var(--cyan);text-decoration:none}.shell{width:min(1160px,calc(100% - 32p
 }
 .switch button:focus-visible{outline:2px solid #F4D8AD;outline-offset:3px}
 </style>
+<style>
+.payment-methods .payment-options{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.payment-methods .card{display:flex;flex-direction:column;align-items:stretch}
+.payment-methods .card .btn{margin-top:auto;min-height:44px;display:flex;align-items:center;justify-content:center;overflow-wrap:anywhere}
+@media(max-width:850px){.payment-methods .payment-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.payment-methods .payment-options{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
 <div class="shell">
@@ -94,15 +101,16 @@ a{color:var(--cyan);text-decoration:none}.shell{width:min(1160px,calc(100% - 32p
 <button class="btn" type="button" id="manageBilling">Manage or cancel subscription</button>
 <p id="billingDebt" class="muted" role="status"></p>
 </section>
-<section class="section" aria-labelledby="payment-methods-title">
+<section class="section payment-methods" aria-labelledby="payment-methods-title">
 <h2 id="payment-methods-title">Payment methods</h2>
-<p class="muted">Stripe Checkout is used for secure card payments. Other local payment methods are being prepared separately.</p>
-<div class="packs">
-<article class="card"><div class="plan-name">Touch 'n Go eWallet</div><p class="muted">Merchant payment · manual verification planned</p><button class="btn" type="button" disabled>Coming Soon</button></article>
-<article class="card"><div class="plan-name">Maybank Transfer</div><p class="muted">Bank transfer · manual verification planned</p><button class="btn" type="button" disabled>Coming Soon</button></article>
-<article class="card"><div class="plan-name">ToyyibPay</div><p class="muted">Merchant account verification pending</p><button class="btn" type="button" disabled>Coming Soon</button></article>
-<article class="card"><div class="plan-name">Digital wallets</div><p class="muted">Available wallet options are shown directly in Stripe Checkout and depend on your device, browser, and card eligibility.</p><button class="btn" type="button" disabled>Choose a Credits pack above</button></article>
+<p class="muted">Pay securely through Stripe Checkout, or request local payment instructions from billing support. Local payment requests are not automatic checkout and do not grant Credits until payment and account ownership are verified.</p>
+<div class="packs payment-options">
+<article class="card"><div class="plan-name">Credit &amp; debit cards</div><p class="muted">Secure card payment through Stripe Checkout.</p><a class="btn" href="#credits-title">Choose a Credits pack</a></article>
+<article class="card"><div class="plan-name">Touch 'n Go eWallet</div><p class="muted">Request merchant payment instructions and a confirmed MYR quote from billing support. Manual confirmation required.</p><a class="btn" href="mailto:kenjing3073@gmail.com?subject=Touch%20%27n%20Go%20payment%20request&amp;body=Hello%20KENJI%2C%20I%20would%20like%20to%20request%20a%20local%20payment%20quote.%20Please%20confirm%20the%20amount%20and%20official%20merchant%20payment%20instructions.">Request TNG payment</a></article>
+<article class="card"><div class="plan-name">Maybank Transfer</div><p class="muted">Request confirmed bank transfer instructions and an MYR quote from billing support. Manual confirmation required.</p><a class="btn" href="mailto:kenjing3073@gmail.com?subject=Maybank%20payment%20request&amp;body=Hello%20KENJI%2C%20I%20would%20like%20to%20request%20a%20local%20payment%20quote.%20Please%20confirm%20the%20amount%20and%20official%20bank%20transfer%20instructions.">Request bank transfer</a></article>
+<article class="card"><div class="plan-name">Digital wallets</div><p class="muted">Eligible wallets are offered in Stripe Checkout depending on your device, browser, and payment eligibility.</p><a class="btn" href="#credits-title">Choose a Credits pack</a></article>
 </div>
+<p class="muted">Local payment requests are for one-time purchases, not automatic subscription renewals. Do not send money until the official payment instructions and amount are confirmed. Never share passwords, card details or verification codes.</p>
 </section>
 <div class="note" id="billingNotice" role="status" aria-live="polite"><strong style="color:#e8f3ff">Secure Stripe Checkout.</strong><br>Checkout requires a signed-in, email-verified account. Credits packs are one-time purchases. Subscription plans renew automatically at the chosen interval until cancelled. Any trial, if offered, will be shown in Stripe Checkout before you confirm. Credits are added only after verified Stripe payment events.</div>
 </main>
