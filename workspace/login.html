@@ -37,18 +37,27 @@ form.addEventListener("submit",async event=>{
 });
 googleButton.addEventListener("click",async()=>{
  googleButton.disabled=true;googleButton.setAttribute("aria-busy","true");showMessage("Opening secure Google sign-in…");
+ let stage="initialization";
  try{
   await authReady;
+  stage="google-popup";
   const credential=await signInWithPopup(auth,new GoogleAuthProvider());
+  stage="reload";
   await reload(credential.user);
   if(!credential.user.emailVerified){
    // Do not bypass Firebase email ownership verification or create a second account.
+   if(!credential.user.email){await signOut(auth);showMessage("Google sign-in returned an account without an email address. Contact support. [missing-email]",true);return;}
+   stage="send-verification";
    try{await sendEmailVerification(credential.user,{url:location.origin+"/workspace/login.html",handleCodeInApp:false});}
    finally{await signOut(auth);}
    showMessage("A verification email has been sent. Open the email, verify your address, then return and continue with Google.");return;
   }
   location.assign("/workspace/account.html");
- }catch(error){showMessage(friendlyAuthError(error),true);}
+ }catch(error){
+  const raw=typeof error?.code==="string"?error.code:"";
+  const code=/^auth\/[a-z0-9-]{1,80}$/.test(raw)?raw:"unknown";
+  showMessage(friendlyAuthError(error)+" ["+stage+" / "+code+"]",true);
+ }
  finally{googleButton.disabled=false;googleButton.removeAttribute("aria-busy");}
 });
 resend.addEventListener("click",async()=>{
