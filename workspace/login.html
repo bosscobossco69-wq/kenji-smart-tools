@@ -41,7 +41,12 @@ googleButton.addEventListener("click",async()=>{
   await authReady;
   const credential=await signInWithPopup(auth,new GoogleAuthProvider());
   await reload(credential.user);
-  if(!credential.user.emailVerified){await signOut(auth);showMessage("Google did not confirm a verified email address. Please use email verification.",true);return;}
+  if(!credential.user.emailVerified){
+   // Do not bypass Firebase email ownership verification or create a second account.
+   try{await sendEmailVerification(credential.user,{url:location.origin+"/workspace/login.html",handleCodeInApp:false});}
+   finally{await signOut(auth);}
+   showMessage("A verification email has been sent. Open the email, verify your address, then return and continue with Google.");return;
+  }
   location.assign("/workspace/account.html");
  }catch(error){showMessage(friendlyAuthError(error),true);}
  finally{googleButton.disabled=false;googleButton.removeAttribute("aria-busy");}
