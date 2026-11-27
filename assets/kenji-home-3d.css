@@ -1,0 +1,56 @@
+/* Homepage-only premium 3D theme, based on the approved authentication concept. */
+:root{
+ --kenji-bg:#09151f;--kenji-bg-deep:#0b1c24;--kenji-panel:#192e38;--kenji-panel-raised:#243f45;
+ --kenji-line:#435760;--kenji-gold:#d9ba84;--kenji-gold-deep:#a88959;--kenji-ivory:#f4efe8;--kenji-muted:#b8c7cc;
+ --kenji-placeholder:#a8bac0;--kenji-success:#96d9bd;--kenji-danger:#ffb6b0;--kenji-warning:#efd099;
+ --bg:#09151f;--bg-2:#0b1c24;--panel:#192e38;--panel-solid:#192e38;--line:#435760;--line-purple:#435760;
+ --text:#f4efe8;--muted:#b8c7cc;--cyan:#d9ba84;--cyan-2:#a88959;--purple:#d9ba84;--pink:#d9ba84;--green:#96d9bd;--radius:22px;
+}
+@media screen{
+ html{background:#09151f!important;scroll-padding-top:100px}
+ body.kenji-home-3d{background:radial-gradient(ellipse at 22% 0%,#293f50 0,transparent 38rem),radial-gradient(ellipse at 95% 28rem,#123d37 0,transparent 44rem),linear-gradient(180deg,#09151f,#0e2029 55%,#09151f)!important;color:#f4efe8!important}
+ body.kenji-home-3d .shell{width:min(1240px,calc(100% - 48px))}
+ body.kenji-home-3d header.nav{background:transparent!important;border:0!important;box-shadow:none!important;top:0;z-index:20}
+ body.kenji-home-3d .nav-inner{background:#10252eea!important;border:1px solid #6b828a80!important;border-radius:18px;box-shadow:0 14px 38px #0005,inset 0 1px #ffffff18!important;backdrop-filter:blur(18px)!important;gap:16px;flex-wrap:wrap}
+ body.kenji-home-3d .brand{font-size:.9rem;letter-spacing:.045em;flex-shrink:0}
+ body.kenji-home-3d .brand-mark{display:grid;place-items:center;width:40px;height:40px;border-radius:11px;background:linear-gradient(145deg,#304b58,#0d242c)!important;border:1px solid #d9ba84a0;box-shadow:0 4px 12px #0006,inset 0 1px #fff4!important}
+ body.kenji-home-3d .brand-mark:after{display:none}
+ body.kenji-home-3d .brand-mark svg{width:26px;height:26px;display:block}
+ body.kenji-home-3d .nav-links{gap:14px;font-size:.79rem;flex-wrap:wrap}
+ body.kenji-home-3d .nav-actions{gap:8px!important;margin-left:auto!important;flex-wrap:wrap}
+ body.kenji-home-3d #mainAuthNav{background:transparent!important;display:flex!important;min-height:0!important;gap:8px;padding:0!important;border:0!important;color:#f4efe8!important;-webkit-text-fill-color:initial!important}
+ body.kenji-home-3d #mainAuthNav a,body.kenji-home-3d #mainAuthNav button{font-size:.82rem!important;white-space:nowrap;min-height:40px;padding:9px 13px;border-radius:10px!important}
+ body.kenji-home-3d #mainAuthNav a[data-signup-entry]{background:linear-gradient(180deg,#367b60,#15503e 58%,#123c32)!important;border:1px solid #68a58a;color:#fff!important;-webkit-text-fill-color:#fff!important}
+ body.kenji-home-3d .hero{position:relative;isolation:isolate;overflow:hidden;margin-top:28px;padding:clamp(28px,5vw,64px);grid-template-columns:1fr 1fr;gap:clamp(20px,4vw,60px);border:1px solid #81929888;border-radius:30px;background:radial-gradient(ellipse at 94% 70%,#29574f90,transparent 68%),linear-gradient(145deg,#263846,#11242f 32%,#0b1c24 65%,#1c383b);box-shadow:0 28px 70px #0006,inset 0 1px #fff2}
+ body.kenji-home-3d .hero h1{font-size:clamp(2.75rem,5.4vw,5.1rem);letter-spacing:-.065em;line-height:1.04;margin:22px 0}
+ body.kenji-home-3d .hero h1 .gradient-text{color:#e9c88f!important;-webkit-text-fill-color:#e9c88f!important}
+ body.kenji-home-3d .hero-copy{font-size:1.04rem;line-height:1.75}
+ body.kenji-home-3d .hero-orbit{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;width:100%;min-width:0;box-shadow:none!important}
+ body.kenji-home-3d .auth-art{width:100%;height:auto;max-width:540px;display:block;overflow:hidden;filter:drop-shadow(0 18px 18px #0003)}
+ body.kenji-home-3d .home-feature-strip{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;width:100%;margin-top:8px}
+ body.kenji-home-3d .home-feature-strip span{font-size:.78rem;padding:9px 12px;border:1px solid #b8c7cc42;border-radius:11px;background:linear-gradient(145deg,#ffffff16,#ffffff03);color:#e8dfd2;box-shadow:inset 0 1px #fff2}
+ body.kenji-home-3d :is(.btn,.small-btn,.nav-cta,.contact-email,.file-button,button.login-cta){border-radius:12px!important;min-height:42px;transition:transform .18s ease,filter .18s ease;background:linear-gradient(180deg,#f2d7a4,#c5a16d)!important;border:1px solid #c5a16d!important;color:#132129!important;-webkit-text-fill-color:#132129!important;box-shadow:0 6px 16px #0003,inset 0 1px #fff4!important}
+ body.kenji-home-3d :is(.btn.secondary,.small-btn.alt,.file-button,.nav-cta,.contact-email){background:#243f45!important;border-color:#70868c!important;color:#f4efe8!important;-webkit-text-fill-color:#f4efe8!important}
+ body.kenji-home-3d #homeSignupCta{background:linear-gradient(180deg,#367b60,#15503e 58%,#123c32)!important;border-color:#6ca58a!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
+ body.kenji-home-3d .hero-actions{gap:10px}
+ body.kenji-home-3d .hero-actions .btn{font-size:.88rem;display:inline-flex;align-items:center;justify-content:center}
+ body.kenji-home-3d :is(.eyebrow,.badge,.tool-icon,.tool-order){background:#233b43!important;border-color:#657b80!important;color:#e9c88f!important;-webkit-text-fill-color:#e9c88f!important}
+ body.kenji-home-3d .eyebrow i{background:#96d9bd;box-shadow:0 0 10px #96d9bd44}
+ body.kenji-home-3d .section{padding:clamp(34px,5vw,64px) 0}
+ body.kenji-home-3d .section h2{line-height:1.15;letter-spacing:-.045em}
+ body.kenji-home-3d :is(.tool-card,.glass,.principle,.more-tool-link,.tool-launch){background:linear-gradient(150deg,#203640,#142a33)!important;border-color:#4a626b!important;box-shadow:0 10px 30px #0003,inset 0 1px #ffffff0e!important}
+ body.kenji-home-3d :is(.tool-launch,.more-tool-link):hover{background:#29464d!important;border-color:#d9ba84!important}
+ body.kenji-home-3d .tool-card::before{background:#87b2aa12!important}
+ body.kenji-home-3d .tool-directory{gap:14px!important}
+ body.kenji-home-3d .tool-launch{padding:18px!important}
+ body.kenji-home-3d :is(input:not([type=checkbox]),select,textarea){background:#0e222b!important;border-color:#698087!important;color:#f4efe8!important;min-width:0}
+ body.kenji-home-3d :is(input,select,textarea):focus{border-color:#d9ba84!important;outline-color:#d9ba84!important}
+ body.kenji-home-3d .result{color:#96d9bd!important}
+ body.kenji-home-3d .service-head{max-width:none;padding:clamp(24px,4vw,44px);border:1px solid #70868c88;border-radius:24px;background:linear-gradient(130deg,#203640,#152c30);box-shadow:0 16px 40px #0003}
+ body.kenji-home-3d .mobile-menu-toggle{background:#243f45!important;color:#f4efe8!important;-webkit-text-fill-color:#f4efe8!important;border-color:#70868c!important}
+ body.kenji-home-3d :is(button,a,input,select,textarea):focus-visible{outline:3px solid #e9c88f!important;outline-offset:3px!important}
+ @media(max-width:1000px){body.kenji-home-3d .nav-links{order:3;flex-basis:100%;justify-content:center;padding-top:5px}body.kenji-home-3d .hero{gap:22px}}
+ @media(max-width:760px){body.kenji-home-3d .shell{width:calc(100% - 28px)}body.kenji-home-3d .hero{grid-template-columns:1fr;padding:28px 22px;margin-top:18px;border-radius:24px}body.kenji-home-3d .hero h1{font-size:clamp(2.55rem,9vw,4rem)}body.kenji-home-3d .auth-art{max-width:370px}body.kenji-home-3d .home-feature-strip{display:none}}
+ @media(max-width:560px){body.kenji-home-3d .nav-inner{padding:10px;gap:8px}body.kenji-home-3d .brand{font-size:.75rem}body.kenji-home-3d .brand-mark{width:32px;height:32px;flex-basis:32px}body.kenji-home-3d .nav-actions{width:100%;margin:0!important;justify-content:space-between}body.kenji-home-3d .nav-links{justify-content:flex-start;padding-top:8px}body.kenji-home-3d .mobile-menu-toggle{margin-left:auto;min-height:38px}body.kenji-home-3d .hero-actions .btn{flex:1 1 145px}body.kenji-home-3d .tool-launch{padding:14px!important}}
+}
+@media(prefers-reduced-motion:reduce){body.kenji-home-3d *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
