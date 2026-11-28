@@ -51,6 +51,7 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
   ]
 }
 </script>
+<link rel="stylesheet" href="/assets/kenji-feedback.css">
 </head>
 <body>
 <header><a href="/">KENJI Smart Tools</a></header>
@@ -110,7 +111,7 @@ function count(){const t=document.getElementById('t').value;
  document.getElementById('cns').textContent=t.replace(/\s/g,'').length;
  document.getElementById('s').textContent=(t.match(/[.!?]+(\s|$)/g)||[]).length|| (t.trim()?1:0);
  document.getElementById('p').textContent=t.trim()===''?0:t.trim().split(/\n\s*\n/).length;
- document.getElementById('rt').textContent=(words===0?0:Math.ceil(words/200))+' min';}
+ document.getElementById('rt').textContent=(words===0?0:Math.ceil(words/200))+' min';if(words>0){window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"word"}}));}}
 async function copyStats(){const values=[
  'Words: '+document.getElementById('w').textContent,
  'Characters: '+document.getElementById('c').textContent,
@@ -125,5 +126,6 @@ async function copyStats(){const values=[
 count();
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
+<script src="/assets/kenji-feedback.js" defer></script>
 </body>
 </html>

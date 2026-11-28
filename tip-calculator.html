@@ -51,6 +51,7 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
   ]
 }
 </script>
+<link rel="stylesheet" href="/assets/kenji-feedback.css">
 </head>
 <body>
 <header><a href="/">KENJI Smart Tools</a></header>
@@ -100,9 +101,10 @@ function calc(){const b=+document.getElementById('bill').value||0,t=+document.ge
  const f=x=>'$'+x.toFixed(2);
  document.getElementById('tipout').textContent=f(tip);
  document.getElementById('total').textContent=f(b+tip);
- document.getElementById('each').textContent=f((b+tip)/p);}
+ document.getElementById('each').textContent=f((b+tip)/p);if(Number.isFinite(b)&&b>0&&Number.isFinite(t)&&t>=0&&Number.isFinite(p)){window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"tip"}}));}}
 calc();
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
+<script src="/assets/kenji-feedback.js" defer></script>
 </body>
 </html>

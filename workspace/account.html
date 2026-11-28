@@ -22,6 +22,7 @@ footer{margin-top:32px;color:var(--muted);font-size:.82rem}
 </style>
 <link rel="stylesheet" href="/assets/kenji-premium.css">
   <link rel="stylesheet" href="/assets/kenji-brand-system.css">
+<link rel="stylesheet" href="/assets/kenji-feedback.css">
 </head>
 <body class="account-page">
 <header class="top"><a class="brand" href="/workspace/"><span>KENJI</span> AI WORKSPACE</a><nav><a href="/workspace/">Workspace home</a></nav></header>
@@ -82,7 +83,7 @@ const notice=(message,isError=false)=>{el("notice").textContent=message;el("noti
     if(debt>0)notice("Credits debt: "+debt.toLocaleString("en-US")+" after a refund or payment dispute. New Credits first offset this debt.",true);
     const active=data.planActive===true;
     el("planStatus").textContent=active?"Active":"Not activated";
-    el("planNote").textContent=active?"Your subscription is active.":"No active subscription is linked to this account.";
+    el("planNote").textContent=active?"Your subscription is active.":"No active subscription is linked to this account.";if(f.auth.currentUser?.uid===user.uid){window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"account"}}));}
    }catch(error){
     el("creditBalance").textContent="Unavailable";
     el("planStatus").textContent="Unable to verify";
@@ -124,4 +125,5 @@ const notice=(message,isError=false)=>{el("notice").textContent=message;el("noti
 <script src="/assets/kenji-motion.js" defer></script>
 
 <script defer src="/_vercel/insights/script.js"></script>
+<script src="/assets/kenji-feedback.js" defer></script>
 </body></html>

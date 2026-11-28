@@ -51,6 +51,7 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
   ]
 }
 </script>
+<link rel="stylesheet" href="/assets/kenji-feedback.css">
 </head>
 <body>
 <header><a href="/">KENJI Smart Tools</a></header>
@@ -106,12 +107,13 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
 <footer>&copy; 2026 KENJI Smart Tools &middot; <a href="/">All tools</a> &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; Free, no account needed</footer>
 <script>
 function calc1(){const a=+document.getElementById('a1').value||0,b=+document.getElementById('b1').value||0;
- document.getElementById('r1').innerHTML='<b>'+(a*b/100).toLocaleString()+'</b>';}
+ document.getElementById('r1').innerHTML='<b>'+(a*b/100).toLocaleString()+'</b>';if(document.getElementById('a1').value.trim()&&document.getElementById('b1').value.trim()&&Number.isFinite(a)&&Number.isFinite(b)){window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"percentage"}}));}}
 function calc2(){const a=+document.getElementById('a2').value||0,b=+document.getElementById('b2').value||0;
- document.getElementById('r2').innerHTML=b===0?'Cannot divide by zero':'<b>'+(a/b*100).toFixed(2)+'%</b>';}
+ document.getElementById('r2').innerHTML=b===0?'Cannot divide by zero':'<b>'+(a/b*100).toFixed(2)+'%</b>';if(b!==0&&document.getElementById('a2').value.trim()&&Number.isFinite(a)&&Number.isFinite(b)){window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"percentage"}}));}}
 function calc3(){const a=+document.getElementById('a3').value||0,b=+document.getElementById('b3').value||0;
- document.getElementById('r3').innerHTML=a===0?'Cannot divide by zero':'<b>'+(((b-a)/a)*100).toFixed(2)+'%</b> change';}
+ document.getElementById('r3').innerHTML=a===0?'Cannot divide by zero':'<b>'+(((b-a)/a)*100).toFixed(2)+'%</b> change';if(a!==0&&document.getElementById('b3').value.trim()&&Number.isFinite(a)&&Number.isFinite(b)){window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"percentage"}}));}}
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
+<script src="/assets/kenji-feedback.js" defer></script>
 </body>
 </html>

@@ -53,6 +53,7 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
   ]
 }
 </script>
+<link rel="stylesheet" href="/assets/kenji-feedback.css">
 </head>
 <body>
 <header><a href="/">KENJI Smart Tools</a></header>
@@ -100,7 +101,7 @@ function calc(){
  let birthday=new Date(nextYear,month-1,day);birthday.setHours(0,0,0,0);
  if(birthday<now){nextYear++;birthday=new Date(nextYear,month-1,day);birthday.setHours(0,0,0,0);}
  const days=Math.round((birthday-now)/86400000);
- nextResult.innerHTML='Next birthday in <b>'+days+' days</b> ('+birthday.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+')';
+ nextResult.innerHTML='Next birthday in <b>'+days+' days</b> ('+birthday.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+')';window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"age"}}));
 }
 document.getElementById('dob').addEventListener('input',function(){
  const digits=this.value.replace(/\D/g,'').slice(0,8);
@@ -111,5 +112,6 @@ document.getElementById('dob').addEventListener('input',function(){
 document.getElementById('dob').addEventListener('keydown',function(e){if(e.key==='Enter')calc();});
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
+<script src="/assets/kenji-feedback.js" defer></script>
 </body>
 </html>

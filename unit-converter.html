@@ -51,6 +51,7 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
   ]
 }
 </script>
+<link rel="stylesheet" href="/assets/kenji-feedback.css">
 </head>
 <body>
 <header><a href="/">KENJI Smart Tools</a></header>
@@ -132,17 +133,18 @@ const LM={mm:0.001,cm:0.01,m:1,km:1000,in:0.0254,ft:0.3048,mi:1609.344};
 const WM={mg:1e-6,g:0.001,kg:1,t:1000,oz:0.028349523125,lb:0.45359237};
 function lconv(){const v=+document.getElementById('lv').value||0,
  f=LM[document.getElementById('lf').value],t=LM[document.getElementById('lt').value];
- document.getElementById('lr').innerHTML='<b>'+(v*f/t).toLocaleString(undefined,{maximumFractionDigits:6})+'</b> '+document.getElementById('lt').value;}
+ document.getElementById('lr').innerHTML='<b>'+(v*f/t).toLocaleString(undefined,{maximumFractionDigits:6})+'</b> '+document.getElementById('lt').value;if(document.getElementById('lv').value.trim()&&Number.isFinite(v)){window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"unit"}}));}}
 function wconv(){const v=+document.getElementById('wv').value||0,
  f=WM[document.getElementById('wf').value],t=WM[document.getElementById('wt').value];
- document.getElementById('wr').innerHTML='<b>'+(v*f/t).toLocaleString(undefined,{maximumFractionDigits:6})+'</b> '+document.getElementById('wt').value;}
+ document.getElementById('wr').innerHTML='<b>'+(v*f/t).toLocaleString(undefined,{maximumFractionDigits:6})+'</b> '+document.getElementById('wt').value;if(document.getElementById('wv').value.trim()&&Number.isFinite(v)){window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"unit"}}));}}
 function tconv(){const v=+document.getElementById('tv').value||0,
  f=document.getElementById('tf').value,t=document.getElementById('tt').value;
  let c=f==='c'?v:f==='f'?(v-32)*5/9:v-273.15;
  let r=t==='c'?c:t==='f'?c*9/5+32:c+273.15;
- document.getElementById('tr').innerHTML='<b>'+r.toLocaleString(undefined,{maximumFractionDigits:2})+'&deg;</b> '+t.toUpperCase();}
+ document.getElementById('tr').innerHTML='<b>'+r.toLocaleString(undefined,{maximumFractionDigits:2})+'&deg;</b> '+t.toUpperCase();if(document.getElementById('tv').value.trim()&&Number.isFinite(v)){window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"unit"}}));}}
 lconv();wconv();tconv();
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
+<script src="/assets/kenji-feedback.js" defer></script>
 </body>
 </html>
