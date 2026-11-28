@@ -110,10 +110,13 @@ export default async function handler(req,res){
    return res.status(201).json({id,notification});
   }
   const message=safeText(b.message,800);
+  const history=b.history===undefined?[]:b.history;
+  if(!Array.isArray(history)||history.length>2)throw publicError(400,"Invalid conversation context.");
+  const previous=history.map(value=>safeText(value,800));
   if(b.consent!==true||!locales.has(b.locale))throw publicError(400,"Confirm AI processing and choose a supported language.");
   if(!process.env.GROQ_API_KEY)throw publicError(503,"AI support is unavailable. Use the help links or human ticket.");
   await limit(req,db,secret,"chat",u);
-  const response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+process.env.GROQ_API_KEY,"Content-Type":"application/json"},signal:AbortSignal.timeout(18000),body:JSON.stringify({model:process.env.GROQ_MODEL||"openai/gpt-oss-20b",messages:[{role:"system",content:facts+"\nLanguage: "+b.locale},{role:"user",content:message}],max_tokens:300})});
+  const response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+process.env.GROQ_API_KEY,"Content-Type":"application/json"},signal:AbortSignal.timeout(18000),body:JSON.stringify({model:process.env.GROQ_MODEL||"openai/gpt-oss-20b",messages:[{role:"system",content:facts+"\nLanguage: "+b.locale},...previous.map(content=>({role:"user",content})),{role:"user",content:message}],max_tokens:300})});
   if(!response.ok)throw publicError(503,"AI support is busy. Use the help links or human ticket.");
   const data=await response.json(),reply=data.choices?.[0]?.message?.content;
   if(typeof reply!=="string"||!reply.trim())throw publicError(503,"AI support is unavailable.");
