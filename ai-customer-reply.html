@@ -99,6 +99,7 @@ body.ai-reply-page{min-height:100vh;margin:0;background:#09151f;color:#f4efe6;fo
   ]
 }
 </script>
+<link rel="stylesheet" href="/assets/kenji-feedback.css">
 </head>
 <body class="ai-reply-page">
 <header class="ai-shell nav">
@@ -216,7 +217,7 @@ async function submitMessage(){
   if(auth.currentUser?.uid!==userUid){throw new Error("Account changed. Start a new chat.");}
   placeholder.remove();bubble("assistant",data.reply,true);
   turns.push({user:message,reply:data.reply});if(turns.length>4)turns=turns.slice(-4);
-  pendingRequest=null;setStatus("Reply ready. "+(data.cached?"No additional Credit used.":(data.creditCost||1)+" AI Credit used."));
+  pendingRequest=null;setStatus("Reply ready. "+(data.cached?"No additional Credit used.":(data.creditCost||1)+" AI Credit used."));window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"ai_reply"}}));
  }catch(error){
   placeholder.querySelector(".bubble-text").textContent="Reply unavailable: "+(error.message||"Please retry.");placeholder.classList.add("error");
   input.value=message;resizeComposer();sent.remove();
@@ -235,4 +236,5 @@ $("clear-chat").addEventListener("click",()=>{if(pending){setStatus("Please fini
 </script>
 <script src="/assets/kenji-motion.js" defer></script>
 <script defer src="/_vercel/insights/script.js"></script>
+<script src="/assets/kenji-feedback.js" defer></script>
 </body></html>

@@ -226,6 +226,7 @@
   </style>
   <link rel="stylesheet" href="/assets/kenji-brand-system.css">
   <link rel="stylesheet" href="/assets/kenji-home-3d.css">
+<link rel="stylesheet" href="/assets/kenji-feedback.css">
 </head>
 <body class="kenji-home-3d">
   <header class="nav shell"><div class="nav-inner">
@@ -379,7 +380,7 @@
       if(!value){byId('qr-result').textContent='Enter a URL or text first.';return;}
       if(typeof QRCode==='undefined'){byId('qr-result').textContent='QR library could not load. Check your internet connection and try again.';return;}
       new QRCode(box,{text:value,width:170,height:170,colorDark:'#071126',colorLight:'#ffffff'});
-      byId('qr-result').textContent='QR code ready.';
+      byId('qr-result').textContent='QR code ready.';window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"qr"}}));
     }
     function downloadQr(){
       const box=byId('qrcode'), img=box.querySelector('img'), canvas=box.querySelector('canvas');
@@ -394,7 +395,7 @@
       if(!phone){lastWa='';byId('wa-result').textContent='Enter a phone number with country code first.';return;}
       if(phone.length<7 || phone.length>15){lastWa='';byId('wa-result').textContent='Check the phone number. Include country code, digits only.';return;}
       lastWa='https://wa.me/'+phone+(msg?'?text='+encodeURIComponent(msg):'');
-      byId('wa-result').textContent=lastWa;
+      byId('wa-result').textContent=lastWa;window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"whatsapp"}}));
     }
     async function copyWa(){
       if(!lastWa) makeWa(); if(!lastWa)return;
@@ -411,7 +412,7 @@
       if(!money || money.q<=0 || money.p<0){byId('invoice-preview').textContent='Enter quantity and unit price in this format: 1 x 100. Quantity must be above zero and price cannot be negative.';return;}
       if(tax<0 || tax>100){byId('invoice-preview').textContent='Enter a tax percentage between 0 and 100.';return;}
       const subtotal=money.q*money.p,total=subtotal*(1+tax/100),currency=byId('currency').value;
-      byId('invoice-preview').innerHTML='<strong>'+escapeHtml(byId('biz').value||'Your business')+'</strong><br><small>Invoice for '+escapeHtml(byId('client').value||'Customer')+'</small><hr><div>'+escapeHtml(byId('item').value||'Service')+' · '+money.q+' × '+money.p.toFixed(2)+'</div><p>Subtotal: '+escapeHtml(currency)+' '+subtotal.toFixed(2)+'<br>Tax: '+tax.toFixed(2)+'%<br><strong>Total: '+escapeHtml(currency)+' '+total.toFixed(2)+'</strong></p>';
+      byId('invoice-preview').innerHTML='<strong>'+escapeHtml(byId('biz').value||'Your business')+'</strong><br><small>Invoice for '+escapeHtml(byId('client').value||'Customer')+'</small><hr><div>'+escapeHtml(byId('item').value||'Service')+' · '+money.q+' × '+money.p.toFixed(2)+'</div><p>Subtotal: '+escapeHtml(currency)+' '+subtotal.toFixed(2)+'<br>Tax: '+tax.toFixed(2)+'%<br><strong>Total: '+escapeHtml(currency)+' '+total.toFixed(2)+'</strong></p>';window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"invoice"}}));
     }
     function showFileName(e){const file=e.target.files&&e.target.files[0];byId('file-name').textContent=file?file.name:'No file selected';}
     function loadImage(e){
@@ -440,7 +441,7 @@
       const width=Math.floor(Number(byId('img-width').value)),height=Math.floor(Number(byId('img-height').value));
       if(!width||!height||width<1||height<1||width>10000||height>10000){byId('image-result').textContent='Enter width and height between 1 and 10,000 pixels.';return;}
       const c=byId('canvas');c.width=width;c.height=height;const ctx=c.getContext('2d');ctx.clearRect(0,0,width,height);ctx.drawImage(sourceImage,0,0,width,height);
-      c.toBlob(blob=>{if(!blob){byId('image-result').textContent='Could not export this image. Try a smaller size.';return;}resizedBlob=blob;byId('image-result').textContent='Resized image ready: '+width+' × '+height+' px';},'image/png');
+      c.toBlob(blob=>{if(!blob){byId('image-result').textContent='Could not export this image. Try a smaller size.';return;}resizedBlob=blob;byId('image-result').textContent='Resized image ready: '+width+' × '+height+' px';window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"image"}}));},'image/png');
     }
     function downloadImage(){
       if(!resizedBlob){resizeImage();byId('image-result').textContent='Preparing image… use Download image again when the resized image is ready.';return;}
@@ -524,5 +525,6 @@
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
 <script src="/assets/kenji-motion.js" defer></script>
+<script src="/assets/kenji-feedback.js" defer></script>
 </body>
 </html>
