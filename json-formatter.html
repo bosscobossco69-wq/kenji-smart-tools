@@ -51,6 +51,7 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
   ]
 }
 </script>
+<link rel="stylesheet" href="/assets/kenji-feedback.css">
 </head>
 <body>
 <header><a href="/">KENJI Smart Tools</a></header>
@@ -103,7 +104,7 @@ function fmt(sp){
  try{
   const value=JSON.parse(jsonInput.value);
   jsonOutput.value=JSON.stringify(value,null,sp===0?0:2);
-  showMessage('Valid JSON',true);
+  showMessage('Valid JSON',true);window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"json"}}));
  }catch(error){
   jsonOutput.value='';
   showMessage('Invalid JSON: '+error.message,false);
@@ -121,5 +122,6 @@ async function copyOut(){
 }
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
+<script src="/assets/kenji-feedback.js" defer></script>
 </body>
 </html>

@@ -103,3 +103,6 @@
 
 /* Match the visible brand label on all localized auth pages. */
 for(const brand of document.querySelectorAll('a.brand[aria-label="KENJI Smart Tools"]')){if(brand.querySelector(".brand-mark")?.textContent.trim()==="K"&&brand.querySelector(".brand-name"))brand.setAttribute("aria-label","K KENJI Smart Tools");}
+
+/* Shared localized authentication pages: Facebook support links, no automatic rating invitation on sign-in forms. */
+if(/^\/workspace\/(?:login|signup|forgot-password)(?:\.(?:ms|es|th|zh-CN|zh-TW))?\.html$/.test(location.pathname)){const css=document.createElement("link");css.rel="stylesheet";css.href="/assets/kenji-feedback.css";document.head.append(css);const script=document.createElement("script");script.src="/assets/kenji-feedback.js";script.defer=true;document.body.append(script);}

@@ -51,6 +51,7 @@ footer{text-align:center;color:#8a8fa3;font-size:13px;padding:24px 16px}
   ]
 }
 </script>
+<link rel="stylesheet" href="/assets/kenji-feedback.css">
 </head>
 <body>
 <header><a href="/">KENJI Smart Tools</a></header>
@@ -100,9 +101,10 @@ function conv(mode){const t=document.getElementById('t');
  if(mode==='title')s=s.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
  if(mode==='sentence')s=s.toLowerCase().replace(/(^\s*\w|[.!?]\s+\w)/g,c=>c.toUpperCase());
  if(mode==='camel')s=s.toLowerCase().replace(/[^a-zA-Z0-9]+(.)/g,(m,c)=>c.toUpperCase());
- t.value=s;}
+ t.value=s;if(s.trim()){window.dispatchEvent(new CustomEvent("kenji:feedback-success",{detail:{feature:"case"}}));}}
 function copy(){navigator.clipboard.writeText(document.getElementById('t').value);}
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
+<script src="/assets/kenji-feedback.js" defer></script>
 </body>
 </html>
