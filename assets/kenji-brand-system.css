@@ -162,3 +162,55 @@ body #invoice-preview{background:#f4efe8!important;color:#132129!important}
 body #invoice-preview :is(h1,h2,h3,p,span,strong,b,td,th){color:#132129!important}
 body :is(button,a,input,select,textarea):focus-visible{outline:2px solid #e9c88f!important;outline-offset:3px!important}
 }
+
+/* Premium teal glass refinement: shared components, not authentication or checkout behavior. */
+@media screen{
+:root{--kenji-surface:#243d45;--kenji-surface-2:#354f57;--kenji-accent:#d9ba84;--kenji-accent-light:#f2d7a4;--kenji-accent-dark:#a88959;--kenji-text:#f4efe8;--kenji-ink:#f4efe8}
+html body:has(> .shell) :is(.card,.tool-card,.glass,.notice),html body:has(> main.wrap) .panel,html body.account-page :is(.card,.panel,.notice),html body .layout :is(.sidebar,.topbar,.quick-link,.top-link,.panel,.metric,.note),html body :is(.contact-card,.service-plan,.surface,.stat,.details,.result,.preview,.tool-grid>div){background:linear-gradient(150deg,#29444c,#172d35)!important;border-color:#617e85!important;color:#f4efe8!important;box-shadow:0 12px 32px #0003,inset 0 1px #ffffff12!important}
+html body :is(.card,.tool-card,.glass,.panel) :is(p,li,small,.muted,.sub){color:#bacdd1!important}
+html body:has(> .shell) .card .tag{background:#233b43!important;border-color:#617e85!important;color:#e9c88f!important}
+html body:has(> .shell) .grid>a.card>.icon{display:inline-grid!important;place-items:center;width:48px!important;height:48px!important;max-width:48px!important;min-width:48px!important;min-height:48px!important;padding:0!important;line-height:1!important;font-size:1.45rem!important;background:linear-gradient(145deg,#354f57,#203640)!important;color:#d9ba84!important;-webkit-text-fill-color:#d9ba84!important;border:1px solid #617e85!important;border-radius:13px!important}
+html body:has(> .shell) .grid>a.card{min-width:0;overflow-wrap:anywhere}
+html body .layout .main,html body .layout{background:transparent!important}
+html body .layout .sidebar .nav a.active{background:#354f57!important;border-color:#617e85!important;color:#e9c88f!important}
+html body :is(.status.error,.notice.error,.alert.error){background:#44282d!important;border-color:#a76369!important;color:#ffcbc9!important}
+html body :is(.status.success,.notice.success){background:#173b32!important;border-color:#69a58b!important;color:#b5e5ce!important}
+html body #invoice-preview{background:#f4efe8!important;color:#132129!important}
+html body #invoice-preview :is(h1,h2,h3,p,span,strong,b,td,th){color:#132129!important}
+html body #qrcode{background:#fff!important}
+html body.ai-reply-page{display:block!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
+html body.ai-reply-page :is(header.ai-shell,main.ai-shell){box-sizing:border-box!important;width:min(1080px,calc(100% - 36px))!important;max-width:1080px!important;margin-inline:auto!important;min-width:0!important}
+html body.ai-reply-page .chat-layout{width:100%!important;max-width:840px!important;min-width:0!important}
+html body.ai-reply-page .chat-panel{width:100%!important;min-width:0!important;background:linear-gradient(150deg,#243d45,#142a33)!important;border-color:#617e85!important;box-shadow:0 16px 40px #0004,inset 0 1px #ffffff12!important}
+html body.ai-reply-page :is(.chat-top,.chat-controls){border-color:#435760!important}
+html body.ai-reply-page .chat-mark{flex:0 0 42px;background:linear-gradient(145deg,#f2d7a4,#c5a16d)!important;color:#132129!important}
+html body.ai-reply-page .bubble.assistant{background:#354f57!important;color:#f4efe8!important}
+html body.ai-reply-page .bubble.user{background:#d9ba84!important;color:#132129!important}
+html body.ai-reply-page .bubble.user :is(p,small,span){color:#132129!important}
+html body.ai-reply-page .bubble.error{border-color:#a76369!important;color:#ffcbc9!important}
+html body.ai-reply-page .chat-form{background:linear-gradient(145deg,#29444c,#172d35)!important;border-color:#617e85!important}
+html body.ai-reply-page .chat-form textarea#chat-input{background:transparent!important;border:0!important;box-shadow:none!important;min-height:48px;max-width:100%;font-size:16px!important}
+html body.ai-reply-page .chat-form textarea#chat-input:focus{outline:none!important}
+html body.ai-reply-page .chat-form:focus-within{border-color:#d9ba84!important;outline:2px solid #d9ba8440}
+html body.ai-reply-page .chat-form .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important;border:0!important}
+html body.ai-reply-page :is(.chat-meta,.chat-controls) :is(.notice,.status){background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;color:#bacdd1!important}
+html body.ai-reply-page .chat-meta .status.error{color:#ffb6b0!important}
+html body.ai-reply-page .chat-meta [hidden]{display:none!important}
+html body.ai-reply-page .chat-form button#send-chat{background:linear-gradient(180deg,#f2d7a4,#c5a16d)!important;border-color:#d9ba84!important;color:#132129!important;-webkit-text-fill-color:#132129!important}
+html body.ai-reply-page .chat-form button#send-chat:hover:not(:disabled){background:#efd5a5!important;color:#132129!important;-webkit-text-fill-color:#132129!important}
+html body.ai-reply-page .chat-form button#send-chat:focus-visible{outline:2px solid #f4efe8!important}
+@media(max-width:600px){
+ html body.ai-reply-page :is(header.ai-shell,main.ai-shell){width:calc(100% - 24px)!important}
+ html body.ai-reply-page .hero{padding:24px 0 16px!important}
+ html body.ai-reply-page .hero h1{font-size:clamp(1.9rem,8vw,2.7rem)!important}
+ html body.ai-reply-page .chat-log{height:clamp(240px,43svh,420px)!important;padding:12px!important}
+ html body.ai-reply-page .bubble{max-width:96%!important}
+ html body.ai-reply-page .chat-top{padding:12px!important}
+ html body.ai-reply-page .chat-controls{padding:10px 12px!important}
+ html body.ai-reply-page .chat-controls .notice{flex:1 1 160px!important}
+ html body.ai-reply-page .chat-controls button{min-height:44px}
+ html body.ai-reply-page .chat-form{margin:8px 10px!important;padding:10px!important}
+ html body.ai-reply-page .chat-meta{padding:0 12px 14px!important;overflow-wrap:anywhere}
+ html body:has(> .shell) .grid>a.card{padding:18px!important}
+}
+}
