@@ -44,3 +44,11 @@ html body #kenji-help-dialog .kenji-support-live button:disabled{opacity:.55!imp
 html body #kenji-help-dialog .kenji-support-log{white-space:pre-wrap;overflow-wrap:anywhere;color:#10252e!important;background:#e0eae5!important;border-radius:10px;padding:10px;margin-top:8px;max-height:240px;overflow:auto}
 html body #kenji-help-dialog .kenji-support-log:empty{display:none!important}
 }
+
+@media screen{
+html body #kenji-help-dialog .kenji-support-actions{display:grid!important;grid-template-columns:1fr!important;gap:10px!important;margin:10px 0!important}
+html body #kenji-help-dialog .kenji-support-actions button{display:block!important;margin:0!important;white-space:normal!important}
+html body #kenji-help-dialog .kenji-support-shortcuts{display:flex!important;flex-wrap:wrap!important;gap:10px!important;margin:12px 0!important}
+html body #kenji-help-dialog .kenji-support-shortcuts a{padding:8px 10px!important;background:#fffaf4!important;border:1px solid #a6b1ae!important;border-radius:8px!important;min-height:44px!important;display:inline-flex!important;align-items:center}
+html body.account-page header.top{background:linear-gradient(145deg,#304b55,#172d35)!important;border-color:#617e85!important}
+}

@@ -74,10 +74,10 @@
  const label=e("label",t[8]);label.prepend(consent);
  const section=e("section");section.className="kenji-support-live";section.append(e("h3",t[0]),label);
  const ask=e("textarea");ask.placeholder=t[1];ask.setAttribute("aria-label",t[1]);ask.maxLength=800;ask.rows=2;
- const send=button(t[2]),account=button(t[3]);const log=e("div");log.className="kenji-support-log";log.setAttribute("role","status");log.setAttribute("aria-live","polite");
+ const send=button(t[2]),account=button(t[3]);const controls=e("div");controls.className="kenji-support-actions";controls.append(send,account);const log=e("div");log.className="kenji-support-log";log.setAttribute("role","status");log.setAttribute("aria-live","polite");
  const ticket=e("details");ticket.append(e("summary",t[4]),e("p",t[17]));const contact=e("input");contact.type="email";contact.placeholder=t[5];contact.setAttribute("aria-label",t[5]);contact.maxLength=254;
  const description=e("textarea");description.placeholder=t[6];description.setAttribute("aria-label",t[6]);description.maxLength=1200;description.rows=3;const submit=button(t[7]);ticket.append(contact,description,submit);
- section.append(ask,send,account,log,ticket);dialog.insertBefore(section,dialog.querySelector("details"));
+ const shortcuts=e("div");shortcuts.className="kenji-support-shortcuts";const suffix=locale==="en"?"":"."+locale;for(const [href,label] of [["/workspace/forgot-password"+suffix+".html",dialog.querySelector("details a")?.textContent||"Reset password"],["/workspace/login"+suffix+".html",dialog.querySelectorAll("details a")[1]?.textContent||"Sign in"],["/workspace/billing.html",dialog.querySelectorAll("details a")[3]?.textContent||"Plans & Credits"]]){const a=e("a",label);a.href=href;shortcuts.append(a);}section.append(ask,controls,log,shortcuts,ticket);dialog.insertBefore(section,dialog.querySelector("details"));
  let busy=false, generation=0, history=[], trackedUid=null;
  let privateAuth=null;
  async function currentAuth(){
@@ -94,9 +94,12 @@
    const r=await fetch("/api/kenji-support",{method:"POST",headers,body:JSON.stringify(body),cache:"no-store"});
    const data=await r.json().catch(()=>({}));if(authRequired&&privateAuth?.currentUser?.uid!==requestedUid)throw Error(t[16]);if(!r.ok)throw Error(t[9]+(locale==="en"&&data.error?" "+data.error:""));return data;
  }
- async function run(task){if(busy)return;busy=true;for(const b of [send,account,submit])b.disabled=true;log.textContent=t[14];try{await task();}catch(err){log.textContent=err.message||t[9];}finally{busy=false;for(const b of [send,account,submit])b.disabled=false;}}
- send.addEventListener("click",()=>run(async()=>{if(!consent.checked||!ask.value.trim())throw Error(t[8]);const question=ask.value;const v=generation;const d=await request({action:"chat",locale,message:question,history,consent:true});if(v!==generation||!dialog.open)return;history=[...history,question].slice(-2);log.textContent=d.reply;ask.value="";}));
+ async function run(task){if(busy)return;const start=generation;busy=true;for(const b of [send,account,submit])b.disabled=true;log.textContent=t[14];try{await task();}catch(err){if(start===generation&&dialog.open)log.textContent=err.message||t[9];}finally{busy=false;for(const b of [send,account,submit])b.disabled=false;}}
+ send.addEventListener("click",()=>run(async()=>{if(!consent.checked||!ask.value.trim())throw Error(t[8]);const question=ask.value;const v=generation;let signed=false;if(!/^\/workspace\/(login|signup|forgot-password)/.test(location.pathname)){try{signed=Boolean((await currentAuth())?.emailVerified);}catch{}}if(v!==generation||!dialog.open)return;const d=await request({action:"chat",locale,message:question,history,consent:true},signed);if(v!==generation||!dialog.open)return;history=[...history,question].slice(-2);log.textContent=String(d.reply||"").replace(/\*\*([^*]+)\*\*/g,"$1").replace(/`([^`]+)`/g,"$1");ask.value="";}));
  account.addEventListener("click",()=>run(async()=>{const v=generation;const d=await request({action:"account"},true);if(v!==generation||!dialog.open)return;log.textContent=t[11]+": "+d.balance+(d.debt?" · Debt: "+d.debt:"")+"\n"+t[12]+": "+d.subscription+"\n"+t[13]+" · "+d.environment+"\n"+(d.orders.length?d.orders.map(o=>[o.id,o.type,o.status,o.amount===null?"":(o.amount/100).toFixed(2)+" "+(o.currency||""),o.createdAt?.slice(0,10)||""].join(" · ")).join("\n"):t[15]);}));
  submit.addEventListener("click",()=>run(async()=>{if(!consent.checked||!description.value.trim())throw Error(t[8]);let signed=false;try{const u=await currentAuth();signed=Boolean(u?.emailVerified);}catch{}if(!signed&&!contact.validity.valid||!signed&&!contact.value.trim())throw Error(t[5]);const v=generation;const d=await request({action:"ticket",message:description.value,contact:signed?"":contact.value,consent:true},signed);if(v!==generation||!dialog.open)return;log.textContent=t[10]+": "+d.id;description.value="";contact.value="";ticket.open=false;}));
  dialog.addEventListener("close",()=>{generation++;history=[];log.textContent="";ask.value="";description.value="";contact.value="";consent.checked=false;});
 })();
+
+/* Match the visible brand label on all localized auth pages. */
+for(const brand of document.querySelectorAll('a.brand[aria-label="KENJI Smart Tools"]')){if(brand.querySelector(".brand-mark")?.textContent.trim()==="K"&&brand.querySelector(".brand-name"))brand.setAttribute("aria-label","K KENJI Smart Tools");}
