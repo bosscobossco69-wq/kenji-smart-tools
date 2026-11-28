@@ -5,3 +5,10 @@
 /* Locale-specific typography and compact language navigation */
 
 html[lang="zh-CN"] body{font-family:"Noto Sans SC",Inter,system-ui,sans-serif}html[lang="zh-TW"] body{font-family:"Noto Sans TC",Inter,system-ui,sans-serif}html[lang="th"] body{font-family:"Noto Sans Thai",Inter,system-ui,sans-serif}html:not([lang="en"]) h1{letter-spacing:-.025em}.auth-language{display:flex;justify-content:flex-end;margin-bottom:18px;position:relative}.auth-language details{position:relative}.auth-language summary{cursor:pointer;list-style:none;border:1px solid #bdb6a9;border-radius:11px;padding:8px 12px;color:#293d43;background:#fff9;min-width:120px;text-align:center;font-size:13px}.auth-language summary::-webkit-details-marker{display:none}.auth-language summary:after{content:"⌄";padding-left:12px;color:#795426}.language-options{position:absolute;right:0;top:calc(100% + 6px);z-index:5;display:grid;min-width:170px;background:#fffaf4;border:1px solid #d6c9b7;border-radius:12px;box-shadow:0 12px 30px #14232a25;padding:5px}.language-options a{padding:10px 12px;border-radius:7px;text-decoration:none;color:#263c42;font-size:14px}.language-options a:hover,.language-options a[aria-current="page"]{background:#e4ede5;color:#124d3e}.auth-language summary:focus-visible{outline:3px solid #ba9254;outline-offset:3px}.panel{overflow:visible}html[lang="th"] .tagline{line-height:1.55} @media(max-width:760px){.auth-language{margin-bottom:15px}}
+
+/* Keep the approved 3D reference composition on all localized authentication pages. */
+@media screen{
+.wrap{border-color:#8ba4ab;box-shadow:0 44px 90px #0008,inset 0 1px 1px #f5e6c766,0 0 0 5px #9db8c014}
+.panel{background:linear-gradient(145deg,#fffaf4,#e7e1d9);color:#10252e}
+@media(max-width:480px){body{padding:12px}.wrap{padding:14px}.panel{padding:20px 16px}.brand{gap:12px}.brand-name{padding-left:12px}.auth-language{max-width:100%}input:not([type=checkbox]){font-size:16px}}
+}

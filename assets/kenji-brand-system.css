@@ -214,3 +214,118 @@ html body.ai-reply-page .chat-form button#send-chat:focus-visible{outline:2px so
  html body:has(> .shell) .grid>a.card{padding:18px!important}
 }
 }
+
+/* Reference-inspired 3D surfaces. Screen only; preserve invoice printing and all functional scripts.
+   Scoped to actual page structures, not Stripe-hosted pages or localized auth forms. */
+@media screen {
+:root{
+ --kg-ink:#10252e;--kg-glass:#243d45;--kg-edge:#617e85;
+ --kg-ivory:#f4efe8;--kg-gold:#d9ba84;--kg-muted:#bacdd1;
+ --kg-frame:linear-gradient(145deg,#354f5b 0%,#203640 28%,#10252e 76%,#1b393c);
+ --kg-panel:linear-gradient(145deg,#304b55,#203640 58%,#172d35);
+ --kg-paper:linear-gradient(145deg,#fffaf4,#e7e1d9);
+ --kg-green:linear-gradient(180deg,#367b60,#15503e 58%,#123c32);
+ --kg-shadow:0 18px 42px #0005,inset 0 1px #ffffff20;
+}
+html body :is(.service-offer,.integration-card,.integration-note,.upcoming-integrations,.feedback-panel,.service-note,.note,.roadmap,.surface,.details,.stat,.panel,.contact-card,.principle){border-color:var(--kg-edge)!important}
+html body :is(.integration-card,.feedback-panel,.note,.surface,.details,.stat,.panel){background:var(--kg-panel)!important;color:var(--kg-ivory)!important;box-shadow:var(--kg-shadow)!important}
+html body :is(.tool-card,.glass,.service-plan,.card,.principle,.contact-card){border-color:var(--kg-edge)!important;box-shadow:var(--kg-shadow)!important}
+html body :is(.tool-card,.glass,.service-plan,.principle,.contact-card){background:var(--kg-panel)!important}
+html body :is(.service-note,.integration-note,.foot,footer,.mini-notice,.empty){color:var(--kg-muted)!important}
+html body :is(.tool-icon,.tool-order){background:linear-gradient(145deg,#3d5862,#203640)!important;border:1px solid #7b969b!important;box-shadow:0 5px 14px #0004,inset 0 1px #fff3!important;color:var(--kg-gold)!important}
+html body :is(.card,.service-plan).featured{border-color:var(--kg-gold)!important;box-shadow:0 0 0 1px #d9ba8440,0 18px 42px #0005,inset 0 1px #fff2!important}
+html body :is(.btn,.primary,.button,.checkout-btn,.credit-pack-btn,.website-pay-btn):not(.secondary):not(.alt):not(.danger){background:var(--kg-green)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#68a58a!important;box-shadow:0 6px 16px #0003,inset 0 1px #fff3!important}
+html body :is(.btn,.primary,.button,.checkout-btn,.credit-pack-btn,.website-pay-btn):not(.secondary):not(.alt):not(.danger):hover:not(:disabled){background:linear-gradient(180deg,#2c7257,#15503e 58%,#123c32)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;filter:none!important}
+html body :is(.btn,.button).secondary{background:#243f45!important;color:#f4efe8!important;-webkit-text-fill-color:#f4efe8!important;border-color:#70868c!important}
+html body :is(.btn,.button).secondary:hover:not(:disabled){background:#354f57!important;color:#f4efe8!important;-webkit-text-fill-color:#f4efe8!important}
+html body :is(.card,.surface,.service-plan,.panel) [hidden],html body [hidden]{display:none!important}
+/* Workspace landing and customer billing: layered glass cards with readable labels. */
+html body:has(> .shell > main > .hero) .shell{width:min(1160px,calc(100% - 32px))!important;margin-inline:auto!important}
+html body:has(> .shell > main > .hero) .hero{padding:clamp(24px,5vw,54px)!important;border:1px solid #81929888;border-radius:26px;margin:24px 0 18px;background:var(--kg-frame)!important;box-shadow:var(--kg-shadow)}
+html body:has(> .shell > main > .hero) .hero h1{font-size:clamp(2rem,5vw,3.7rem)!important;line-height:1.1!important}
+html body:has(> .shell > main > .hero) .grid>a.card{background:var(--kg-panel)!important;border-radius:22px!important}
+html body:has(.payment-methods) :is(.plans,.packs,.payment-options,.roadmap) .card{background:var(--kg-panel)!important;display:flex;flex-direction:column;min-width:0;overflow-wrap:anywhere}
+html body:has(.payment-methods) :is(.plans,.packs,.payment-options) .card .btn{margin-top:auto!important;min-height:44px;display:flex;align-items:center;justify-content:center;text-align:center}
+html body:has(.payment-methods) .card .features{margin-bottom:18px}
+html body:has(.payment-methods) :is(.plan-name,.price){color:#f4efe8!important}
+html body:has(.payment-methods) .credits{color:#96d9bd!important}
+html body:has(.payment-methods) .switch{border-radius:16px!important;flex-wrap:wrap}
+html body:has(.payment-methods) #manageBilling{background:var(--kg-green)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#68a58a!important}
+html body:has(.payment-methods) #manageBilling:hover:not(:disabled){background:#15503e!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
+/* My Account: a glass frame, four glass metrics and ivory profile/security forms. */
+html body.account-page main{width:min(1120px,calc(100% - 32px))!important;margin:28px auto!important;padding:clamp(16px,3vw,34px)!important;border:1px solid #708b9788;border-radius:28px;background:var(--kg-frame)!important;box-shadow:0 28px 68px #0005,inset 0 1px #fff2}
+html body.account-page header.top{border-radius:0!important;box-shadow:0 12px 30px #0003!important}
+html body.account-page .eyebrow{display:inline-block;padding:5px 10px}
+html body.account-page main>h1{font-size:clamp(1.9rem,5vw,3.3rem)!important;margin:16px 0 10px!important}
+html body.account-page #notice{background:#203943!important;color:#e3eeee!important;border-color:#617e85!important;overflow-wrap:anywhere}
+html body.account-page .grid{gap:14px!important;grid-template-columns:repeat(4,minmax(0,1fr))}
+html body.account-page .grid:nth-of-type(2){grid-template-columns:repeat(2,minmax(0,1fr))}
+html body.account-page .grid:first-of-type .card{background:var(--kg-panel)!important;min-width:0;border-radius:20px!important;padding:18px!important}
+html body.account-page .grid:first-of-type .card .value{color:var(--kg-gold)!important;font-size:clamp(.98rem,1.8vw,1.25rem)!important}
+html body.account-page .grid:nth-of-type(2) .card,html body:has(#intake) #formArea{background:var(--kg-paper)!important;color:#10252e!important;border:1px solid #fff8ec!important;border-radius:22px!important;box-shadow:0 18px 42px #0005,inset 0 1px #fff!important}
+html body.account-page .grid:nth-of-type(2) .card :is(h1,h2,h3,p,label,span,small,strong,.muted),html body:has(#intake) #formArea :is(h1,h2,h3,p,label,span,small,strong,.muted){color:#334850!important}
+html body.account-page .grid:nth-of-type(2) .card :is(input:not([type=checkbox]),textarea),html body:has(#intake) #formArea :is(input,textarea){background:#fffdf8!important;color:#10252e!important;border:1px solid #a6b1ae!important;font-size:16px!important}
+html body.account-page .grid:nth-of-type(2) .card input::placeholder,html body:has(#intake) #formArea textarea::placeholder{color:#56636b!important}
+html body.account-page :is(#save,#saveMarketing),html body:has(#intake) #send{background:var(--kg-green)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#68a58a!important;min-height:44px;border-radius:12px!important}
+html body.account-page :is(#save,#saveMarketing):hover:not(:disabled),html body:has(#intake) #send:hover:not(:disabled){background:#15503e!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
+html body.account-page :is(#reset,#logout){background:#fffaf4!important;color:#24474b!important;-webkit-text-fill-color:#24474b!important;border:1px solid #829b99!important;min-height:44px}
+html body.account-page :is(#reset,#logout):hover:not(:disabled){background:#e0eae5!important;color:#24474b!important;-webkit-text-fill-color:#24474b!important}
+html body.account-page #marketingStatus{overflow-wrap:anywhere}
+html body:has(#intake) #formArea{padding:clamp(14px,3vw,24px);margin-top:16px}
+html body:has(#intake) #formArea a{color:#315e55!important}
+html body:has(#intake) main.wrap{width:min(760px,calc(100% - 24px));padding:0!important;margin:24px auto!important}
+html body:has(#intake) .card{background:var(--kg-panel)!important;border-radius:24px!important}
+ /* Administrator pages: never change role checks, IDs, table data or hidden controls. */
+html body.kenji-standalone :is(.stats,.grid,.toolbar,.bar,.table-tools,.section-head){min-width:0}
+html body.kenji-standalone :is(.surface,.stat,.details,.card){background:var(--kg-panel)!important;border-color:var(--kg-edge)!important}
+html body.kenji-standalone .surface{padding:clamp(12px,2vw,24px)!important;border-radius:20px!important}
+html body.kenji-standalone .stat{border-radius:16px!important;min-width:0;overflow-wrap:anywhere}
+html body.kenji-standalone .stat strong{color:var(--kg-gold)!important}
+html body.kenji-standalone .scroller{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+html body.kenji-standalone :is(.quicknav a,.filter,.pill){background:#243d45!important;border-color:#617e85!important;color:#f4efe8!important}
+html body.kenji-standalone :is(.toolbar,.bar,.table-tools) button{min-height:44px;border-radius:11px!important}
+html body.kenji-standalone :is(.tag.paid,.ok){color:#96d9bd!important}
+html body.kenji-standalone .tag.failed{color:#ffb6b0!important}
+html body.kenji-standalone :is(.tag.pending,.tag.awaiting){color:#efd099!important}
+html body.kenji-standalone .tag.expired{color:#c8d4d7!important}
+html body.kenji-standalone :is(.alert,.message){border:1px solid #617e85!important;background:#203943!important;color:#f4efe8!important}
+html body.kenji-standalone .card.priority{border-color:#d9ba84!important}
+html body.kenji-standalone .card .next-action{color:#e9c88f!important}
+html body.kenji-standalone :is(.table-tools input,.table-tools button){max-width:100%;min-width:0}
+html body.kenji-standalone.kenji-review-page section,html body.kenji-standalone.kenji-single-panel main{background:var(--kg-panel)!important;border-color:var(--kg-edge)!important;box-shadow:var(--kg-shadow)!important}
+html body:has(main>.ok) main{background:var(--kg-panel)!important;border-color:var(--kg-edge)!important;box-shadow:var(--kg-shadow)!important}
+/* Public calculator forms: ivory paper inset, matching the reference's sign-in form. */
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card{background:var(--kg-paper)!important;border:1px solid #fff8ec!important;border-radius:24px!important;box-shadow:0 18px 42px #0005,inset 0 1px #fff!important;color:#10252e!important}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card :is(h1,h2,h3,label,p,span,small,strong,b,.hint,output,.value){color:#334850!important}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card :is(input:not([type=checkbox]):not([type=radio]),select,textarea){background:#fffdf8!important;color:#10252e!important;border:1px solid #a6b1ae!important;font-size:16px!important;color-scheme:light}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card :is(input,textarea)::placeholder{color:#56636b!important}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card button{background:var(--kg-green)!important;color:white!important;-webkit-text-fill-color:white!important;border-color:#68a58a!important;border-radius:12px!important;min-height:44px}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card button:hover:not(:disabled){background:#15503e!important;color:white!important;-webkit-text-fill-color:white!important}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card .result{background:#e1eae6!important;border:1px solid #a9bfba!important;color:#10252e!important;box-shadow:none!important}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card .result :is(b,strong,output,.value){color:#164e3d!important}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card a{color:#315e55!important}
+/* Retain functional status and invoice/QR palettes. */
+html body #invoice-preview{background:#f4efe8!important;color:#132129!important;box-shadow:none!important}
+html body #invoice-preview :is(h1,h2,h3,p,span,strong,b,td,th){color:#132129!important}
+html body #qrcode{background:white!important}
+@media(max-width:760px){
+ html body.account-page .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ html body.account-page .grid:nth-of-type(2){grid-template-columns:1fr!important}
+ html body.account-page header.top{flex-wrap:wrap!important;gap:8px!important}
+ html body.account-page main{width:calc(100% - 24px)!important;padding:16px!important;margin:18px auto!important}
+ html body:has(.payment-methods) :is(.plans,.packs,.payment-options,.roadmap){grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ html body:has(> .shell > main > .hero) .shell{width:calc(100% - 24px)!important}
+ html body:has(> .shell > main > .hero) .hero{padding:22px!important}
+ html body.kenji-standalone .stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ html body.kenji-standalone .stat:last-child{grid-column:auto!important}
+ html body.kenji-standalone .table-tools input{flex-basis:100%}
+}
+@media(max-width:480px){
+ html body.account-page .grid{grid-template-columns:1fr!important}
+ html body:has(.payment-methods) :is(.plans,.packs,.payment-options,.roadmap){grid-template-columns:1fr!important}
+ html body.account-page .grid:nth-of-type(2) .card{padding:18px!important}
+ html body:has(> .shell > main > .hero) .hero{padding:18px!important}
+ html body.kenji-standalone .stat{padding:12px!important}
+ html body.kenji-standalone .stat strong{font-size:clamp(1.05rem,5vw,1.6rem)!important}
+}
+}
