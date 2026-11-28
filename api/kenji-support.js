@@ -2,7 +2,7 @@ import { createHmac, randomUUID } from "node:crypto";
 import { isIP } from "node:net";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getFirestore, FieldValue, FieldPath } from "firebase-admin/firestore";
 import { billingDb, billingCollection, billingMode, assertLegacyReviewed } from "../lib/billing-environment.js";
 import { notifyAdmin } from "../lib/admin-email-alerts.js";
 
@@ -79,8 +79,16 @@ export default async function handler(req,res){
   const {auth,db,secret}=services();
   const u=await identity(req,auth);
   if(b.action==="admin_list"){
-   admin(u);const page=await db.collection("supportTickets").orderBy("createdAt","desc").limit(50).get();
-   return res.status(200).json({tickets:page.docs.map(d=>{const x=d.data();return {id:d.id,contact:x.contact,verified:x.verified===true,message:x.message,status:x.status,createdAt:stamp(x.createdAt)};})});
+   admin(u);
+   const view=b.view??"open";
+   if(!["open","closed"].includes(view)||(b.cursor!==undefined&&b.cursor!==null&&(typeof b.cursor!=="string"||!uuid.test(b.cursor))))throw publicError(400,"Invalid ticket page.");
+   // Equality filter plus document ID order uses the standard single-field index.
+   // An ID cursor remains usable even if that ticket is subsequently closed.
+   let query=db.collection("supportTickets").where("status","==",view).orderBy(FieldPath.documentId());
+   if(b.cursor)query=query.startAfter(b.cursor);
+   const page=await query.limit(51).get();
+   const docs=page.docs.slice(0,50);
+   return res.status(200).json({nextCursor:page.docs.length>50?docs[49].id:null,tickets:docs.map(d=>{const x=d.data();return {id:d.id,contact:x.contact,verified:x.verified===true,message:x.message,status:x.status,createdAt:stamp(x.createdAt)};})});
   }
   if(b.action==="admin_close"){
    admin(u);if(typeof b.id!=="string"||!uuid.test(b.id))throw publicError(400,"Invalid ticket.");
@@ -102,7 +110,7 @@ export default async function handler(req,res){
    const contact=u?.verified?u.email:(typeof b.contact==="string"?b.contact.trim():"");
    if(contact.length>254||!emailPattern.test(contact))throw publicError(400,"Enter a contact email.");
    // Guest email is unverified, never used for identity or account actions.
-   await limit(req,db,secret,"ticket",u);
+   await limit(req,db,secret,"ticket",u?.verified?u:null);
    const id=randomUUID();
    await db.collection("supportTickets").doc(id).create({contact,uid:u?.verified?u.uid:null,verified:u?.verified===true,message,status:"open",createdAt:FieldValue.serverTimestamp()});
    let notification="pending";
