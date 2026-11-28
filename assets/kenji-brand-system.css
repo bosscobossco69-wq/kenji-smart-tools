@@ -162,3 +162,210 @@ body #invoice-preview{background:#f4efe8!important;color:#132129!important}
 body #invoice-preview :is(h1,h2,h3,p,span,strong,b,td,th){color:#132129!important}
 body :is(button,a,input,select,textarea):focus-visible{outline:2px solid #e9c88f!important;outline-offset:3px!important}
 }
+
+/* Premium teal glass refinement: shared components, not authentication or checkout behavior. */
+@media screen{
+:root{--kenji-surface:#243d45;--kenji-surface-2:#354f57;--kenji-accent:#d9ba84;--kenji-accent-light:#f2d7a4;--kenji-accent-dark:#a88959;--kenji-text:#f4efe8;--kenji-ink:#f4efe8}
+html body:has(> .shell) :is(.card,.tool-card,.glass,.notice),html body:has(> main.wrap) .panel,html body.account-page :is(.card,.panel,.notice),html body .layout :is(.sidebar,.topbar,.quick-link,.top-link,.panel,.metric,.note),html body :is(.contact-card,.service-plan,.surface,.stat,.details,.result,.preview,.tool-grid>div){background:linear-gradient(150deg,#29444c,#172d35)!important;border-color:#617e85!important;color:#f4efe8!important;box-shadow:0 12px 32px #0003,inset 0 1px #ffffff12!important}
+html body :is(.card,.tool-card,.glass,.panel) :is(p,li,small,.muted,.sub){color:#bacdd1!important}
+html body:has(> .shell) .card .tag{background:#233b43!important;border-color:#617e85!important;color:#e9c88f!important}
+html body:has(> .shell) .grid>a.card>.icon{display:inline-grid!important;place-items:center;width:48px!important;height:48px!important;max-width:48px!important;min-width:48px!important;min-height:48px!important;padding:0!important;line-height:1!important;font-size:1.45rem!important;background:linear-gradient(145deg,#354f57,#203640)!important;color:#d9ba84!important;-webkit-text-fill-color:#d9ba84!important;border:1px solid #617e85!important;border-radius:13px!important}
+html body:has(> .shell) .grid>a.card{min-width:0;overflow-wrap:anywhere}
+html body .layout .main,html body .layout{background:transparent!important}
+html body .layout .sidebar .nav a.active{background:#354f57!important;border-color:#617e85!important;color:#e9c88f!important}
+html body :is(.status.error,.notice.error,.alert.error){background:#44282d!important;border-color:#a76369!important;color:#ffcbc9!important}
+html body :is(.status.success,.notice.success){background:#173b32!important;border-color:#69a58b!important;color:#b5e5ce!important}
+html body #invoice-preview{background:#f4efe8!important;color:#132129!important}
+html body #invoice-preview :is(h1,h2,h3,p,span,strong,b,td,th){color:#132129!important}
+html body #qrcode{background:#fff!important}
+html body.ai-reply-page{display:block!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
+html body.ai-reply-page :is(header.ai-shell,main.ai-shell){box-sizing:border-box!important;width:min(1080px,calc(100% - 36px))!important;max-width:1080px!important;margin-inline:auto!important;min-width:0!important}
+html body.ai-reply-page .chat-layout{width:100%!important;max-width:840px!important;min-width:0!important}
+html body.ai-reply-page .chat-panel{width:100%!important;min-width:0!important;background:linear-gradient(150deg,#243d45,#142a33)!important;border-color:#617e85!important;box-shadow:0 16px 40px #0004,inset 0 1px #ffffff12!important}
+html body.ai-reply-page :is(.chat-top,.chat-controls){border-color:#435760!important}
+html body.ai-reply-page .chat-mark{flex:0 0 42px;background:linear-gradient(145deg,#f2d7a4,#c5a16d)!important;color:#132129!important}
+html body.ai-reply-page .bubble.assistant{background:#354f57!important;color:#f4efe8!important}
+html body.ai-reply-page .bubble.user{background:#d9ba84!important;color:#132129!important}
+html body.ai-reply-page .bubble.user :is(p,small,span){color:#132129!important}
+html body.ai-reply-page .bubble.error{border-color:#a76369!important;color:#ffcbc9!important}
+html body.ai-reply-page .chat-form{background:linear-gradient(145deg,#29444c,#172d35)!important;border-color:#617e85!important}
+html body.ai-reply-page .chat-form textarea#chat-input{background:transparent!important;border:0!important;box-shadow:none!important;min-height:48px;max-width:100%;font-size:16px!important}
+html body.ai-reply-page .chat-form textarea#chat-input:focus{outline:none!important}
+html body.ai-reply-page .chat-form:focus-within{border-color:#d9ba84!important;outline:2px solid #d9ba8440}
+html body.ai-reply-page .chat-form .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important;border:0!important}
+html body.ai-reply-page :is(.chat-meta,.chat-controls) :is(.notice,.status){background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;color:#bacdd1!important}
+html body.ai-reply-page .chat-meta .status.error{color:#ffb6b0!important}
+html body.ai-reply-page .chat-meta [hidden]{display:none!important}
+html body.ai-reply-page .chat-form button#send-chat{background:linear-gradient(180deg,#f2d7a4,#c5a16d)!important;border-color:#d9ba84!important;color:#132129!important;-webkit-text-fill-color:#132129!important}
+html body.ai-reply-page .chat-form button#send-chat:hover:not(:disabled){background:#efd5a5!important;color:#132129!important;-webkit-text-fill-color:#132129!important}
+html body.ai-reply-page .chat-form button#send-chat:focus-visible{outline:2px solid #f4efe8!important}
+@media(max-width:600px){
+ html body.ai-reply-page :is(header.ai-shell,main.ai-shell){width:calc(100% - 24px)!important}
+ html body.ai-reply-page .hero{padding:24px 0 16px!important}
+ html body.ai-reply-page .hero h1{font-size:clamp(1.9rem,8vw,2.7rem)!important}
+ html body.ai-reply-page .chat-log{height:clamp(240px,43svh,420px)!important;padding:12px!important}
+ html body.ai-reply-page .bubble{max-width:96%!important}
+ html body.ai-reply-page .chat-top{padding:12px!important}
+ html body.ai-reply-page .chat-controls{padding:10px 12px!important}
+ html body.ai-reply-page .chat-controls .notice{flex:1 1 160px!important}
+ html body.ai-reply-page .chat-controls button{min-height:44px}
+ html body.ai-reply-page .chat-form{margin:8px 10px!important;padding:10px!important}
+ html body.ai-reply-page .chat-meta{padding:0 12px 14px!important;overflow-wrap:anywhere}
+ html body:has(> .shell) .grid>a.card{padding:18px!important}
+}
+}
+
+/* Reference-inspired 3D surfaces. Screen only; preserve invoice printing and all functional scripts.
+   Scoped to actual page structures, not Stripe-hosted pages or localized auth forms. */
+@media screen {
+:root{
+ --kg-ink:#10252e;--kg-glass:#243d45;--kg-edge:#617e85;
+ --kg-ivory:#f4efe8;--kg-gold:#d9ba84;--kg-muted:#bacdd1;
+ --kg-frame:linear-gradient(145deg,#354f5b 0%,#203640 28%,#10252e 76%,#1b393c);
+ --kg-panel:linear-gradient(145deg,#304b55,#203640 58%,#172d35);
+ --kg-paper:linear-gradient(145deg,#fffaf4,#e7e1d9);
+ --kg-green:linear-gradient(180deg,#367b60,#15503e 58%,#123c32);
+ --kg-shadow:0 18px 42px #0005,inset 0 1px #ffffff20;
+}
+html body :is(.service-offer,.integration-card,.integration-note,.upcoming-integrations,.feedback-panel,.service-note,.note,.roadmap,.surface,.details,.stat,.panel,.contact-card,.principle){border-color:var(--kg-edge)!important}
+html body :is(.integration-card,.feedback-panel,.note,.surface,.details,.stat,.panel){background:var(--kg-panel)!important;color:var(--kg-ivory)!important;box-shadow:var(--kg-shadow)!important}
+html body :is(.tool-card,.glass,.service-plan,.card,.principle,.contact-card){border-color:var(--kg-edge)!important;box-shadow:var(--kg-shadow)!important}
+html body :is(.tool-card,.glass,.service-plan,.principle,.contact-card){background:var(--kg-panel)!important}
+html body :is(.service-note,.integration-note,.foot,footer,.mini-notice,.empty){color:var(--kg-muted)!important}
+html body :is(.tool-icon,.tool-order){background:linear-gradient(145deg,#3d5862,#203640)!important;border:1px solid #7b969b!important;box-shadow:0 5px 14px #0004,inset 0 1px #fff3!important;color:var(--kg-gold)!important}
+html body :is(.card,.service-plan).featured{border-color:var(--kg-gold)!important;box-shadow:0 0 0 1px #d9ba8440,0 18px 42px #0005,inset 0 1px #fff2!important}
+html body :is(.btn,.primary,.button,.checkout-btn,.credit-pack-btn,.website-pay-btn):not(.secondary):not(.alt):not(.danger){background:var(--kg-green)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#68a58a!important;box-shadow:0 6px 16px #0003,inset 0 1px #fff3!important}
+html body :is(.btn,.primary,.button,.checkout-btn,.credit-pack-btn,.website-pay-btn):not(.secondary):not(.alt):not(.danger):hover:not(:disabled){background:linear-gradient(180deg,#2c7257,#15503e 58%,#123c32)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;filter:none!important}
+html body :is(.btn,.button).secondary{background:#243f45!important;color:#f4efe8!important;-webkit-text-fill-color:#f4efe8!important;border-color:#70868c!important}
+html body :is(.btn,.button).secondary:hover:not(:disabled){background:#354f57!important;color:#f4efe8!important;-webkit-text-fill-color:#f4efe8!important}
+html body :is(.card,.surface,.service-plan,.panel) [hidden],html body [hidden]{display:none!important}
+/* Workspace landing and customer billing: layered glass cards with readable labels. */
+html body:has(> .shell > main > .hero) .shell{width:min(1160px,calc(100% - 32px))!important;margin-inline:auto!important}
+html body:has(> .shell > main > .hero) .hero{padding:clamp(24px,5vw,54px)!important;border:1px solid #81929888;border-radius:26px;margin:24px 0 18px;background:var(--kg-frame)!important;box-shadow:var(--kg-shadow)}
+html body:has(> .shell > main > .hero) .hero h1{font-size:clamp(2rem,5vw,3.7rem)!important;line-height:1.1!important}
+html body:has(> .shell > main > .hero) .grid>a.card{background:var(--kg-panel)!important;border-radius:22px!important}
+html body:has(.payment-methods) :is(.plans,.packs,.payment-options,.roadmap) .card{background:var(--kg-panel)!important;display:flex;flex-direction:column;min-width:0;overflow-wrap:anywhere}
+html body:has(.payment-methods) :is(.plans,.packs,.payment-options) .card .btn{margin-top:auto!important;min-height:44px;display:flex;align-items:center;justify-content:center;text-align:center}
+html body:has(.payment-methods) .card .features{margin-bottom:18px}
+html body:has(.payment-methods) :is(.plan-name,.price){color:#f4efe8!important}
+html body:has(.payment-methods) .credits{color:#96d9bd!important}
+html body:has(.payment-methods) .switch{border-radius:16px!important;flex-wrap:wrap}
+html body:has(.payment-methods) #manageBilling{background:var(--kg-green)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#68a58a!important}
+html body:has(.payment-methods) #manageBilling:hover:not(:disabled){background:#15503e!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
+/* My Account: a glass frame, four glass metrics and ivory profile/security forms. */
+html body.account-page main{width:min(1120px,calc(100% - 32px))!important;margin:28px auto!important;padding:clamp(16px,3vw,34px)!important;border:1px solid #708b9788;border-radius:28px;background:var(--kg-frame)!important;box-shadow:0 28px 68px #0005,inset 0 1px #fff2}
+html body.account-page header.top{border-radius:0!important;box-shadow:0 12px 30px #0003!important}
+html body.account-page .eyebrow{display:inline-block;padding:5px 10px}
+html body.account-page main>h1{font-size:clamp(1.9rem,5vw,3.3rem)!important;margin:16px 0 10px!important}
+html body.account-page #notice{background:#203943!important;color:#e3eeee!important;border-color:#617e85!important;overflow-wrap:anywhere}
+html body.account-page .grid{gap:14px!important;grid-template-columns:repeat(4,minmax(0,1fr))}
+html body.account-page .grid:nth-of-type(2){grid-template-columns:repeat(2,minmax(0,1fr))}
+html body.account-page .grid:first-of-type .card{background:var(--kg-panel)!important;min-width:0;border-radius:20px!important;padding:18px!important}
+html body.account-page .grid:first-of-type .card .value{color:var(--kg-gold)!important;font-size:clamp(.98rem,1.8vw,1.25rem)!important}
+html body.account-page .grid:nth-of-type(2) .card,html body:has(#intake) #formArea{background:var(--kg-paper)!important;color:#10252e!important;border:1px solid #fff8ec!important;border-radius:22px!important;box-shadow:0 18px 42px #0005,inset 0 1px #fff!important}
+html body.account-page .grid:nth-of-type(2) .card :is(h1,h2,h3,p,label,span,small,strong,.muted),html body:has(#intake) #formArea :is(h1,h2,h3,p,label,span,small,strong,.muted){color:#334850!important}
+html body.account-page .grid:nth-of-type(2) .card :is(input:not([type=checkbox]),textarea),html body:has(#intake) #formArea :is(input,textarea){background:#fffdf8!important;color:#10252e!important;border:1px solid #a6b1ae!important;font-size:16px!important}
+html body.account-page .grid:nth-of-type(2) .card input::placeholder,html body:has(#intake) #formArea textarea::placeholder{color:#56636b!important}
+html body.account-page :is(#save,#saveMarketing),html body:has(#intake) #send{background:var(--kg-green)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#68a58a!important;min-height:44px;border-radius:12px!important}
+html body.account-page :is(#save,#saveMarketing):hover:not(:disabled),html body:has(#intake) #send:hover:not(:disabled){background:#15503e!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
+html body.account-page :is(#reset,#logout){background:#fffaf4!important;color:#24474b!important;-webkit-text-fill-color:#24474b!important;border:1px solid #829b99!important;min-height:44px}
+html body.account-page :is(#reset,#logout):hover:not(:disabled){background:#e0eae5!important;color:#24474b!important;-webkit-text-fill-color:#24474b!important}
+html body.account-page #marketingStatus{overflow-wrap:anywhere}
+html body:has(#intake) #formArea{padding:clamp(14px,3vw,24px);margin-top:16px}
+html body:has(#intake) #formArea a{color:#315e55!important}
+html body:has(#intake) main.wrap{width:min(760px,calc(100% - 24px));padding:0!important;margin:24px auto!important}
+html body:has(#intake) .card{background:var(--kg-panel)!important;border-radius:24px!important}
+ /* Administrator pages: never change role checks, IDs, table data or hidden controls. */
+html body.kenji-standalone :is(.stats,.grid,.toolbar,.bar,.table-tools,.section-head){min-width:0}
+html body.kenji-standalone :is(.surface,.stat,.details,.card){background:var(--kg-panel)!important;border-color:var(--kg-edge)!important}
+html body.kenji-standalone .surface{padding:clamp(12px,2vw,24px)!important;border-radius:20px!important}
+html body.kenji-standalone .stat{border-radius:16px!important;min-width:0;overflow-wrap:anywhere}
+html body.kenji-standalone .stat strong{color:var(--kg-gold)!important}
+html body.kenji-standalone .scroller{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+html body.kenji-standalone :is(.quicknav a,.filter,.pill){background:#243d45!important;border-color:#617e85!important;color:#f4efe8!important}
+html body.kenji-standalone :is(.toolbar,.bar,.table-tools) button{min-height:44px;border-radius:11px!important}
+html body.kenji-standalone :is(.tag.paid,.ok){color:#96d9bd!important}
+html body.kenji-standalone .tag.failed{color:#ffb6b0!important}
+html body.kenji-standalone :is(.tag.pending,.tag.awaiting){color:#efd099!important}
+html body.kenji-standalone .tag.expired{color:#c8d4d7!important}
+html body.kenji-standalone :is(.alert,.message){border:1px solid #617e85!important;background:#203943!important;color:#f4efe8!important}
+html body.kenji-standalone .card.priority{border-color:#d9ba84!important}
+html body.kenji-standalone .card .next-action{color:#e9c88f!important}
+html body.kenji-standalone :is(.table-tools input,.table-tools button){max-width:100%;min-width:0}
+html body.kenji-standalone.kenji-review-page section,html body.kenji-standalone.kenji-single-panel main{background:var(--kg-panel)!important;border-color:var(--kg-edge)!important;box-shadow:var(--kg-shadow)!important}
+html body:has(main>.ok) main{background:var(--kg-panel)!important;border-color:var(--kg-edge)!important;box-shadow:var(--kg-shadow)!important}
+/* Public calculator forms: ivory paper inset, matching the reference's sign-in form. */
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card{background:var(--kg-paper)!important;border:1px solid #fff8ec!important;border-radius:24px!important;box-shadow:0 18px 42px #0005,inset 0 1px #fff!important;color:#10252e!important}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card :is(h1,h2,h3,label,p,span,small,strong,b,.hint,output,.value){color:#334850!important}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card :is(input:not([type=checkbox]):not([type=radio]),select,textarea){background:#fffdf8!important;color:#10252e!important;border:1px solid #a6b1ae!important;font-size:16px!important;color-scheme:light}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card :is(input,textarea)::placeholder{color:#56636b!important}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card button{background:var(--kg-green)!important;color:white!important;-webkit-text-fill-color:white!important;border-color:#68a58a!important;border-radius:12px!important;min-height:44px}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card button:hover:not(:disabled){background:#15503e!important;color:white!important;-webkit-text-fill-color:white!important}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card .result{background:#e1eae6!important;border:1px solid #a9bfba!important;color:#10252e!important;box-shadow:none!important}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card .result :is(b,strong,output,.value){color:#164e3d!important}
+html body:not(.kenji-standalone):not(.account-page):not(.ai-reply-page):not(.kenji-home-3d):has(main>.seo-guide) main>.card a{color:#315e55!important}
+/* Retain functional status and invoice/QR palettes. */
+html body #invoice-preview{background:#f4efe8!important;color:#132129!important;box-shadow:none!important}
+html body #invoice-preview :is(h1,h2,h3,p,span,strong,b,td,th){color:#132129!important}
+html body #qrcode{background:white!important}
+@media(max-width:760px){
+ html body.account-page .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ html body.account-page .grid:nth-of-type(2){grid-template-columns:1fr!important}
+ html body.account-page header.top{flex-wrap:wrap!important;gap:8px!important}
+ html body.account-page main{width:calc(100% - 24px)!important;padding:16px!important;margin:18px auto!important}
+ html body:has(.payment-methods) :is(.plans,.packs,.payment-options,.roadmap){grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ html body:has(> .shell > main > .hero) .shell{width:calc(100% - 24px)!important}
+ html body:has(> .shell > main > .hero) .hero{padding:22px!important}
+ html body.kenji-standalone .stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ html body.kenji-standalone .stat:last-child{grid-column:auto!important}
+ html body.kenji-standalone .table-tools input{flex-basis:100%}
+}
+@media(max-width:480px){
+ html body.account-page .grid{grid-template-columns:1fr!important}
+ html body:has(.payment-methods) :is(.plans,.packs,.payment-options,.roadmap){grid-template-columns:1fr!important}
+ html body.account-page .grid:nth-of-type(2) .card{padding:18px!important}
+ html body:has(> .shell > main > .hero) .hero{padding:18px!important}
+ html body.kenji-standalone .stat{padding:12px!important}
+ html body.kenji-standalone .stat strong{font-size:clamp(1.05rem,5vw,1.6rem)!important}
+}
+}
+
+/* Local self-service support entry — isolated from authentication and checkout forms. */
+@media screen{
+html body #kenji-help-entry{display:block!important;width:auto!important;max-width:100%!important;margin:16px auto 0!important;padding:10px 16px!important;min-height:44px!important;border:1px solid #b99a69!important;border-radius:12px!important;background:linear-gradient(145deg,#344b70,#101c36)!important;color:#f4efe8!important;-webkit-text-fill-color:#f4efe8!important;font:600 14px/1.4 system-ui,sans-serif!important;cursor:pointer!important;box-shadow:0 8px 20px #0004,inset 0 1px 0 #e4c38f55!important}
+html body #kenji-help-entry.kenji-help-floating{position:fixed!important;right:12px!important;bottom:calc(12px + env(safe-area-inset-bottom,0px))!important;z-index:80!important;margin:0!important}
+html body #kenji-help-dialog:not([open]){display:none!important}
+html body #kenji-help-dialog[open]{display:block!important;position:fixed!important;inset:0!important;width:min(440px,calc(100% - 24px))!important;max-width:440px!important;max-height:calc(100% - 32px)!important;overflow:auto!important;box-sizing:border-box!important;margin:auto!important;padding:22px!important;background:radial-gradient(ellipse at 18% 0%,#344b70 0%,transparent 58%),linear-gradient(145deg,#223552,#101c36 70%)!important;color:#f4efe8!important;border:1px solid #d9ba84!important;border-radius:22px!important;box-shadow:0 25px 70px #0009,inset 0 1px 1px #e4c38f66,0 0 0 4px #b0c4df15!important;z-index:100!important;font:15px/1.6 system-ui,sans-serif!important;color-scheme:light}
+html body #kenji-help-dialog::backdrop{background:#080f23c9}
+html body #kenji-help-dialog > h2{color:#e4c38f!important;-webkit-text-fill-color:#e4c38f!important}
+html body #kenji-help-dialog > p{color:#acbfd8!important;-webkit-text-fill-color:#acbfd8!important}
+html body #kenji-help-dialog details :is(p,summary){color:#10252e!important;-webkit-text-fill-color:#10252e!important}
+html body #kenji-help-dialog h2{font-size:1.35rem!important;margin:0 0 8px!important}
+html body #kenji-help-dialog p{margin:8px 0!important;font-size:.92rem!important}
+html body #kenji-help-dialog details{background:linear-gradient(145deg,#fffaf4,#e7e1d9)!important;border:1px solid #e4c38f!important;box-shadow:0 8px 20px #0004,inset 0 1px #fff!important;border-radius:12px!important;margin:10px 0!important;padding:12px!important;color:#10252e!important}
+html body #kenji-help-dialog summary{font-weight:700;cursor:pointer}
+html body #kenji-help-dialog a{display:inline-block;color:#15503e!important;-webkit-text-fill-color:#15503e!important;text-decoration:underline!important}
+html body #kenji-help-dialog .kenji-help-email{margin:10px 0;color:#e4c38f!important;-webkit-text-fill-color:#e4c38f!important}
+html body #kenji-help-dialog .kenji-help-close{display:block!important;width:100%!important;min-height:44px!important;background:linear-gradient(180deg,#367b60,#15503e 58%,#123c32)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border:1px solid #68a58a!important;border-radius:12px!important;padding:10px!important;cursor:pointer!important}
+html body #kenji-help-dialog :focus-visible,html body #kenji-help-entry:focus-visible{outline:2px solid #a88959!important;outline-offset:3px!important}
+}
+
+@media screen{
+html body #kenji-help-dialog .kenji-support-live{padding:14px!important;border:1px solid #e4c38f!important;border-radius:15px!important;background:linear-gradient(145deg,#fffaf4,#e7e1d9)!important;color:#10252e!important;box-shadow:0 8px 20px #0004,inset 0 1px #fff!important}
+html body #kenji-help-dialog .kenji-support-live :is(h3,label){color:#10252e!important;-webkit-text-fill-color:#10252e!important;font-size:.94rem!important}
+html body #kenji-help-dialog .kenji-support-live label{display:block!important;font-size:.8rem!important;line-height:1.5!important;margin:8px 0!important}
+html body #kenji-help-dialog .kenji-support-live input[type=checkbox]{width:18px!important;height:18px!important;margin:0 8px 0 0!important;vertical-align:middle;accent-color:#15503e!important}
+html body #kenji-help-dialog .kenji-support-live :is(textarea,input[type=email]){display:block!important;width:100%!important;box-sizing:border-box!important;min-height:44px!important;margin:8px 0!important;padding:10px!important;border:1px solid #a6b1ae!important;border-radius:10px!important;background:#fffdf8!important;color:#10252e!important;font-size:16px!important;resize:vertical}
+html body #kenji-help-dialog .kenji-support-live button{width:100%!important;min-height:44px!important;margin:6px 0!important;padding:9px!important;border:1px solid #68a58a!important;border-radius:10px!important;background:linear-gradient(180deg,#367b60,#15503e)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;font-weight:700!important;cursor:pointer}
+html body #kenji-help-dialog .kenji-support-live button:disabled{opacity:.55!important;cursor:wait!important}
+html body #kenji-help-dialog .kenji-support-log{white-space:pre-wrap;overflow-wrap:anywhere;color:#10252e!important;background:#e0eae5!important;border-radius:10px;padding:10px;margin-top:8px;max-height:240px;overflow:auto}
+html body #kenji-help-dialog .kenji-support-log:empty{display:none!important}
+}
+
+@media screen{
+html body #kenji-help-dialog .kenji-support-actions{display:grid!important;grid-template-columns:1fr!important;gap:10px!important;margin:10px 0!important}
+html body #kenji-help-dialog .kenji-support-actions button{display:block!important;margin:0!important;white-space:normal!important}
+html body #kenji-help-dialog .kenji-support-shortcuts{display:flex!important;flex-wrap:wrap!important;gap:10px!important;margin:12px 0!important}
+html body #kenji-help-dialog .kenji-support-shortcuts a{padding:8px 10px!important;background:#fffaf4!important;border:1px solid #a6b1ae!important;border-radius:8px!important;min-height:44px!important;display:inline-flex!important;align-items:center}
+html body.account-page header.top{background:linear-gradient(145deg,#304b55,#172d35)!important;border-color:#617e85!important}
+}
