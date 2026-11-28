@@ -24,7 +24,7 @@
 (() => {
   const path=location.pathname;
   const authPage=/^\/workspace\/(?:login|signup|forgot-password)(?:\.(?:ms|es|th|zh-CN|zh-TW))?\.html$/.test(path);
-  if (!authPage && !["/workspace/","/workspace/index.html","/workspace/account.html","/workspace/billing.html","/ai-customer-reply.html"].includes(path)) return;
+  if (!authPage && !["/","/index.html","/workspace/","/workspace/index.html","/workspace/account.html","/workspace/billing.html","/ai-customer-reply.html"].includes(path)) return;
   if(document.getElementById("kenji-help-entry"))return;
   const locale=path.match(/\.(ms|es|th|zh-CN|zh-TW)\.html$/)?.[1]||"en";
   const copy={
@@ -53,4 +53,47 @@
   entry.addEventListener("click",()=>{if(typeof dialog.showModal==="function")dialog.showModal();else dialog.setAttribute("open","");});
   close.addEventListener("click",()=>{if(typeof dialog.close==="function")dialog.close();else{dialog.removeAttribute("open");entry.focus();}});
   dialog.addEventListener("close",()=>entry.focus());
+})();
+
+/* Independent, free KENJI support. No chat content is saved locally. */
+(() => {
+ const dialog=document.getElementById("kenji-help-dialog"); if(!dialog)return;
+ const lang=dialog.lang||"en";
+ const words={
+ en:["AI support","Ask a KENJI question","Send","My Credits & orders","Human support ticket","Contact email (for guests)","Describe the issue","Submit ticket","I agree: AI questions go to an external AI provider; tickets are saved for human support. Do not enter passwords, codes, card numbers or other sensitive data.","Request failed. Use the help links or email support.","Ticket reference","Available Credits","Subscription","Orders (sample)","Working…","No orders found","Sign in and verify email to view your own account.","Guest emails are not verified. Staff must confirm identity before account changes."],
+ "zh-CN":["AI 专属客服","请输入 KENJI 使用问题","发送","我的 Credits 与订单","人工客服工单","联系邮箱（访客）","描述遇到的问题","提交工单","我同意：AI 问题会发送给外部 AI 服务商；工单会保存供人工客服处理。请勿输入密码、验证码、银行卡号或敏感资料。","请求失败，请使用自助帮助或邮件客服。","工单编号","可用 Credits","订阅","订单（抽样）","处理中…","暂无订单","请登录并验证邮箱后查询自己的账户。","访客邮箱未验证，账户变更须由人工核实身份。"],
+ "zh-TW":["AI 專屬客服","請輸入 KENJI 使用問題","傳送","我的 Credits 與訂單","人工客服工單","聯絡信箱（訪客）","描述遇到的問題","提交工單","我同意：AI 問題會傳送給外部 AI 服務商；工單會保存供人工客服處理。請勿輸入密碼、驗證碼、信用卡號或敏感資料。","請求失敗，請使用自助幫助或電子郵件客服。","工單編號","可用 Credits","訂閱","訂單（抽樣）","處理中…","暫無訂單","請登入並驗證電子郵件後查詢自己的帳戶。","訪客信箱未驗證，帳戶變更須由人工核實身分。"],
+ th:["AI ช่วยเหลือ","ถามเกี่ยวกับ KENJI","ส่ง","Credits และคำสั่งซื้อของฉัน","ส่งเรื่องให้เจ้าหน้าที่","อีเมลติดต่อ (ผู้เยี่ยมชม)","อธิบายปัญหา","ส่งเรื่อง","ฉันยอมรับว่าคำถามจะส่งไปยังผู้ให้บริการ AI ภายนอก และเรื่องร้องขอจะเก็บไว้ให้เจ้าหน้าที่ ห้ามกรอกรหัสผ่าน รหัสยืนยัน หรือข้อมูลบัตร","คำขอล้มเหลว โปรดใช้เมนูช่วยเหลือหรืออีเมล","หมายเลขเรื่อง","Credits ที่ใช้ได้","การสมัครสมาชิก","คำสั่งซื้อ (ตัวอย่าง)","กำลังดำเนินการ…","ไม่พบคำสั่งซื้อ","เข้าสู่ระบบและยืนยันอีเมลก่อนดูบัญชี","อีเมลผู้เยี่ยมชมยังไม่ผ่านการยืนยัน"],
+ es:["Asistente IA","Pregunta sobre KENJI","Enviar","Mis Credits y pedidos","Solicitud de soporte humano","Correo de contacto (invitados)","Describe el problema","Enviar solicitud","Acepto: las preguntas se envían a un proveedor de IA externo y las solicitudes se guardan para soporte humano. No incluyas contraseñas, códigos ni datos de tarjetas.","Error. Usa la ayuda o contacta por correo.","Referencia de solicitud","Credits disponibles","Suscripción","Pedidos (muestra)","Procesando…","No hay pedidos","Inicia sesión y verifica tu correo para consultar tu cuenta.","El correo de invitado no está verificado."],
+ ms:["Pembantu AI","Tanya tentang KENJI","Hantar","Credits dan pesanan saya","Tiket sokongan manusia","E-mel hubungan (tetamu)","Terangkan masalah","Hantar tiket","Saya bersetuju: soalan dihantar kepada penyedia AI luar dan tiket disimpan untuk sokongan manusia. Jangan masukkan kata laluan, kod atau butiran kad.","Permintaan gagal. Guna bantuan atau e-mel.","Rujukan tiket","Credits tersedia","Langganan","Pesanan (sampel)","Sedang diproses…","Tiada pesanan","Log masuk dan sahkan e-mel untuk menyemak akaun sendiri.","E-mel tetamu belum disahkan."]
+ }[lang]||null;
+ const locale=words?lang:"en";const t=words||["AI support","Ask a KENJI question","Send","My Credits & orders","Human support ticket","Contact email (for guests)","Describe the issue","Submit ticket","I agree: AI questions go to an external AI provider; tickets are saved for human support. Do not enter passwords, codes or card numbers.","Request failed. Use the help links or email support.","Ticket reference","Available Credits","Subscription","Orders (sample)","Working…","No orders found","Sign in and verify email to view your own account.","Guest emails are not verified."];
+ const e=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
+ const button=label=>{const b=e("button",label);b.type="button";return b;};
+ const consent=e("input");consent.type="checkbox";consent.id="kenji-support-consent";
+ const label=e("label",t[8]);label.prepend(consent);
+ const section=e("section");section.className="kenji-support-live";section.append(e("h3",t[0]),label);
+ const ask=e("textarea");ask.placeholder=t[1];ask.setAttribute("aria-label",t[1]);ask.maxLength=800;ask.rows=2;
+ const send=button(t[2]),account=button(t[3]);const log=e("div");log.className="kenji-support-log";log.setAttribute("role","status");log.setAttribute("aria-live","polite");
+ const ticket=e("details");ticket.append(e("summary",t[4]),e("p",t[17]));const contact=e("input");contact.type="email";contact.placeholder=t[5];contact.setAttribute("aria-label",t[5]);contact.maxLength=254;
+ const description=e("textarea");description.placeholder=t[6];description.setAttribute("aria-label",t[6]);description.maxLength=1200;description.rows=3;const submit=button(t[7]);ticket.append(contact,description,submit);
+ section.append(ask,send,account,log,ticket);dialog.insertBefore(section,dialog.querySelector("details"));
+ let busy=false;
+ async function currentAuth(){
+   // Public chat/tickets never require Firebase import or a token.
+   const f=await import("/workspace/firebase-auth.js");await f.authReady;
+   if(typeof f.auth.authStateReady==="function")await f.auth.authStateReady();
+   return f.auth.currentUser;
+ }
+ async function request(body,authRequired=false){
+   const headers={"Content-Type":"application/json"};
+   if(authRequired){const u=await currentAuth();if(!u?.emailVerified)throw Error(t[16]);headers.Authorization="Bearer "+await u.getIdToken(true);}
+   const r=await fetch("/api/kenji-support",{method:"POST",headers,body:JSON.stringify(body),cache:"no-store"});
+   const data=await r.json().catch(()=>({}));if(!r.ok)throw Error(t[9]+(locale==="en"&&data.error?" "+data.error:""));return data;
+ }
+ async function run(task){if(busy)return;busy=true;for(const b of [send,account,submit])b.disabled=true;log.textContent=t[14];try{await task();}catch(err){log.textContent=err.message||t[9];}finally{busy=false;for(const b of [send,account,submit])b.disabled=false;}}
+ send.addEventListener("click",()=>run(async()=>{if(!consent.checked||!ask.value.trim())throw Error(t[8]);const d=await request({action:"chat",locale,message:ask.value,consent:true});log.textContent=d.reply;ask.value="";}));
+ account.addEventListener("click",()=>run(async()=>{const d=await request({action:"account"},true);log.textContent=t[11]+": "+d.balance+(d.debt?" · Debt: "+d.debt:"")+"\n"+t[12]+": "+d.subscription+"\n"+t[13]+" · "+d.environment+"\n"+(d.orders.length?d.orders.map(o=>[o.id,o.type,o.status,o.amount===null?"":(o.amount/100).toFixed(2)+" "+(o.currency||""),o.createdAt?.slice(0,10)||""].join(" · ")).join("\n"):t[15]);}));
+ submit.addEventListener("click",()=>run(async()=>{if(!consent.checked||!description.value.trim())throw Error(t[8]);let signed=false;try{const u=await currentAuth();signed=Boolean(u?.emailVerified);}catch{}if(!signed&&!contact.validity.valid||!signed&&!contact.value.trim())throw Error(t[5]);const d=await request({action:"ticket",message:description.value,contact:contact.value,consent:true},signed);log.textContent=t[10]+": "+d.id;description.value="";contact.value="";ticket.open=false;}));
+ dialog.addEventListener("close",()=>{log.textContent="";ask.value="";description.value="";contact.value="";consent.checked=false;});
 })();

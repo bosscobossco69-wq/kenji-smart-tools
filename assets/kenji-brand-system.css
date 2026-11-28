@@ -349,3 +349,15 @@ html body #kenji-help-dialog .kenji-help-email{margin:10px 0;color:#e4c38f!impor
 html body #kenji-help-dialog .kenji-help-close{display:block!important;width:100%!important;min-height:44px!important;background:linear-gradient(180deg,#367b60,#15503e 58%,#123c32)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border:1px solid #68a58a!important;border-radius:12px!important;padding:10px!important;cursor:pointer!important}
 html body #kenji-help-dialog :focus-visible,html body #kenji-help-entry:focus-visible{outline:2px solid #a88959!important;outline-offset:3px!important}
 }
+
+@media screen{
+html body #kenji-help-dialog .kenji-support-live{padding:14px!important;border:1px solid #e4c38f!important;border-radius:15px!important;background:linear-gradient(145deg,#fffaf4,#e7e1d9)!important;color:#10252e!important;box-shadow:0 8px 20px #0004,inset 0 1px #fff!important}
+html body #kenji-help-dialog .kenji-support-live :is(h3,label){color:#10252e!important;-webkit-text-fill-color:#10252e!important;font-size:.94rem!important}
+html body #kenji-help-dialog .kenji-support-live label{display:block!important;font-size:.8rem!important;line-height:1.5!important;margin:8px 0!important}
+html body #kenji-help-dialog .kenji-support-live input[type=checkbox]{width:18px!important;height:18px!important;margin:0 8px 0 0!important;vertical-align:middle;accent-color:#15503e!important}
+html body #kenji-help-dialog .kenji-support-live :is(textarea,input[type=email]){display:block!important;width:100%!important;box-sizing:border-box!important;min-height:44px!important;margin:8px 0!important;padding:10px!important;border:1px solid #a6b1ae!important;border-radius:10px!important;background:#fffdf8!important;color:#10252e!important;font-size:16px!important;resize:vertical}
+html body #kenji-help-dialog .kenji-support-live button{width:100%!important;min-height:44px!important;margin:6px 0!important;padding:9px!important;border:1px solid #68a58a!important;border-radius:10px!important;background:linear-gradient(180deg,#367b60,#15503e)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;font-weight:700!important;cursor:pointer}
+html body #kenji-help-dialog .kenji-support-live button:disabled{opacity:.55!important;cursor:wait!important}
+html body #kenji-help-dialog .kenji-support-log{white-space:pre-wrap;overflow-wrap:anywhere;color:#10252e!important;background:#e0eae5!important;border-radius:10px;padding:10px;margin-top:8px;max-height:240px;overflow:auto}
+html body #kenji-help-dialog .kenji-support-log:empty{display:none!important}
+}
